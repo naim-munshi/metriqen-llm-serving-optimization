@@ -32,7 +32,10 @@ jobs:
           cache: false
       - name: Check formatting
         working-directory: services/inference-gateway
-        run: test -z "$(gofmt -l cmd/server/main.go internal/httpapi/router.go internal/httpapi/router_test.go)"
+        run: test -z "$(gofmt -l $(find . -name '*.go'))"
       - name: Run race-enabled Go tests
         working-directory: services/inference-gateway
         run: go test -race ./...
+      - name: Go vet
+        working-directory: services/inference-gateway
+        run: go vet ./...

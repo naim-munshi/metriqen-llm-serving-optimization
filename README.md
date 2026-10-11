@@ -4,7 +4,7 @@
 
 Metriqen is an engineering project focused on deploying open-weight language models under concurrent traffic, then testing quantization, batching, and GPU-memory strategies against an objective baseline.
 
-**Status: authentication/security foundation (in progress).** No LLM is deployed and no optimization measurements have been made. The repository has health-check services, a deny-by-default authorization policy and standalone signed-token/JWKS verification libraries. None of those security libraries is connected to an HTTP login or protected business route yet.
+**Status: local-only serving development milestone.** The Go gateway now has a tested OpenAI-compatible local inference bridge (including streaming); actual model generation on Ollama and GPU-backed vLLM has not yet been verified. No performance optimization or measurements are claimed. Authentication policy and OIDC verification remain standalone libraries, not connected to HTTP inference routes.
 
 ## Problem and research goal
 
@@ -19,8 +19,9 @@ Throughput, time to first token (TTFT), p95 latency, GPU memory, and serving cos
 - CI workflow for Python and Go tests.
 - Tenant-scoped authorization policy and negative permission tests (not yet wired into APIs).
 - OIDC RS256 claim verification and trusted in-memory JWKS key selection tests (no live identity provider).
+- Local-only Go `POST /v1/chat/completions` forwarding to a configured local OpenAI-compatible runtime, including SSE flush, input limits, concurrency backpressure and cancellation (tested with loopback HTTP mocks).
 
-**Not implemented:** user/admin login, enforced RBAC at HTTP routes, identity-provider discovery, inference API, vLLM integration, GPU serving, load benchmarking, quantization, optimization UI, or production deployment. Readiness currently checks the processes only.
+**Not implemented:** user/admin login, enforced RBAC or API-key authentication on inference, identity-provider discovery, verified real-model generation, vLLM GPU serving, load benchmarking, quantization, optimization UI, or production deployment. Readiness currently checks the processes only. **Do not expose inference publicly.**
 
 ## Develop locally
 
@@ -35,7 +36,7 @@ Control API:
 Gateway (in another terminal):
 
 1. `cd services/inference-gateway`
-2. `go run ./cmd/server`
+2. `go run ./cmd/server` (health-only default). To connect local Ollama: `METRIQEN_UPSTREAM_URL=http://127.0.0.1:11434 go run ./cmd/server`. See [local inference guide](docs/operations/local-inference.md) for prerequisites, curl commands and security limitations.
 
 From the repository root, run `make test` after installing the Python development dependencies.
 
@@ -46,7 +47,8 @@ With Docker Engine, use `docker compose up --build` for local-only HTTP services
 ```mermaid
 flowchart LR
     Dev[Developer] --> API[FastAPI control API: health only]
-    Client[Future inference client] -.-> Gateway[Go gateway: health only]
+    Client[Local inference client] --> Gateway[Go gateway: local-only chat API]
+    Gateway --> Local[Developer-provided local Ollama-compatible runtime]
     Gateway -.-> LLM[vLLM GPU serving: planned]
     API -.-> DB[(PostgreSQL: planned)]
     LLM -.-> Eval[GPU benchmarks: planned]
@@ -54,7 +56,7 @@ flowchart LR
 
 Solid lines are current interfaces; dashed lines are planned components.
 
-See [requirements](docs/product/PRD.md), [roadmap](ROADMAP.md), [security policy](SECURITY.md), and [ADR-0003](docs/architecture/adr/0003-pinned-jwks-verification.md).
+See [requirements](docs/product/PRD.md), [roadmap](ROADMAP.md), [security policy](SECURITY.md), [local inference guide](docs/operations/local-inference.md), and [ADR-0004](docs/architecture/adr/0004-local-inference-bridge.md).
 
 ## Measurement standards
 
