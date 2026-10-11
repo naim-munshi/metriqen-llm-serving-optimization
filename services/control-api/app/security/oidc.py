@@ -1,7 +1,7 @@
 """OIDC access-token signature and claim verification.
 
-Caller must obtain public_key_pem from a trusted issuer configuration or a
-validated JWKS resolver. Never accept a key supplied inside the token.
+The signing key MUST originate from trusted server configuration or a pinned
+issuer key resolver. A token may not provide its own trusted key or URL.
 """
 
 from dataclasses import dataclass
@@ -29,15 +29,17 @@ def verify_access_token(
     issuer: str,
     audience: str,
     leeway_seconds: int = 30,
+    expected_authorized_party: str | None = None,
 ) -> VerifiedIdentity:
-    """Verify signed RS256 access-token claims and return minimal identity.
+    """Verify a signed RS256 access token against trusted issuer settings.
 
-    JWKS key discovery, trusted key rotation, session handling and database
-    membership lookup are separate future components. This method does not
-    authorize organization/project access.
+    If provided, expected_authorized_party enforces the OIDC azp client ID.
+    Login, live JWKS discovery, session and membership lookup are not included.
     """
     if not token or not issuer or not audience or not trusted_public_key_pem:
         raise IdentityRejected("missing token verifier configuration")
+    if expected_authorized_party is not None and not expected_authorized_party:
+        raise IdentityRejected("authorized party configuration missing")
     if not (0 <= leeway_seconds <= 120):
         raise ValueError("leeway_seconds must be between 0 and 120")
 
@@ -47,6 +49,8 @@ def verify_access_token(
             raise IdentityRejected("unsupported signing algorithm")
         if header.get("typ", "JWT").upper() not in {"JWT", "AT+JWT"}:
             raise IdentityRejected("invalid token type")
+        if {"jku", "x5u", "jwk"}.intersection(header):
+            raise IdentityRejected("token-supplied signing keys are forbidden")
         claims = jwt.decode(
             token,
             key=trusted_public_key_pem,
@@ -67,10 +71,10 @@ def verify_access_token(
         subject = claims["sub"]
         if not isinstance(subject, str) or not subject.strip():
             raise IdentityRejected("invalid subject")
-        if isinstance(claims["aud"], list):
-            # No ambiguous multi-audience tokens until azp/client binding is defined.
-            if claims["aud"] != [audience]:
-                raise IdentityRejected("multiple audiences not supported")
+        if isinstance(claims["aud"], list) and claims["aud"] != [audience]:
+            raise IdentityRejected("multiple audiences not supported")
+        if expected_authorized_party is not None and claims.get("azp") != expected_authorized_party:
+            raise IdentityRejected("unauthorized calling client")
         return VerifiedIdentity(subject=subject, issuer=issuer, audience=audience)
-    except (InvalidTokenError, jwt.exceptions.DecodeError, KeyError, TypeError) as exc:
+    except (InvalidTokenError, KeyError, TypeError, AttributeError) as exc:
         raise IdentityRejected("access token rejected") from exc
