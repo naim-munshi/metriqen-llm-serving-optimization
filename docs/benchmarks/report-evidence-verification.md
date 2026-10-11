@@ -17,6 +17,11 @@ evidence or silently exclude them from comparisons.
 
 **Important:** this is a consistency validator, not cryptographic attestation
 or proof that a real LLM ran. Self-reported metadata and fabricated reports
-could still pass. The quality report path is currently checked for presence,
-not evaluated for contents. Human review of hardware, model digest, quality
+could still pass. The quality report is also validated for matching model/revision/runtime/hardware,
+request counts, and internally consistent exact-match and normalized-match scores. Human review of hardware, model digest, quality
 and real execution remains mandatory.
+
+The strict checks also reject duplicate observation indices, impossible TTFT,
+non-200 successes, mismatched p50/p95 and token-coverage totals, inconsistent
+workloads across runs and report paths escaping the manifest folder.
+The quality evaluation dataset may differ from the benchmark workload dataset.

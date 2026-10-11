@@ -28,4 +28,4 @@ Status: initial design baseline; not a penetration test or security certificatio
 
 ## Residual risks and limits
 
-The foundation only provides process health endpoints. This document describes **planned controls**, not deployed features. Runtime endpoints remain unimplemented. Before any public deployment, perform a detailed STRIDE review, real integration tests, load tests, secret scanning, dependency/container scanning, and infrastructure permission review.
+The project provides process health endpoints and a loopback-only unauthenticated inference development endpoint. Production controls described here are planned, not deployed. **Never expose the local inference gateway to the public network.** Before any public deployment, perform a detailed STRIDE review, real integration tests, load tests, secret scanning, dependency/container scanning, and infrastructure permission review.
