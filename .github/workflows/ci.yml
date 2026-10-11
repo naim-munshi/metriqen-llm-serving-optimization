@@ -39,3 +39,15 @@ jobs:
       - name: Go vet
         working-directory: services/inference-gateway
         run: go vet ./...
+
+  local-benchmark-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Run offline benchmark contract tests
+        run: python -m unittest discover -s tools/benchmark/tests -v
+      - name: Check Python syntax
+        run: python -m compileall -q tools

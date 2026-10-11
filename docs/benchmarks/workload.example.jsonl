@@ -1,0 +1,3 @@
+{"messages":[{"role":"user","content":"Briefly explain continuous batching in an LLM serving runtime."}]}
+{"messages":[{"role":"user","content":"Describe a KV cache in one sentence."}]}
+{"messages":[{"role":"user","content":"What does time to first token measure?"}]}
