@@ -12,7 +12,7 @@ Do not post credentials, exploit details, or private data in public issues. Use 
 - Docker Compose publishes service ports to the host loopback interface only.
 - Do not expose these services publicly or route production traffic to them.
 - The readiness routes currently check process availability only; they do not validate external dependencies.
-- Authentication, authorization, tenant isolation, TLS termination, rate limits, inference access and audit logging are NOT implemented.
+- Live authentication, HTTP authorization enforcement, tenant persistence, TLS termination, rate limits, inference access and audit logging are NOT implemented.
 
 ## Required before production use
 
@@ -23,3 +23,7 @@ Never commit tokens, credentials, private prompts, or proprietary benchmark data
 ## Authorization foundation (Phase 02)
 
 A deny-by-default authorization policy and role/scope tests are available in services/control-api/app/security/policy.py. These are standalone domain primitives, **not runtime authentication or HTTP authorization**. The API still exposes only health routes. See docs/architecture/adr/0001-identity-and-authorization-boundary.md and docs/security/threat-model-v1.md.
+
+## In-memory signing-key verification (Phase 03)
+
+The security library can verify RS256 access tokens against a trusted **server-supplied** JWKS snapshot, requiring a unique key ID and expected calling client. It rejects token-supplied key URLs and enforces issuer/audience/time claims. There is no live JWKS retrieval, identity-provider login, session handling, or HTTP enforcement. See ADR-0003.

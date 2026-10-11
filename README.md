@@ -4,7 +4,7 @@
 
 Metriqen is an engineering project focused on deploying open-weight language models under concurrent traffic, then testing quantization, batching, and GPU-memory strategies against an objective baseline.
 
-**Status: Phase 01 — foundation.** No LLM is deployed and no optimization measurements have been made. The repository currently contains a minimal FastAPI control API, a Go gateway skeleton, liveness/readiness checks, tests, and local development configuration.
+**Status: authentication/security foundation (in progress).** No LLM is deployed and no optimization measurements have been made. The repository has health-check services, a deny-by-default authorization policy and standalone signed-token/JWKS verification libraries. None of those security libraries is connected to an HTTP login or protected business route yet.
 
 ## Problem and research goal
 
@@ -17,8 +17,10 @@ Throughput, time to first token (TTFT), p95 latency, GPU memory, and serving cos
 - Unit tests for both services; Go tests run with the race detector.
 - Docker Compose configuration that only binds host ports to loopback.
 - CI workflow for Python and Go tests.
+- Tenant-scoped authorization policy and negative permission tests (not yet wired into APIs).
+- OIDC RS256 claim verification and trusted in-memory JWKS key selection tests (no live identity provider).
 
-**Not implemented:** user/admin login, RBAC, inference API, vLLM integration, GPU serving, load benchmarking, quantization, optimization UI, or production deployment. Readiness currently checks the processes only.
+**Not implemented:** user/admin login, enforced RBAC at HTTP routes, identity-provider discovery, inference API, vLLM integration, GPU serving, load benchmarking, quantization, optimization UI, or production deployment. Readiness currently checks the processes only.
 
 ## Develop locally
 
@@ -52,7 +54,7 @@ flowchart LR
 
 Solid lines are current interfaces; dashed lines are planned components.
 
-See [requirements](docs/product/PRD.md), [roadmap](ROADMAP.md), and [security policy](SECURITY.md).
+See [requirements](docs/product/PRD.md), [roadmap](ROADMAP.md), [security policy](SECURITY.md), and [ADR-0003](docs/architecture/adr/0003-pinned-jwks-verification.md).
 
 ## Measurement standards
 
