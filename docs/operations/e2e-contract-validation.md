@@ -21,3 +21,8 @@ Run from repository root with Python 3.12+ and Go 1.23+:
 GitHub Actions runs the same test as the local-inference-e2e job.
 Real Ollama integration, vLLM/GPU performance, production authentication and
 multi-tenant isolation remain unverified and outside this test's scope.
+
+NLP evaluation integration also runs the localhost-only quality CLI through a
+real Go gateway process against the fixture upstream, verifying exact matching,
+aggregate-only privacy and rejection of failed generations without partial reports.
+Fixture answer scores are contract-test values, **not real model quality**.
