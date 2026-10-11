@@ -20,7 +20,7 @@ Throughput, time to first token (TTFT), p95 latency, GPU memory, and serving cos
 - Tenant-scoped authorization policy and negative permission tests (not yet wired into APIs).
 - OIDC RS256 claim verification and trusted in-memory JWKS key selection tests (no live identity provider).
 - Local-only Go `POST /v1/chat/completions` forwarding to a configured local OpenAI-compatible runtime, including SSE flush, input limits, concurrency backpressure and cancellation (tested with loopback HTTP mocks).
-- A dependency-free local benchmark runner for streamed TTFT, p95 latency, successful throughput, error rates and optional token usage. Offline contract tests only; **no real model benchmark results yet**.
+- A dependency-free local benchmark runner for streamed TTFT, p95 latency, successful throughput, error rates and optional token usage. Offline and cross-service (Go gateway + Python runner + fixture upstream) tests; **no real model benchmark results yet**.
 
 **Not implemented:** user/admin login, enforced RBAC or API-key authentication on inference, identity-provider discovery, verified real-model generation, vLLM GPU serving, executed real-model load benchmarks, quantization, optimization UI, or production deployment. Readiness currently checks the processes only. **Do not expose inference publicly.**
 
@@ -57,7 +57,7 @@ flowchart LR
 
 Solid lines are current interfaces; dashed lines are planned components.
 
-See [requirements](docs/product/PRD.md), [roadmap](ROADMAP.md), [security policy](SECURITY.md), [local inference guide](docs/operations/local-inference.md), [local benchmark guide](docs/benchmarks/local-load-testing.md), and [ADR-0004](docs/architecture/adr/0004-local-inference-bridge.md).
+See [end-to-end verification guide](docs/operations/e2e-contract-validation.md), [requirements](docs/product/PRD.md), [roadmap](ROADMAP.md), [security policy](SECURITY.md), [local inference guide](docs/operations/local-inference.md), [local benchmark guide](docs/benchmarks/local-load-testing.md), and [ADR-0004](docs/architecture/adr/0004-local-inference-bridge.md).
 
 ## Measurement standards
 
