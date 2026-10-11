@@ -5,7 +5,7 @@ Each item is a milestone; planned work must not appear in the README as implemen
 | Phase | Scope | Verification |
 | --- | --- | --- |
 | 01 | Health-check services, monorepo foundation, CI | Local tests; remote CI after PR |
-| 02 | Threat model, API contracts, identity strategy | Reviewed threat model and test plan |
+| 02 | Identity boundary, authorization policy contract, initial threat model | Policy tests, security design review; runtime enforcement follows in Phase 03 |
 | 03 | OIDC login, organizations, RBAC, API keys | Authorization and tenant-isolation tests |
 | 04 | Model registry and immutable approved revisions | Validation tests |
 | 05 | vLLM GPU serving and baseline inference | Real reproducible GPU measurements |

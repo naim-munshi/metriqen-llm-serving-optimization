@@ -19,3 +19,7 @@ Do not post credentials, exploit details, or private data in public issues. Use 
 Threat modeling; OIDC/MFA; server-side authorization; scoped, rotatable API keys; secret management; model-artifact verification; tenant-isolation tests; inference quotas and timeouts; logs without raw prompts; vulnerability scans; backup/restore and incident-response tests.
 
 Never commit tokens, credentials, private prompts, or proprietary benchmark datasets.
+
+## Authorization foundation (Phase 02)
+
+A deny-by-default authorization policy and role/scope tests are available in services/control-api/app/security/policy.py. These are standalone domain primitives, **not runtime authentication or HTTP authorization**. The API still exposes only health routes. See docs/architecture/adr/0001-identity-and-authorization-boundary.md and docs/security/threat-model-v1.md.
