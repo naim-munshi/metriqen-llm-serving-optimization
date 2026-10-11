@@ -4,7 +4,7 @@
 
 Metriqen is an engineering project focused on deploying open-weight language models under concurrent traffic, then testing quantization, batching, and GPU-memory strategies against an objective baseline.
 
-**Status: local inference and offline-verified benchmarking tooling.** The Go gateway provides a tested local-only OpenAI-compatible inference bridge (including streaming); a Python CLI now records reproducible local load-test observations. No real Ollama/vLLM model run, GPU benchmarking, or optimization improvement has been verified. Authentication policy and OIDC verification remain standalone libraries, not connected to HTTP inference routes.
+**Status: local inference and offline-verified benchmarking tooling.** The Go gateway provides a tested local-only OpenAI-compatible inference bridge (including streaming); a Python CLI now records reproducible local load-test observations. No real Ollama/vLLM model run, GPU benchmarking, NLP quality measurement on a real model or optimization improvement has been verified. Authentication policy and OIDC verification remain standalone libraries, not connected to HTTP inference routes.
 
 ## Problem and research goal
 
@@ -21,6 +21,7 @@ Throughput, time to first token (TTFT), p95 latency, GPU memory, and serving cos
 - OIDC RS256 claim verification and trusted in-memory JWKS key selection tests (no live identity provider).
 - Local-only Go `POST /v1/chat/completions` forwarding to a configured local OpenAI-compatible runtime, including SSE flush, input limits, concurrency backpressure and cancellation (tested with loopback HTTP mocks).
 - A dependency-free local benchmark runner for streamed TTFT, p95 latency, successful throughput, error rates and optional token usage. Offline and cross-service (Go gateway + Python runner + fixture upstream) tests; **no real model benchmark results yet**.
+- Offline NLP evaluation CLI for exact and normalized exact match on ID-aligned reference/prediction JSONL. No semantic or hallucination grading claimed.
 
 **Not implemented:** user/admin login, enforced RBAC or API-key authentication on inference, identity-provider discovery, verified real-model generation, vLLM GPU serving, executed real-model load benchmarks, quantization, optimization UI, or production deployment. Readiness currently checks the processes only. **Do not expose inference publicly.**
 
@@ -57,7 +58,7 @@ flowchart LR
 
 Solid lines are current interfaces; dashed lines are planned components.
 
-See [end-to-end verification guide](docs/operations/e2e-contract-validation.md), [requirements](docs/product/PRD.md), [roadmap](ROADMAP.md), [security policy](SECURITY.md), [local inference guide](docs/operations/local-inference.md), [local benchmark guide](docs/benchmarks/local-load-testing.md), and [ADR-0004](docs/architecture/adr/0004-local-inference-bridge.md).
+See [NLP evaluation guide](docs/nlp-eval/README.md), [end-to-end verification guide](docs/operations/e2e-contract-validation.md), [requirements](docs/product/PRD.md), [roadmap](ROADMAP.md), [security policy](SECURITY.md), [local inference guide](docs/operations/local-inference.md), [local benchmark guide](docs/benchmarks/local-load-testing.md), and [ADR-0004](docs/architecture/adr/0004-local-inference-bridge.md).
 
 ## Measurement standards
 
