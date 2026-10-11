@@ -37,12 +37,12 @@ func TestHealthRoutes(t *testing.T) {
 	}
 }
 
-func TestNoInferenceEndpointPrematurelyExposed(t *testing.T) {
+func TestInferenceDisabledByDefault(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 	w := httptest.NewRecorder()
 	NewRouter().ServeHTTP(w, r)
-	if w.Code != http.StatusNotFound {
-		t.Fatalf("got HTTP %d; want 404", w.Code)
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("got HTTP %d; want 503", w.Code)
 	}
 }
 

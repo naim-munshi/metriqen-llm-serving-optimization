@@ -1,0 +1,227 @@
+package httpapi
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"mime"
+	"net"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+)
+
+const (
+	maxRequestBytes  = 1 << 20
+	maxMessages      = 32
+	maxModelNameSize = 128
+	maxOutputTokens  = 2048
+	defaultMaxTokens = 256
+	maxConcurrent    = 4
+	requestDeadline  = 120 * time.Second
+)
+
+// inferenceBridge deliberately has no API authentication. It MUST remain on a
+// loopback-only development listener until authentication and quotas are wired.
+type inferenceBridge struct {
+	endpoint string
+	client   *http.Client
+	slots    chan struct{}
+}
+
+func newInferenceBridge(rawURL string) (*inferenceBridge, error) {
+	bridge := &inferenceBridge{slots: make(chan struct{}, maxConcurrent)}
+	if strings.TrimSpace(rawURL) == "" {
+		return bridge, nil // disabled unless explicitly configured
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Scheme != "http" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.Path != "" || parsed.RawPath != "" {
+		return nil, errors.New("upstream must be an HTTP origin without path or credentials")
+	}
+	if parsed.Hostname() != "localhost" && parsed.Hostname() != "127.0.0.1" && parsed.Hostname() != "::1" && parsed.Hostname() != "ollama" {
+		return nil, errors.New("only local development inference upstreams are supported")
+	}
+	port, err := strconv.Atoi(parsed.Port())
+	if err != nil || port <= 0 || port > 65535 {
+		return nil, errors.New("upstream must have a valid explicit port")
+	}
+	// Route never accepts a user-provided URL. Redirects and environment proxies
+	// are disabled to avoid forwarding private prompt content elsewhere.
+	bridge.endpoint = parsed.String() + "/v1/chat/completions"
+	bridge.client = &http.Client{
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
+		Transport: &http.Transport{
+			Proxy:                 nil,
+			DialContext:           (&net.Dialer{Timeout: 5 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
+			MaxIdleConnsPerHost:   maxConcurrent,
+			ResponseHeaderTimeout: 30 * time.Second,
+			IdleConnTimeout:       30 * time.Second,
+		},
+	}
+	return bridge, nil
+}
+
+func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request) {
+	if bridge.endpoint == "" {
+		writeError(w, http.StatusServiceUnavailable, "inference_disabled", "Configure a local inference upstream first")
+		return
+	}
+	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || mediaType != "application/json" {
+		writeError(w, http.StatusUnsupportedMediaType, "invalid_content_type", "Content-Type must be application/json")
+		return
+	}
+
+	body, err := io.ReadAll(io.LimitReader(r.Body, maxRequestBytes+1))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", "Unable to read request")
+		return
+	}
+	if len(body) > maxRequestBytes {
+		writeError(w, http.StatusRequestEntityTooLarge, "request_too_large", "Request exceeds 1 MiB")
+		return
+	}
+	validated, streaming, err := validateChatRequest(body)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+
+	select {
+	case bridge.slots <- struct{}{}:
+		defer func() { <-bridge.slots }()
+	default:
+		w.Header().Set("Retry-After", "1")
+		writeError(w, http.StatusTooManyRequests, "capacity_exceeded", "Local inference concurrency limit reached")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), requestDeadline)
+	defer cancel()
+	outbound, err := http.NewRequestWithContext(ctx, http.MethodPost, bridge.endpoint, bytes.NewReader(validated))
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "upstream_unavailable", "Cannot create inference request")
+		return
+	}
+	outbound.Header.Set("Content-Type", "application/json")
+	if streaming {
+		outbound.Header.Set("Accept", "text/event-stream")
+	} else {
+		outbound.Header.Set("Accept", "application/json")
+	}
+	// Never forward Authorization, Cookie, Host, or arbitrary client headers.
+	response, err := bridge.client.Do(outbound)
+	if err != nil {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			writeError(w, http.StatusGatewayTimeout, "inference_timeout", "Inference request timed out")
+		} else if errors.Is(ctx.Err(), context.Canceled) {
+			return // Client disconnected; do not write further.
+		} else {
+			writeError(w, http.StatusBadGateway, "upstream_unavailable", "Local inference upstream unavailable")
+		}
+		return
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		switch response.StatusCode {
+		case http.StatusBadRequest, http.StatusNotFound, http.StatusTooManyRequests:
+			writeError(w, response.StatusCode, "upstream_rejected", "Inference runtime rejected the request")
+		default:
+			writeError(w, http.StatusBadGateway, "upstream_unavailable", "Inference runtime returned an error")
+		}
+		return
+	}
+	contentType, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
+	if err != nil || (streaming && contentType != "text/event-stream") || (!streaming && contentType != "application/json") {
+		writeError(w, http.StatusBadGateway, "upstream_protocol", "Inference runtime returned an unexpected response format")
+		return
+	}
+
+	w.Header().Set("Content-Type", response.Header.Get("Content-Type"))
+	if streaming {
+		w.Header().Set("X-Accel-Buffering", "no")
+	}
+	w.WriteHeader(http.StatusOK)
+	if !streaming {
+		_, _ = io.Copy(w, response.Body)
+		return
+	}
+
+	// Do not buffer SSE until completion; flush after each read and honor
+	// cancellation through the upstream request context.
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		return
+	}
+	buffer := make([]byte, 1024)
+	for {
+		n, readErr := response.Body.Read(buffer)
+		if n > 0 {
+			if _, err := w.Write(buffer[:n]); err != nil {
+				return
+			}
+			flusher.Flush()
+		}
+		if readErr != nil {
+			return
+		}
+	}
+}
+
+func validateChatRequest(body []byte) ([]byte, bool, error) {
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(body, &payload); err != nil || payload == nil {
+		return nil, false, errors.New("Request must be a JSON object")
+	}
+	var model string
+	if err := json.Unmarshal(payload["model"], &model); err != nil || strings.TrimSpace(model) == "" || len(model) > maxModelNameSize {
+		return nil, false, errors.New("A non-empty model name is required")
+	}
+	var messages []json.RawMessage
+	if err := json.Unmarshal(payload["messages"], &messages); err != nil || len(messages) == 0 || len(messages) > maxMessages {
+		return nil, false, fmt.Errorf("messages must contain between 1 and %d entries", maxMessages)
+	}
+	for _, message := range messages {
+		var m map[string]json.RawMessage
+		if err := json.Unmarshal(message, &m); err != nil || m == nil {
+			return nil, false, errors.New("Each message must be an object")
+		}
+		var role string
+		if err := json.Unmarshal(m["role"], &role); err != nil || strings.TrimSpace(role) == "" {
+			return nil, false, errors.New("Each message requires a role")
+		}
+		if _, ok := m["content"]; !ok {
+			return nil, false, errors.New("Each message requires content")
+		}
+	}
+	var streaming bool
+	if raw, ok := payload["stream"]; ok {
+		if err := json.Unmarshal(raw, &streaming); err != nil {
+			return nil, false, errors.New("stream must be a boolean")
+		}
+	}
+	if raw, ok := payload["max_tokens"]; ok {
+		var tokens int
+		if err := json.Unmarshal(raw, &tokens); err != nil || tokens < 1 || tokens > maxOutputTokens {
+			return nil, false, fmt.Errorf("max_tokens must be between 1 and %d", maxOutputTokens)
+		}
+	} else {
+		payload["max_tokens"] = json.RawMessage(strconv.Itoa(defaultMaxTokens))
+	}
+	serialized, err := json.Marshal(payload)
+	return serialized, streaming, err
+}
+
+func writeError(w http.ResponseWriter, status int, code, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"error": map[string]string{"code": code, "message": message},
+	})
+}

@@ -12,7 +12,7 @@ Do not post credentials, exploit details, or private data in public issues. Use 
 - Docker Compose publishes service ports to the host loopback interface only.
 - Do not expose these services publicly or route production traffic to them.
 - The readiness routes currently check process availability only; they do not validate external dependencies.
-- Live authentication, HTTP authorization enforcement, tenant persistence, TLS termination, rate limits, inference access and audit logging are NOT implemented.
+- Live authentication, HTTP authorization enforcement, tenant persistence, TLS termination, project rate limits and audit logging are NOT implemented. A local-only inference bridge is available and unauthenticated; do not expose it to a network.
 
 ## Required before production use
 
@@ -27,3 +27,7 @@ A deny-by-default authorization policy and role/scope tests are available in ser
 ## In-memory signing-key verification (Phase 03)
 
 The security library can verify RS256 access tokens against a trusted **server-supplied** JWKS snapshot, requiring a unique key ID and expected calling client. It rejects token-supplied key URLs and enforces issuer/audience/time claims. There is no live JWKS retrieval, identity-provider login, session handling, or HTTP enforcement. See ADR-0003.
+
+## Local-only inference bridge
+
+Enabling `METRIQEN_UPSTREAM_URL` allows `POST /v1/chat/completions` only on a loopback-bound gateway. It restricts upstream origins to local development hosts, denies arbitrary client-selected URLs and does not forward Authorization/Cookie headers. It provides process-level concurrency limiting, not tenant quotas. **This is not production-grade authentication or secure multi-tenancy.** The route must not be exposed publicly. See [Local inference guide](docs/operations/local-inference.md).
