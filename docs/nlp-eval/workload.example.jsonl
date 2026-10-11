@@ -1,0 +1,2 @@
+{"id":"q1","messages":[{"role":"user","content":"Name the capital of France. Answer with one word."}],"reference":"Paris"}
+{"id":"q2","messages":[{"role":"user","content":"What does CPU stand for? Answer with the expansion only."}],"reference":"Central Processing Unit"}

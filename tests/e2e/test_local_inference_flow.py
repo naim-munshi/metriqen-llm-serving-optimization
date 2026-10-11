@@ -161,5 +161,61 @@ class LocalInferenceE2ETests(unittest.TestCase):
         self.assertIsNone(result["output_tokens_per_second"])
 
 
+
+    def test_nlp_quality_cli_uses_live_go_gateway(self):
+        """Reference scoring uses the real gateway process, not direct fixture calls."""
+        with live_gateway(self.binary, self.fake.server_port) as endpoint:
+            with tempfile.TemporaryDirectory() as directory:
+                folder = Path(directory)
+                dataset = folder / "quality.jsonl"
+                dataset.write_text(
+                    '{"id":"a","messages":[{"role":"user","content":"PRIVATE QUESTION ONE"}],"reference":"synthetic reply"}\n'
+                    '{"id":"b","messages":[{"role":"user","content":"PRIVATE QUESTION TWO"}],"reference":"other answer"}\n',
+                    encoding="utf-8",
+                )
+                output = folder / "quality-report.json"
+                cmd = [
+                    sys.executable, "-m", "tools.nlp_eval.online",
+                    "--endpoint", endpoint, "--model", "fixture-model",
+                    "--model-revision", "fixture-v1", "--runtime", "fake-upstream",
+                    "--hardware", "CI-no-GPU", "--dataset", str(dataset),
+                    "--max-tokens", "32", "--timeout", "8", "--output", str(output),
+                ]
+                finished = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=35)
+                self.assertEqual(finished.returncode, 0, finished.stderr)
+                text_report = output.read_text(encoding="utf-8")
+                for secret in ("PRIVATE QUESTION", "synthetic reply", "other answer"):
+                    self.assertNotIn(secret, text_report)
+                report = json.loads(text_report)
+                self.assertEqual(report["results"]["quality"]["sample_count"], 2)
+                self.assertEqual(report["results"]["quality"]["exact_match"]["correct"], 1)
+                self.assertEqual(report["results"]["quality"]["normalized_exact_match"]["correct"], 1)
+                self.assertEqual(report["results"]["generation"]["successful_requests"], 2)
+
+    def test_nlp_quality_cli_rejects_upstream_failure_without_partial_report(self):
+        """Upstream failures must not produce misleading partial accuracy metrics."""
+        with live_gateway(self.binary, self.fake.server_port) as endpoint:
+            with tempfile.TemporaryDirectory() as directory:
+                folder = Path(directory)
+                dataset = folder / "quality.jsonl"
+                dataset.write_text(
+                    '{"id":"a","messages":[{"role":"user","content":"PRIVATE QUESTION"}],"reference":"answer"}\n',
+                    encoding="utf-8",
+                )
+                output = folder / "quality-report.json"
+                cmd = [
+                    sys.executable, "-m", "tools.nlp_eval.online",
+                    "--endpoint", endpoint, "--model", "reject",
+                    "--model-revision", "fixture-v1", "--runtime", "fake-upstream",
+                    "--hardware", "CI-no-GPU", "--dataset", str(dataset),
+                    "--max-tokens", "32", "--timeout", "8", "--output", str(output),
+                ]
+                finished = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=35)
+                self.assertEqual(finished.returncode, 2, finished.stderr)
+                self.assertFalse(output.exists())
+                self.assertNotIn("confidential fake error", finished.stderr)
+
+
+
 if __name__ == "__main__":
     unittest.main()

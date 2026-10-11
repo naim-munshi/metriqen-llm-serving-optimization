@@ -25,3 +25,11 @@ A dependency-free Python benchmark CLI with offline tests now records warm-up-ex
 A local-only Go streaming inference bridge with request validation, cancellation and mocked integration tests is implemented independently of the future public serving gateway. **Real Ollama or vLLM model execution has not been tested in this milestone**; GPU-serving, benchmarks and tenant-level controls remain on the roadmap.
 
 Follow one reviewable change per PR; do not manufacture a commit history.
+
+## NLP quality-evaluation track
+
+- Baseline: deterministic ID-aligned exact and normalized exact match, versioned dataset fingerprints and aggregate-only reports.
+- Next: compare real-model outputs under controlled prompt and generation settings; add semantic evaluation only with validated datasets and calibration.
+- Gate: do not claim quantization or batching improves performance at equivalent quality until benchmark and NLP evaluation evidence is paired.
+
+NLP quality measurement is not the same as runtime inference performance and must be reported separately.
