@@ -21,7 +21,7 @@ validate measurements or prove model execution.** Never set
    concurrency 1, 2 and 4, plus the separate NLP quality evaluation.
 4. Keep report artifacts under `reports/local/` and create a private
    manifest based on the schema below. This is a *template*, not evidence.
-5. Run `python -m tools.benchmark.evidence_gate path/to/manifest.json`.
+5. Run `python -m tools.benchmark.evidence_gate path/to/manifest.json --verify-reports`.
    A pass checks completeness only; review raw measurements manually.
 
 ## Manifest fields
