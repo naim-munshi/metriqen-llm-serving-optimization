@@ -48,6 +48,10 @@ python -m tools.benchmark.runner \
 
 Reports under reports/ must be reviewed for privacy and hardware claims before publication.
 
+## Repeated concurrency experiments
+
+For a repeatable Apple M2 Ollama sweep at concurrency 1, 2 and 4, use the [nine-run sweep CLI](repeated-sweep.md). It pins the supplied 64-character model digest, rotates run order, retains failures and refuses to overwrite previous evidence. Per-run summaries are descriptive measurements; they do not establish GPU optimization improvements.
+
 ## Measurement definitions
 
 | Field | Definition |
