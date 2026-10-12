@@ -168,7 +168,7 @@ def run(args: argparse.Namespace) -> Path:
             report = json.loads(path.read_text(encoding="utf-8"))
             summary = _validate_run(report, args, concurrency, fingerprint)
         except (OSError, ValueError) as exc:
-            raise RuntimeError(f"run {ordinal} invalid ({type(exc).__name__}); partial reports retained at {output}") from None
+            raise RuntimeError(f"run {ordinal} invalid ({type(exc).__name__}: {exc}); partial reports retained at {output}") from None
         records.append({"path": basename, "repeat": repeat,
                         "concurrency": concurrency, "results": summary})
     output_report = {
