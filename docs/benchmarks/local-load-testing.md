@@ -56,10 +56,12 @@ Reports under reports/ must be reviewed for privacy and hardware claims before p
 | requests_per_second | Successful measured requests divided by batch wall time, including client worker waiting |
 | completion_token_coverage | Successful requests with an integer usage.completion_tokens value |
 | output_tokens_per_second | Sum of reported completion tokens / batch wall time, only if every success reports usage; otherwise null |
-| failures/errors | Non-2xx, invalid output, network errors and missing stream terminators; HTTP 429 counts as failure |
+| failures/errors | Non-2xx, malformed SSE/JSON, in-band error events, incomplete `[DONE]` streams and network errors; HTTP 429 counts as failure |
 | observations | Per-request index/status/timing/token usage/error; excludes prompt and generated text |
 
 Warm-ups are sequential and excluded from measurements; failed warm-ups abort the benchmark. Nonstream TTFT is null. Runtime/hardware fields are self-reported and not independently verified.
+
+The streaming benchmark parser accepts standard SSE event framing, including multiple `data:` lines and comments. It rejects in-band `error` events (even after content was emitted), malformed choices/deltas, missing `[DONE]`, and streamed responses above **1 MiB**. It reports only safe error categories, never error-body text. The Go gateway separately enforces an **8 MiB** streaming forwarding budget; the smaller benchmark cap is intentional for controlled experiments.
 
 ## Fair comparisons and limitations
 

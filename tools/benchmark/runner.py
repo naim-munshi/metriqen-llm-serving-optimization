@@ -94,11 +94,16 @@ def _token_usage(payload: object) -> tuple[int | None, int | None]:
 
 
 def _consume_stream(response, start: float) -> tuple[float | None, int | None, int | None]:
-    """TTFT means first nonempty assistant content delta, not first SSE header."""
+    """Parse bounded SSE frames; reject in-band errors and incomplete responses.
+
+    TTFT is measured at the first *content* delta, not a role-only event.
+    The parser never retains generated text in a benchmark report.
+    """
     first_token_ms = None
-    completed = False
     completion_tokens = prompt_tokens = None
     total_bytes = 0
+    data_lines: list[bytes] = []
+    event_name = b""
     while True:
         line = response.readline(MAX_RESPONSE_BYTES - total_bytes + 1)
         if not line:
@@ -106,35 +111,61 @@ def _consume_stream(response, start: float) -> tuple[float | None, int | None, i
         total_bytes += len(line)
         if total_bytes > MAX_RESPONSE_BYTES:
             raise ValueError("response_too_large")
-        if not line.startswith(b"data:"):
+        field = line.rstrip(b"\r\n")
+        if field:
+            if field.startswith(b"data:"):
+                value = field[5:]
+                data_lines.append(value[1:] if value.startswith(b" ") else value)
+            elif field.startswith(b"event:"):
+                event_name = field[6:].strip()
+            # Comments and other SSE fields are permitted but not reported.
             continue
-        data = line[5:].strip()
+        if not data_lines:
+            if event_name == b"error":
+                raise ValueError("upstream_stream_error")
+            event_name = b""
+            continue
+        data = b"\n".join(data_lines).strip()
+        data_lines.clear()
+        if event_name == b"error":
+            raise ValueError("upstream_stream_error")
+        event_name = b""
         if data == b"[DONE]":
-            completed = True
-            break
-        if not data:
-            continue
+            return first_token_ms, completion_tokens, prompt_tokens
         try:
             event = json.loads(data)
         except (ValueError, UnicodeDecodeError) as exc:
             raise ValueError("invalid_sse_json") from exc
+        if not isinstance(event, dict):
+            raise ValueError("invalid_sse_event")
+        if "error" in event:
+            raise ValueError("upstream_stream_error")
+        choices = event.get("choices")
+        if choices is None:
+            if not isinstance(event.get("usage"), dict):
+                raise ValueError("invalid_sse_event")
+            choices = []
+        if not isinstance(choices, list):
+            raise ValueError("invalid_sse_event")
+        for choice in choices:
+            if not isinstance(choice, dict):
+                raise ValueError("invalid_sse_event")
+            delta = choice.get("delta", {})
+            if not isinstance(delta, dict):
+                raise ValueError("invalid_sse_event")
+            content = delta.get("content")
+            if content is not None and not isinstance(content, str):
+                raise ValueError("invalid_sse_event")
+            if content and first_token_ms is None:
+                first_token_ms = (time.perf_counter() - start) * 1000
+            if choice.get("finish_reason") in ("error", "content_filter"):
+                raise ValueError("upstream_stream_error")
         c, p = _token_usage(event)
         if c is not None:
             completion_tokens = c
         if p is not None:
             prompt_tokens = p
-        if isinstance(event, dict):
-            choices = event.get("choices", [])
-            if isinstance(choices, list):
-                for item in choices:
-                    if isinstance(item, dict):
-                        delta = item.get("delta")
-                        if (isinstance(delta, dict) and isinstance(delta.get("content"), str)
-                                and delta["content"] and first_token_ms is None):
-                            first_token_ms = (time.perf_counter() - start) * 1000
-    if not completed:
-        raise ValueError("missing_stream_terminator")
-    return first_token_ms, completion_tokens, prompt_tokens
+    raise ValueError("missing_stream_terminator")
 
 
 def request_once(endpoint: str, model: str, messages: list[dict[str, Any]],
