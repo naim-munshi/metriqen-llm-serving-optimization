@@ -12,7 +12,7 @@ Do not post credentials, exploit details, or private data in public issues. Use 
 - Docker Compose publishes service ports to the host loopback interface only.
 - Do not expose these services publicly or route production traffic to them.
 - The readiness routes currently check process availability only; they do not validate external dependencies.
-- Full identity-provider login, HTTP **tenant RBAC** enforcement, tenant persistence, TLS termination, project rate limits and audit logging are NOT implemented. A narrow control-plane access-token verification endpoint exists, but the local inference bridge remains unauthenticated; do not expose it to a network.
+- Full identity-provider login, authoritative tenant persistence, production business-route RBAC, TLS termination, project rate limits and audit logging are NOT implemented. A narrow control-plane identity route exists, plus a project-read RBAC seam that is **disabled by default** without a trusted store. The inference gateway remains unauthenticated; do not expose these services to a network.
 
 ## Required before production use
 
@@ -22,11 +22,11 @@ Never commit tokens, credentials, private prompts, or proprietary benchmark data
 
 ## Authorization foundation (Phase 02)
 
-A deny-by-default authorization policy and role/scope tests are available in services/control-api/app/security/policy.py. These are standalone domain primitives, **not runtime authentication or HTTP authorization**. The API exposes health routes and one protected identity-inspection route; it has no business/resource authorization endpoints. See docs/architecture/adr/0001-identity-and-authorization-boundary.md and docs/security/threat-model-v1.md.
+A deny-by-default authorization policy and role/scope tests are available in services/control-api/app/security/policy.py. The project-read route now integrates them with authenticated identity and an injected trusted project/membership resolver; the default runtime has **no membership store**, so no project access is enabled. The API exposes health, identity-inspection and a fail-closed project-read route, not general production CRUD or tenant provisioning. See docs/architecture/adr/0001-identity-and-authorization-boundary.md and docs/security/threat-model-v1.md.
 
 ## In-memory signing-key verification (Phase 03)
 
-The security library can verify RS256 access tokens against a trusted **server-supplied** JWKS snapshot, requiring a unique key ID and expected calling client. It rejects token-supplied key URLs and enforces issuer/audience/time claims. There is no live JWKS retrieval, identity-provider login, session handling, or HTTP **tenant permission** enforcement. A read-only HTTP identity check now exists using a pinned snapshot; see ADR-0007 and the [local identity runbook](docs/operations/pinned-oidc-identity.md).
+The security library can verify RS256 access tokens against a trusted **server-supplied** JWKS snapshot, requiring a unique key ID and expected calling client. It rejects token-supplied key URLs and enforces issuer/audience/time claims. There is no live JWKS retrieval, identity-provider login or session handling. The new project-read route does enforce PROJECT_READ through a trusted lookup seam in tests, but no persistent membership backend exists at runtime. See ADR-0007, [ADR-0008](docs/architecture/adr/0008-project-rbac-http-boundary.md) and the [local identity runbook](docs/operations/pinned-oidc-identity.md).
 
 ## Local-only inference bridge
 

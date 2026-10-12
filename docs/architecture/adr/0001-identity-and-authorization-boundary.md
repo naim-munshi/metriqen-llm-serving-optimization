@@ -33,3 +33,7 @@ The pure-Python authorization policy in services/control-api/app/security/policy
 - Threat-model review, OIDC integration, persistent membership repository, lifecycle and revocation tests.
 - Negative tests for user-to-organization crossover and object-level resource checks in real API endpoints.
 - Scope the inference gateway independently; default deny until authenticated service credentials are enforced.
+
+## Follow-up implementation note (2026-10-13)
+
+ADR-0008 adds a read-only HTTP project lookup that verifies access JWTs and evaluates PROJECT_READ against an injected trusted server-side project/membership resolver. There is no PostgreSQL repository or business CRUD layer yet, and the default application keeps project access unavailable. The Go inference gateway is unaffected and unauthenticated.

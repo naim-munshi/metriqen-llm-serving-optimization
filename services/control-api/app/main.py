@@ -1,7 +1,7 @@
-"""Local-only Metriqen control API, with a fail-closed identity inspection route.
+"""Local-only Metriqen control API with explicit auth and project-read seams.
 
-No tenant membership database, RBAC-backed business routes or HTTP inference
-credentials are configured. Never deploy this development API publicly.
+There is no configured membership database, user login, inference API-key
+system or production authorization. Do not deploy this API publicly.
 """
 
 from fastapi import FastAPI, Request
@@ -11,10 +11,15 @@ from app.security.http_identity import (
     authenticated_identity,
     load_identity_settings,
 )
+from app.security.project_access import ProjectAccessStore, read_authorized_project
 
 
-def create_app(identity_settings: PinnedIdentitySettings | None = None) -> FastAPI:
-    """Create isolated app instances; test settings are explicitly injected."""
+def create_app(
+    identity_settings: PinnedIdentitySettings | None = None,
+    *,
+    project_store: ProjectAccessStore | None = None,
+) -> FastAPI:
+    """Create isolated app instances; trusted stores are explicitly injected."""
     application = FastAPI(
         title="Metriqen Control API",
         version="0.1.0",
@@ -46,8 +51,17 @@ def create_app(identity_settings: PinnedIdentitySettings | None = None) -> FastA
         return {"subject": verified.subject, "issuer": verified.issuer,
                 "audience": verified.audience}
 
+    @application.get("/api/v1/projects/{project_id}", tags=["projects"])
+    def project_detail(request: Request, project_id: str) -> dict[str, str]:
+        return read_authorized_project(
+            request, project_id,
+            identity_settings=identity_settings,
+            store=project_store,
+        )
+
     return application
 
 
-# Read the trusted snapshot once. Invalid partial configuration fails startup.
+# Read the trusted identity snapshot once. No project store is configured by
+# default: authenticated project requests remain unavailable (503).
 app = create_app(load_identity_settings())
