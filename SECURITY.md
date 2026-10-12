@@ -12,7 +12,7 @@ Do not post credentials, exploit details, or private data in public issues. Use 
 - Docker Compose publishes service ports to the host loopback interface only.
 - Do not expose these services publicly or route production traffic to them.
 - The readiness routes currently check process availability only; they do not validate external dependencies.
-- Full identity-provider login, deployed PostgreSQL tenant persistence, production business-route RBAC, TLS termination, project rate limits and audit logging are NOT implemented. A narrow control-plane identity route exists, plus a project-read RBAC seam that is **disabled by default** without a trusted store. The inference gateway remains unauthenticated; do not expose these services to a network.
+- Full identity-provider login, deployed PostgreSQL tenant persistence, production business-route RBAC, TLS termination, project rate limits and audit logging are NOT implemented. A narrow identity route and project-read RBAC seam exist; the latter is **disabled by default**, with an explicit loopback-only PostgreSQL opt-in for trusted storage. CI still has no live PostgreSQL verification. The inference gateway remains unauthenticated; do not expose these services to a network.
 
 ## Required before production use
 
@@ -22,11 +22,11 @@ Never commit tokens, credentials, private prompts, or proprietary benchmark data
 
 ## Authorization foundation (Phase 02)
 
-A deny-by-default authorization policy and role/scope tests are available in services/control-api/app/security/policy.py. The project-read route integrates them with authenticated identity and a trusted project/membership resolver. A relational schema and SQLAlchemy adapter are available for controlled testing, but the default runtime has **no configured membership database**, so no project access is enabled. The API exposes health, identity-inspection and a fail-closed project-read route, not general production CRUD or tenant provisioning. See docs/architecture/adr/0001-identity-and-authorization-boundary.md and docs/security/threat-model-v1.md.
+A deny-by-default authorization policy and role/scope tests are available in services/control-api/app/security/policy.py. The project-read route integrates them with authenticated identity and a trusted project/membership resolver. A relational schema and SQLAlchemy adapter are available for controlled testing, but the default runtime has **no configured membership database**, so no project access is enabled unless the operator explicitly supplies a trusted local PostgreSQL DSN and pre-provisioned schema. The API exposes health, identity-inspection and a fail-closed project-read route, not general production CRUD or tenant provisioning. See docs/architecture/adr/0001-identity-and-authorization-boundary.md and docs/security/threat-model-v1.md.
 
 ## In-memory signing-key verification (Phase 03)
 
-The security library can verify RS256 access tokens against a trusted **server-supplied** JWKS snapshot, requiring a unique key ID and expected calling client. It rejects token-supplied key URLs and enforces issuer/audience/time claims. There is no live JWKS retrieval, identity-provider login or session handling. The new project-read route does enforce PROJECT_READ through a trusted lookup seam in tests, but no persistent membership backend exists at runtime. See ADR-0007, [ADR-0008](docs/architecture/adr/0008-project-rbac-http-boundary.md) and the [local identity runbook](docs/operations/pinned-oidc-identity.md).
+The security library can verify RS256 access tokens against a trusted **server-supplied** JWKS snapshot, requiring a unique key ID and expected calling client. It rejects token-supplied key URLs and enforces issuer/audience/time claims. There is no live JWKS retrieval, identity-provider login or session handling. The new project-read route does enforce PROJECT_READ through a trusted lookup seam in tests, but the optional PostgreSQL adapter has not been exercised against a live PostgreSQL server in CI. See ADR-0007, [ADR-0008](docs/architecture/adr/0008-project-rbac-http-boundary.md) and the [local identity runbook](docs/operations/pinned-oidc-identity.md).
 
 ## Local-only inference bridge
 
