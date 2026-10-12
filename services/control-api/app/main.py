@@ -12,6 +12,7 @@ from app.security.http_identity import (
     load_identity_settings,
 )
 from app.security.project_access import ProjectAccessStore, read_authorized_project
+from app.storage.runtime import load_local_project_store
 
 
 def create_app(
@@ -62,6 +63,6 @@ def create_app(
     return application
 
 
-# Read the trusted identity snapshot once. No project store is configured by
-# default: authenticated project requests remain unavailable (503).
-app = create_app(load_identity_settings())
+# Load only operator-pinned local configuration at startup; no SQL connection
+# or schema migration runs here. Without a DSN, project reads still deny 503.
+app = create_app(load_identity_settings(), project_store=load_local_project_store())
