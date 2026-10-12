@@ -20,7 +20,8 @@ Throughput, time to first token (TTFT), p95 latency, GPU memory, and serving cos
 - Tenant-scoped authorization policy and negative permission tests (not yet wired into APIs).
 - OIDC RS256 claim verification and trusted in-memory JWKS key selection tests (no live identity provider).
 - Local-only Go `POST /v1/chat/completions` forwarding to a configured local OpenAI-compatible runtime, including SSE flush, input limits, bounded validated non-streaming responses, concurrency backpressure and cancellation (tested with loopback HTTP mocks).
-- A dependency-free local benchmark runner for streamed TTFT, p95 latency, successful throughput, error rates and optional token usage. SSE framing, in-band errors and truncation are checked before counting a stream as successful; streaming token usage is requested by default and recorded for reproducibility. Offline and cross-service fixture tests; **a preliminary real-model benchmark was supplied, but no reproducible optimization comparison yet**.
+- A dependency-free local benchmark runner for streamed TTFT, p95 latency, successful throughput, error rates and optional token usage.
+- A deterministic concurrency sweep CLI rotates 1/2/4 concurrent requests across repeated local runs, preserves each private report and emits aggregate run-level median/range summaries only when all runs succeed; real sweep execution is pending. SSE framing, in-band errors and truncation are checked before counting a stream as successful; streaming token usage is requested by default and recorded for reproducibility. Offline and cross-service fixture tests; **a preliminary real-model benchmark was supplied, but no reproducible optimization comparison yet**.
 - NLP evaluation CLI for exact/normalized matching on ID-aligned JSONL, plus a localhost-only tool that obtains model predictions and scores references in memory. Verified with mock responses, not with a real model; no semantic or hallucination grading claimed.
 
 **Not implemented:** user/admin login, enforced RBAC or API-key authentication on inference, identity-provider discovery, independently reproduced model benchmarks with a pinned digest, vLLM GPU serving, controlled optimization comparisons, quantization, optimization UI, or production deployment. Readiness currently checks the processes only. **Do not expose inference publicly.**
@@ -58,7 +59,7 @@ flowchart LR
 
 Solid lines are current interfaces; dashed lines are planned components.
 
-See [real-model baseline protocol](docs/operations/real-model-baseline.md), [NLP evaluation guide](docs/nlp-eval/README.md), [end-to-end verification guide](docs/operations/e2e-contract-validation.md), [requirements](docs/product/PRD.md), [roadmap](ROADMAP.md), [security policy](SECURITY.md), [local inference guide](docs/operations/local-inference.md), [local benchmark guide](docs/benchmarks/local-load-testing.md), and [ADR-0004](docs/architecture/adr/0004-local-inference-bridge.md).
+See [repeated local benchmark workflow](docs/benchmarks/repeated-sweep.md), [real-model baseline protocol](docs/operations/real-model-baseline.md), [NLP evaluation guide](docs/nlp-eval/README.md), [end-to-end verification guide](docs/operations/e2e-contract-validation.md), [requirements](docs/product/PRD.md), [roadmap](ROADMAP.md), [security policy](SECURITY.md), [local inference guide](docs/operations/local-inference.md), [local benchmark guide](docs/benchmarks/local-load-testing.md), and [ADR-0004](docs/architecture/adr/0004-local-inference-bridge.md).
 
 ## Measurement standards
 
