@@ -66,4 +66,4 @@ The endpoint must be 127.0.0.1, with no proxy or redirect following.
 The dataset and any references may contain sensitive material. Use only
 approved/local data. The report is not a model-performance benchmark,
 semantic scorer, hallucination detector, or calibrated quality evaluation.
-Real Ollama execution and model answer quality remain unverified here.
+Real model quality has not been verified by this documentation or CI. A developer running this command can combine its locally observed quality report with a repeated concurrency sweep using the [real-model evidence-bundle guide](../benchmarks/real-model-evidence-bundle.md).

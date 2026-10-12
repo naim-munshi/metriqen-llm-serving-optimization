@@ -71,8 +71,7 @@ p95 is noisy and not suitable for production SLO claims.
 ## Limits and follow-up
 
 This sweep measures throughput and latency but **not model answer quality**.
-Run the separate NLP reference evaluation using the same pinned model and
-honest runtime/hardware labels. Do not claim optimization speedup without a
+After the sweep finishes, follow the [evidence-bundle workflow](real-model-evidence-bundle.md) to run the separate NLP reference evaluation and validate the raw reports together. Use the same pinned model and honest runtime/hardware labels. Do not claim optimization speedup without a
 controlled before/after configuration change at comparable quality.
 
 The report is not a cryptographic proof of GPU execution or hardware
