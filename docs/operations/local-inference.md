@@ -11,6 +11,7 @@ Metriqen's Go gateway can relay OpenAI-compatible chat requests to a **locally o
 | Streaming output delivered before completion | `TestStreamingFlushesFirstEventBeforeCompletion` (real loopback HTTP test) |
 | Bad JSON, missing fields, too many tokens and excessive request size rejected | `TestInvalidRequestsRejectedWithoutCallingUpstream` |
 | Upstream failure and protocol mismatch return bounded, sanitized errors | `TestUpstreamErrorsAndRedirectsNeverLeakResponseBody`, `TestProtocolMismatchRejected` |
+| Malformed, truncated or oversized non-streaming completions do not become HTTP 200 | `TestGatewayRejectsMalformedNonStreamingCompletions`, `TestGatewayRejectsTruncatedUpstreamBody`, `TestReadValidatedCompletion` |
 | Maximum four outstanding inferences; release slots | `TestConcurrencySaturationReturns429AndRecovers` |
 | Client disconnect cancels upstream | `TestClientCancellationStopsUpstream` |
 | Unknown/external inference server URL rejected | `TestRejectsUnsafeUpstreamOrigins` |
@@ -53,6 +54,8 @@ Run automated checks from `services/inference-gateway`: `go test -race ./...` an
 - Upstream URLs are startup configuration only, not supplied by users. Only `http://127.0.0.1:PORT`, `http://localhost:PORT`, `http://[::1]:PORT`, or container-only `http://ollama:PORT` are permitted, with no path, query, or credentials. External and HTTPS endpoints are deliberately unsupported in this **development-only** slice.
 - When inference is enabled, the gateway refuses a non-loopback listener, including `0.0.0.0`; the health-only Docker Compose service is unaffected.
 - The gateway does not forward caller-provided Authorization, Cookie, Host, or arbitrary headers upstream. It does not log prompt text. No redirect following and no proxy-from-environment.
+- Non-streaming successful completions are checked before returning HTTP 200: up to 2 MiB of JSON, nonempty `choices`, and a first assistant message with a string `content` field. Empty text strings are allowed; non-text/tool-call-only replies are **not** in this milestone's contract. Malformed, truncated and oversized completions return sanitized HTTP 502 errors without forwarding upstream text. Valid non-streaming JSON is forwarded unchanged.
+- SSE streaming remains incremental rather than fully buffered. After success headers are sent, upstream interruption can leave an incomplete stream; clients must verify the expected `[DONE]` terminator.
 - Upstream JSON/error responses are not guaranteed to be byte-for-byte preserved: requests are validated and re-encoded, and upstream error messages are sanitized.
 - `/health/ready` indicates the process is responsive; **it does not mean a model is loaded or that the upstream is reachable**.
 - Docker Compose exposes host ports on loopback; inference remains disabled in Compose unless explicitly configured. A host-native Go process is simplest when Ollama runs natively on macOS.
