@@ -287,8 +287,8 @@ def test_membership_role_changed_in_db_takes_effect_next_request(seeded):
     assert get(client, PROJECT_B, saved_token).status_code == 404
 
 
-def test_unavailable_database_does_not_leak_sql_errors(signed_material):
-    signing, settings = signed_material
+def test_unavailable_database_does_not_leak_sql_errors(signing_config):
+    signing, settings = signing_config
     engine = create_engine("sqlite+pysqlite:///:memory:", poolclass=StaticPool,
                            connect_args={"check_same_thread": False})
     try:
