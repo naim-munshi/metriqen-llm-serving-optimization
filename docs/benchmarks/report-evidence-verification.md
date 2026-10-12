@@ -1,5 +1,7 @@
 # Benchmark evidence report verification
 
+After a verified local concurrency sweep and separate real-model quality run, [the evidence bundle CLI](real-model-evidence-bundle.md) can assemble a human-attested manifest without overwriting any previous reports. The validator still performs independent report consistency checks.
+
 The evidence manifest validator has two levels:
 
 - `python -m tools.benchmark.evidence_gate manifest.json` checks the required
