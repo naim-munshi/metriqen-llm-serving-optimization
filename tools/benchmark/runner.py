@@ -169,11 +169,17 @@ def _consume_stream(response, start: float) -> tuple[float | None, int | None, i
 
 
 def request_once(endpoint: str, model: str, messages: list[dict[str, Any]],
-                 *, stream: bool, max_tokens: int, timeout: float) -> Sample:
+                 *, stream: bool, max_tokens: int, timeout: float,
+                 include_usage: bool = True) -> Sample:
     started = time.perf_counter()
-    payload = json.dumps({"model": model, "messages": messages, "stream": stream,
-                          "max_tokens": max_tokens, "temperature": 0},
-                         separators=(",", ":")).encode()
+    body = {"model": model, "messages": messages, "stream": stream,
+            "max_tokens": max_tokens, "temperature": 0}
+    # OpenAI-compatible runtimes such as Ollama return token usage in a
+    # final empty-choices SSE chunk only when explicitly requested.
+    # Older runtimes may not support this optional request parameter.
+    if stream and include_usage:
+        body["stream_options"] = {"include_usage": True}
+    payload = json.dumps(body, separators=(",", ":")).encode()
     opener = build_opener(ProxyHandler({}), NoRedirect())
     request = Request(endpoint, data=payload, method="POST",
                       headers={"Content-Type": "application/json", "Accept": "text/event-stream" if stream else "application/json"})
@@ -237,12 +243,13 @@ def summarize(samples: list[Sample], wall_seconds: float, stream: bool) -> dict[
 
 def run(endpoint: str, model: str, samples: list[list[dict[str, Any]]],
         *, stream: bool, max_tokens: int, concurrency: int, requests: int,
-        warmup: int, timeout: float) -> dict[str, Any]:
+        warmup: int, timeout: float, include_usage: bool = True) -> dict[str, Any]:
     # Warm-up is intentionally sequential and excluded from measurements.
     warmup_failures = 0
     for i in range(warmup):
         result = request_once(endpoint, model, samples[i % len(samples)], stream=stream,
-                              max_tokens=max_tokens, timeout=timeout)
+                              max_tokens=max_tokens, timeout=timeout,
+                              include_usage=include_usage)
         if not result.success:
             warmup_failures += 1
     if warmup_failures:
@@ -250,7 +257,8 @@ def run(endpoint: str, model: str, samples: list[list[dict[str, Any]]],
     started = time.perf_counter()
     with ThreadPoolExecutor(max_workers=concurrency) as pool:
         futures = {pool.submit(request_once, endpoint, model, samples[i % len(samples)],
-                               stream=stream, max_tokens=max_tokens, timeout=timeout): i
+                               stream=stream, max_tokens=max_tokens, timeout=timeout,
+                               include_usage=include_usage): i
                    for i in range(requests)}
         indexed = [(futures[future], future.result()) for future in as_completed(futures)]
     wall = time.perf_counter() - started
@@ -271,6 +279,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--max-tokens", type=int, default=64)
     parser.add_argument("--timeout", type=float, default=120)
     parser.add_argument("--stream", action="store_true")
+    parser.add_argument("--no-stream-usage", action="store_true",
+                        help="Omit stream_options.include_usage for older runtimes")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--runtime", required=True, help="Self-reported runtime/version")
     parser.add_argument("--hardware", required=True, help="Self-reported CPU/GPU specification")
@@ -293,7 +303,8 @@ def main(argv: list[str] | None = None) -> int:
         samples, dataset_hash = read_dataset(args.dataset)
         results = run(args.endpoint, args.model, samples, stream=args.stream,
                       max_tokens=args.max_tokens, concurrency=args.concurrency,
-                      requests=args.requests, warmup=args.warmup, timeout=args.timeout)
+                      requests=args.requests, warmup=args.warmup, timeout=args.timeout,
+                      include_usage=not args.no_stream_usage)
         report = {
             "schema_version": 1,
             "method": "locally_observed_wall_clock; throughput is completed-successes/wall-time; latency p95 nearest-rank on successful requests; warmups excluded",
@@ -304,10 +315,12 @@ def main(argv: list[str] | None = None) -> int:
                             "dataset_sha256": dataset_hash},
             "configuration": {"requests": args.requests, "concurrency": args.concurrency,
                               "warmup": args.warmup, "stream": args.stream,
+                              "stream_usage_requested": args.stream and not args.no_stream_usage,
                               "max_tokens": args.max_tokens, "timeout_seconds": args.timeout},
             "results": results,
             "limitations": ["Hardware/model/runtime identifiers are caller-provided, not independently verified",
                             "No GPU memory utilization or tokenization performed by this tool",
+                            "Streaming token usage is requested by default, but may be unavailable from some runtimes",
                             "Token throughput is unavailable unless every successful completion reports usage",
                             "Comparisons require identical model/revision, prompts, output caps, hardware and workload"],
         }
