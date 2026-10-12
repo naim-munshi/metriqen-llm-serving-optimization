@@ -161,6 +161,44 @@ class LocalInferenceE2ETests(unittest.TestCase):
         self.assertGreater(result["ttft_ms"]["p95"], 0)
         self.assertEqual(len(result["observations"]), 4)
 
+    def test_repeated_sweep_uses_live_gateway_and_preserves_all_nine_runs(self):
+        """Real Go process, real Python CLI, deterministic fixture LLM only."""
+        with live_gateway(self.binary, self.fake.server_port) as endpoint:
+            with tempfile.TemporaryDirectory() as directory:
+                folder = Path(directory)
+                dataset = folder / "sweep-dataset.jsonl"
+                dataset.write_text(
+                    '{"messages":[{"role":"user","content":"PRIVATE SWEEP FIXTURE PROMPT"}]}\n',
+                    encoding="utf-8",
+                )
+                output = folder / "sweep-evidence"
+                cmd = [
+                    sys.executable, "-m", "tools.benchmark.sweep",
+                    "--endpoint", endpoint, "--model", "fixture-model",
+                    "--model-revision", "a" * 64, "--runtime", "fake-upstream",
+                    "--hardware", "CI-no-GPU", "--dataset", str(dataset),
+                    "--repeats", "3", "--requests", "2", "--warmup", "0",
+                    "--max-tokens", "32", "--timeout", "8",
+                    "--output-dir", str(output),
+                ]
+                run = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=75)
+                self.assertEqual(run.returncode, 0, run.stderr)
+                files = sorted(output.glob("repeat-*.json"))
+                self.assertEqual(len(files), 9)
+                summary_text = (output / "sweep-summary.json").read_text(encoding="utf-8")
+                self.assertNotIn("PRIVATE SWEEP FIXTURE PROMPT", summary_text)
+                self.assertNotIn("synthetic reply", summary_text)
+                summary = json.loads(summary_text)
+                self.assertEqual(len(summary["run_files"]), 9)
+                self.assertEqual(summary["configuration"]["concurrency"], [1, 2, 4])
+                for level in ("1", "2", "4"):
+                    results = summary["summary"][level]
+                    self.assertEqual(results["runs"], 3)
+                    self.assertEqual(results["successful_requests"], 6)
+                    self.assertEqual(results["failed_requests"], 0)
+                    self.assertEqual(results["completion_token_coverage"], 6)
+                    self.assertGreater(results["output_tokens_per_second"]["median"], 0)
+
     def test_streaming_inband_error_is_not_successful_through_gateway(self):
         with live_gateway(self.binary, self.fake.server_port) as endpoint:
             exit_code, report = self.benchmark(endpoint, stream=True, model="stream-error")
