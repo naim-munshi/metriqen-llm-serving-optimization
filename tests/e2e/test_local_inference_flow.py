@@ -34,6 +34,12 @@ class FakeModel(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b'confidential fake error')
             return
+        if request["model"] == "invalid-completion":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"choices":[],"private":"DO_NOT_LEAK_FIXTURE"}')
+            return
         if request["stream"]:
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
@@ -121,7 +127,7 @@ class LocalInferenceE2ETests(unittest.TestCase):
                 "--model-revision", "fake-v1", "--runtime", "fake-upstream",
                 "--hardware", "CI-no-GPU", "--dataset", str(dataset),
                 "--requests", "4", "--concurrency", "2",
-                "--warmup", "0" if model == "reject" else "1",
+                "--warmup", "0" if model in {"reject", "invalid-completion"} else "1",
                 "--max-tokens", "32", "--timeout", "8", "--output", str(output),
             ]
             if stream:
@@ -159,6 +165,17 @@ class LocalInferenceE2ETests(unittest.TestCase):
         self.assertEqual(result["failures"], 4)
         self.assertEqual(result["errors"], {"http_429": 4})
         self.assertIsNone(result["output_tokens_per_second"])
+
+    def test_malformed_upstream_response_is_a_gateway_failure(self):
+        with live_gateway(self.binary, self.fake.server_port) as endpoint:
+            exit_code, report = self.benchmark(endpoint, stream=False, model="invalid-completion")
+        self.assertEqual(exit_code, 1)
+        result = report["results"]
+        self.assertEqual(result["successes"], 0)
+        self.assertEqual(result["failures"], 4)
+        self.assertEqual(result["errors"], {"http_502": 4})
+        self.assertIsNone(result["output_tokens_per_second"])
+
 
 
 

@@ -204,7 +204,7 @@ func TestConcurrencySaturationReturns429AndRecovers(t *testing.T) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(w, `{"choices":[]}`)
+		_, _ = io.WriteString(w, `{"choices":[{"message":{"role":"assistant","content":"ok"}}]}`)
 	}))
 	defer upstream.Close()
 	handler := newGateway(t, upstream.URL)
@@ -296,5 +296,74 @@ func TestRejectsUnsafeUpstreamOrigins(t *testing.T) {
 	}
 	if _, err := NewRouterWithInference("http://localhost:11434"); err != nil {
 		t.Errorf("expected local origin: %v", err)
+	}
+}
+
+func TestGatewayRejectsMalformedNonStreamingCompletions(t *testing.T) {
+	cases := []struct {
+		name, upstreamBody, wantCode string
+		status                       int
+	}{
+		{"not json", "private payload not json", "upstream_protocol", 502},
+		{"empty choices", `{"choices":[],"secret":"never expose"}`, "upstream_protocol", 502},
+		{"missing message", `{"choices":[{}],"secret":"never expose"}`, "upstream_protocol", 502},
+		{"null content", `{"choices":[{"message":{"content":null}}]}`, "upstream_protocol", 502},
+		{"error with 200", `{"error":"private model failure"}`, "upstream_protocol", 502},
+		{"oversized", `{"choices":[{"message":{"content":"` + strings.Repeat("x", maxNonStreamingResponseBytes) + `"}}]}`, "upstream_response_too_large", 502},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json; charset=utf-8")
+				_, _ = io.WriteString(w, tc.upstreamBody)
+			}))
+			defer upstream.Close()
+			result := request(t, newGateway(t, upstream.URL), validChat, "application/json")
+			if result.Code != tc.status {
+				t.Fatalf("got %d; want %d", result.Code, tc.status)
+			}
+			var response struct {
+				Error struct {
+					Code string `json:"code"`
+				} `json:"error"`
+			}
+			if err := json.Unmarshal(result.Body.Bytes(), &response); err != nil || response.Error.Code != tc.wantCode {
+				t.Fatalf("invalid error response: %q err=%v", result.Body.String(), err)
+			}
+			for _, secret := range []string{"private", "never expose", strings.Repeat("x", 100)} {
+				if strings.Contains(result.Body.String(), secret) {
+					t.Fatal("private upstream data leaked")
+				}
+			}
+		})
+	}
+}
+
+func TestGatewayReturnsValidatedNonStreamingCompletionUnmodified(t *testing.T) {
+	completion := `{"id":"chatcmpl-1","choices":[{"message":{"role":"assistant","content":"こんにちは"}}],"usage":{"completion_tokens":3,"prompt_tokens":7}}`
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, _ = io.WriteString(w, completion)
+	}))
+	defer upstream.Close()
+	result := request(t, newGateway(t, upstream.URL), validChat, "application/json")
+	if result.Code != 200 || result.Body.String() != completion {
+		t.Fatalf("forwarded response changed: %d %q", result.Code, result.Body.String())
+	}
+	if result.Header().Get("Content-Type") != "application/json" {
+		t.Fatal("incorrect JSON media type")
+	}
+}
+
+func TestGatewayRejectsTruncatedUpstreamBody(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Length", "10000")
+		_, _ = io.WriteString(w, `{"choices":[{"message":{"content":"short"}}]}`)
+	}))
+	defer upstream.Close()
+	result := request(t, newGateway(t, upstream.URL), validChat, "application/json")
+	if result.Code != 502 || !strings.Contains(result.Body.String(), "upstream_protocol") {
+		t.Fatalf("truncated body incorrectly accepted: %d %q", result.Code, result.Body.String())
 	}
 }

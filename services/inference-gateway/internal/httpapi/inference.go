@@ -143,15 +143,31 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	w.Header().Set("Content-Type", response.Header.Get("Content-Type"))
-	if streaming {
-		w.Header().Set("X-Accel-Buffering", "no")
-	}
-	w.WriteHeader(http.StatusOK)
+	// Validate bounded JSON before sending HTTP 200; malformed or oversized
+	// upstream output must not be classified as a successful completion.
 	if !streaming {
-		_, _ = io.Copy(w, response.Body)
+		completion, err := readValidatedCompletion(response.Body)
+		if err != nil {
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				writeError(w, http.StatusGatewayTimeout, "inference_timeout", "Inference request timed out")
+			} else if errors.Is(ctx.Err(), context.Canceled) {
+				return
+			} else if errors.Is(err, errChatCompletionTooLarge) {
+				writeError(w, http.StatusBadGateway, "upstream_response_too_large", "Inference response exceeded the size limit")
+			} else {
+				writeError(w, http.StatusBadGateway, "upstream_protocol", "Inference runtime returned an invalid completion")
+			}
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(completion)
 		return
 	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.WriteHeader(http.StatusOK)
 
 	// Do not buffer SSE until completion; flush after each read and honor
 	// cancellation through the upstream request context.
