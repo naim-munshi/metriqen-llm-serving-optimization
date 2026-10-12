@@ -8,11 +8,11 @@ Do not post credentials, exploit details, or private data in public issues. Use 
 
 ## Current threat exposure
 
-- Only unauthenticated liveness/readiness routes exist. They are deliberately simple and return no credentials.
+- Control-plane health routes are unauthenticated and return no credentials. The separate read-only `/api/v1/identity` route is fail-closed and requires a pinned-public-JWKS-verified dedicated access token when explicitly configured.
 - Docker Compose publishes service ports to the host loopback interface only.
 - Do not expose these services publicly or route production traffic to them.
 - The readiness routes currently check process availability only; they do not validate external dependencies.
-- Live authentication, HTTP authorization enforcement, tenant persistence, TLS termination, project rate limits and audit logging are NOT implemented. A local-only inference bridge is available and unauthenticated; do not expose it to a network.
+- Full identity-provider login, HTTP **tenant RBAC** enforcement, tenant persistence, TLS termination, project rate limits and audit logging are NOT implemented. A narrow control-plane access-token verification endpoint exists, but the local inference bridge remains unauthenticated; do not expose it to a network.
 
 ## Required before production use
 
@@ -22,11 +22,11 @@ Never commit tokens, credentials, private prompts, or proprietary benchmark data
 
 ## Authorization foundation (Phase 02)
 
-A deny-by-default authorization policy and role/scope tests are available in services/control-api/app/security/policy.py. These are standalone domain primitives, **not runtime authentication or HTTP authorization**. The API still exposes only health routes. See docs/architecture/adr/0001-identity-and-authorization-boundary.md and docs/security/threat-model-v1.md.
+A deny-by-default authorization policy and role/scope tests are available in services/control-api/app/security/policy.py. These are standalone domain primitives, **not runtime authentication or HTTP authorization**. The API exposes health routes and one protected identity-inspection route; it has no business/resource authorization endpoints. See docs/architecture/adr/0001-identity-and-authorization-boundary.md and docs/security/threat-model-v1.md.
 
 ## In-memory signing-key verification (Phase 03)
 
-The security library can verify RS256 access tokens against a trusted **server-supplied** JWKS snapshot, requiring a unique key ID and expected calling client. It rejects token-supplied key URLs and enforces issuer/audience/time claims. There is no live JWKS retrieval, identity-provider login, session handling, or HTTP enforcement. See ADR-0003.
+The security library can verify RS256 access tokens against a trusted **server-supplied** JWKS snapshot, requiring a unique key ID and expected calling client. It rejects token-supplied key URLs and enforces issuer/audience/time claims. There is no live JWKS retrieval, identity-provider login, session handling, or HTTP **tenant permission** enforcement. A read-only HTTP identity check now exists using a pinned snapshot; see ADR-0007 and the [local identity runbook](docs/operations/pinned-oidc-identity.md).
 
 ## Local-only inference bridge
 
