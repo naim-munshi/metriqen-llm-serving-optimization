@@ -24,6 +24,8 @@ A dependency-free Python benchmark CLI with offline tests now records warm-up-ex
 
 A local-only Go streaming inference bridge with request validation, cancellation and mocked integration tests is implemented independently of the future public serving gateway. **Real Ollama or vLLM model execution has not been tested in this milestone**; GPU-serving, benchmarks and tenant-level controls remain on the roadmap.
 
+A PostgreSQL-targeted tenant schema and read-only SQLAlchemy adapter have offline SQLite-backed integration tests, including composite foreign-key tenant boundaries. This is **not** a deployed or PostgreSQL-tested membership store, and it is not wired into default runtime. Live identity-provider authentication, migrations execution and production RBAC remain planned.
+
 Follow one reviewable change per PR; do not manufacture a commit history.
 
 ## NLP quality-evaluation track
