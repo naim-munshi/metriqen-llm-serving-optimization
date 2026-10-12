@@ -74,7 +74,7 @@ def _validate_run(report: dict, args: argparse.Namespace, concurrency: int,
     }
     for key, value in expected_config.items():
         if config.get(key) != value:
-            raise ValueError(f"run configuration mismatch: {key}")
+            raise ValueError(f"run configuration mismatch: {key}, expected={value!r}, observed={config.get(key)!r}")
     expected_env = {
         "endpoint": args.endpoint, "model": args.model,
         "model_revision": args.model_revision, "dataset_sha256": fingerprint,
