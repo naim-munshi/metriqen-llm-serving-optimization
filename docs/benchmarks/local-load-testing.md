@@ -42,8 +42,9 @@ python -m tools.benchmark.runner \
   --max-tokens 64 --output reports/local/baseline-c2.json
 ~~~
 
-4. Run a concurrency sweep: 1, 2, and 4 with the **same** dataset, model revision, runtime, prompt/output caps, generation settings, and warm-up. Record failures. Gateway local admission limit is four, so concurrency is deliberately capped at four.
-5. Run test suite: python -m unittest discover -s tools/benchmark/tests -v.
+4. With `--stream`, the benchmark now requests `"stream_options":{"include_usage":true}` by default (verified through the local Go gateway with Ollama 0.30.8). If a different OpenAI-compatible runtime rejects this optional field, rerun with `--no-stream-usage`; this intentionally leaves streaming token throughput `null`. The JSON report records `configuration.stream_usage_requested` so missing usage is interpretable. Non-stream requests never include `stream_options`.
+5. Run a concurrency sweep: 1, 2, and 4 with the **same** dataset, model revision, runtime, prompt/output caps, generation settings, and warm-up. Record failures. Gateway local admission limit is four, so concurrency is deliberately capped at four.
+6. Run test suite: python -m unittest discover -s tools/benchmark/tests -v.
 
 Reports under reports/ must be reviewed for privacy and hardware claims before publication.
 
@@ -54,6 +55,7 @@ Reports under reports/ must be reviewed for privacy and hardware claims before p
 | latency_ms p50/p95 | Client-observed completed request times for **successful** requests, nearest-rank percentile |
 | ttft_ms | Streaming only: first SSE event with nonempty choices[].delta.content; role-only events ignored |
 | requests_per_second | Successful measured requests divided by batch wall time, including client worker waiting |
+| stream_usage_requested | Whether this benchmark sent the OpenAI-compatible `stream_options.include_usage` request field (streaming only) |
 | completion_token_coverage | Successful requests with an integer usage.completion_tokens value |
 | output_tokens_per_second | Sum of reported completion tokens / batch wall time, only if every success reports usage; otherwise null |
 | failures/errors | Non-2xx, malformed SSE/JSON, in-band error events, incomplete `[DONE]` streams and network errors; HTTP 429 counts as failure |
@@ -73,3 +75,5 @@ The streaming benchmark parser accepts standard SSE event framing, including mul
 - Socket timeouts are per I/O operation, not guaranteed end-to-end limits against slow trickling responses.
 
 **Do not claim an optimization benefit without real-model/real-hardware measurements and comparable output quality.**
+
+**Field verification:** On a local Apple M2 running Ollama 0.30.8, a manual Metriqen streaming test with `stream_options.include_usage=true` returned a final `choices: []` chunk with `prompt_tokens=32` and `completion_tokens=35`, then `[DONE]`. This verifies runtime compatibility, not a complete performance study. An earlier six-request user-provided baseline had 6/6 successes but no streaming usage; do not recompute or backfill its missing token counts from a separate request. Repeat that benchmark with this version to collect token throughput legitimately.

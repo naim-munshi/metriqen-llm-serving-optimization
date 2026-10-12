@@ -34,7 +34,8 @@ class FakeChat(BaseHTTPRequestHandler):
             time.sleep(.02)
             self.wfile.write(b'data: {"choices":[{"delta":{"content":"hello"}}]}\n\n')
             self.wfile.flush()
-            self.wfile.write(b'data: {"usage":{"completion_tokens":2,"prompt_tokens":3}}\n\n')
+            if body.get("stream_options") == {"include_usage": True} and body["model"] != "no-usage":
+                self.wfile.write(b'data: {"choices":[],"usage":{"completion_tokens":2,"prompt_tokens":3}}\n\n')
             self.wfile.write(b'data: [DONE]\n\n')
             self.wfile.flush()
         else:
@@ -92,6 +93,8 @@ class BenchmarkRunnerTests(unittest.TestCase):
         self.assertIsNotNone(sample.ttft_ms)
         self.assertGreater(sample.ttft_ms, 10)
         self.assertEqual(sample.completion_tokens, 2)
+        self.assertEqual(sample.prompt_tokens, 3)
+        self.assertEqual(FakeChat.received[-1]["stream_options"], {"include_usage": True})
 
     def test_nonstream_completion_and_usage(self):
         with server() as endpoint:
@@ -99,6 +102,7 @@ class BenchmarkRunnerTests(unittest.TestCase):
         self.assertTrue(sample.success, sample.error)
         self.assertIsNone(sample.ttft_ms)
         self.assertEqual(sample.completion_tokens, 4)
+        self.assertNotIn("stream_options", FakeChat.received[-1])
 
     def test_warmup_excluded_and_concurrent_measurement(self):
         with server() as endpoint:
@@ -136,6 +140,70 @@ class BenchmarkRunnerTests(unittest.TestCase):
             self.assertEqual(json.loads(report)["results"]["successes"], 2)
 
 
+
+    def test_warmup_and_measured_streams_both_request_usage(self):
+        with server() as endpoint:
+            report = runner.run(
+                endpoint, "sample", [[{"role": "user", "content": "private prompt"}]],
+                stream=True, max_tokens=32, concurrency=2, requests=3,
+                warmup=1, timeout=5,
+            )
+        self.assertEqual(len(FakeChat.received), 4)  # Warmup + measured.
+        self.assertTrue(all(body.get("stream_options") == {"include_usage": True}
+                            for body in FakeChat.received))
+        self.assertEqual(report["successes"], 3)
+        self.assertEqual(report["completion_token_coverage"], 3)
+        self.assertEqual(report["output_tokens"], 6)
+        self.assertGreater(report["output_tokens_per_second"], 0)
+
+    def test_requested_usage_may_still_be_missing(self):
+        with server() as endpoint:
+            report = runner.run(
+                endpoint, "no-usage", [[{"role": "user", "content": "test"}]],
+                stream=True, max_tokens=32, concurrency=1, requests=2,
+                warmup=0, timeout=5,
+            )
+        self.assertTrue(all(body.get("stream_options") == {"include_usage": True}
+                            for body in FakeChat.received))
+        self.assertEqual(report["successes"], 2)
+        self.assertEqual(report["completion_token_coverage"], 0)
+        self.assertIsNone(report["output_tokens"])
+        self.assertIsNone(report["output_tokens_per_second"])
+
+    def test_stream_usage_compatibility_flag_omits_stream_options(self):
+        with server() as endpoint, tempfile.TemporaryDirectory() as directory:
+            dataset = Path(directory) / "dataset.jsonl"
+            output = Path(directory) / "benchmark.json"
+            dataset.write_text('{"messages":[{"role":"user","content":"private fixture"}]}\n')
+            args = ["--endpoint", endpoint, "--dataset", str(dataset), "--model", "sample",
+                    "--model-revision", "mock-rev", "--runtime", "mock-runtime",
+                    "--hardware", "mock-hardware", "--requests", "2",
+                    "--warmup", "1", "--concurrency", "1", "--stream",
+                    "--no-stream-usage", "--output", str(output)]
+            self.assertEqual(runner.main(args), 0)
+            self.assertNotIn("private fixture", output.read_text())
+            self.assertTrue(all("stream_options" not in b for b in FakeChat.received))
+            report = json.loads(output.read_text())
+            self.assertFalse(report["configuration"]["stream_usage_requested"])
+            self.assertEqual(report["results"]["successes"], 2)
+            self.assertEqual(report["results"]["completion_token_coverage"], 0)
+            self.assertIsNone(report["results"]["output_tokens_per_second"])
+
+    def test_cli_records_usage_request_in_run_configuration(self):
+        with server() as endpoint, tempfile.TemporaryDirectory() as directory:
+            dataset = Path(directory) / "dataset.jsonl"
+            output = Path(directory) / "baseline.json"
+            dataset.write_text('{"messages":[{"role":"user","content":"example"}]}\n')
+            args = ["--endpoint", endpoint, "--dataset", str(dataset), "--model", "sample",
+                    "--model-revision", "mock-rev", "--runtime", "mock-runtime",
+                    "--hardware", "mock-hardware", "--requests", "2", "--warmup", "0",
+                    "--stream", "--output", str(output)]
+            self.assertEqual(runner.main(args), 0)
+            report = json.loads(output.read_text())
+            self.assertTrue(report["configuration"]["stream_usage_requested"])
+            self.assertEqual(report["results"]["completion_token_coverage"], 2)
+            self.assertEqual(report["results"]["output_tokens"], 4)
+            self.assertGreater(report["results"]["output_tokens_per_second"], 0)
 
 
 class StreamProtocolTests(unittest.TestCase):

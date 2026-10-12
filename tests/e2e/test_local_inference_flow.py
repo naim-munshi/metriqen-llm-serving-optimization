@@ -55,12 +55,14 @@ class FakeModel(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
             self.end_headers()
-            for chunk in (
+            chunks = [
                 b'data: {"choices":[{"delta":{"role":"assistant"}}]}\n\n',
                 b'data: {"choices":[{"delta":{"content":"synthetic reply"}}]}\n\n',
-                b'data: {"choices":[],"usage":{"completion_tokens":2,"prompt_tokens":4}}\n\n',
-                b'data: [DONE]\n\n',
-            ):
+            ]
+            if request.get("stream_options") == {"include_usage": True}:
+                chunks.append(b'data: {"choices":[],"usage":{"completion_tokens":2,"prompt_tokens":4}}\n\n')
+            chunks.append(b'data: [DONE]\n\n')
+            for chunk in chunks:
                 self.wfile.write(chunk)
                 self.wfile.flush()
         else:
@@ -126,7 +128,7 @@ class LocalInferenceE2ETests(unittest.TestCase):
         cls.thread.join(timeout=5)
         cls.tmp.cleanup()
 
-    def benchmark(self, endpoint, *, stream, model="test-model"):
+    def benchmark(self, endpoint, *, stream, model="test-model", request_usage=True):
         with tempfile.TemporaryDirectory() as directory:
             folder = Path(directory)
             dataset = folder / "dataset.jsonl"
@@ -143,6 +145,8 @@ class LocalInferenceE2ETests(unittest.TestCase):
             ]
             if stream:
                 cmd.append("--stream")
+                if not request_usage:
+                    cmd.append("--no-stream-usage")
             completed = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=35)
             contents = output.read_text()
             for secret in ("PRIVATE_TEST_PROMPT", "synthetic reply", "confidential fake error", "PRIVATE_PARTIAL_TOKEN", "PRIVATE_UPSTREAM_ERROR"):
@@ -155,11 +159,24 @@ class LocalInferenceE2ETests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         result = report["results"]
         self.assertEqual((result["requests"], result["successes"], result["failures"]), (4, 4, 0))
+        self.assertTrue(report["configuration"]["stream_usage_requested"])
         self.assertEqual(result["completion_token_coverage"], 4)
         self.assertEqual(result["output_tokens"], 8)
+        self.assertGreater(result["output_tokens_per_second"], 0)
         self.assertEqual(result["ttft_samples"], 4)
         self.assertGreater(result["ttft_ms"]["p95"], 0)
         self.assertEqual(len(result["observations"]), 4)
+
+    def test_stream_usage_disabled_is_recorded_and_not_invented(self):
+        with live_gateway(self.binary, self.fake.server_port) as endpoint:
+            exit_code, report = self.benchmark(endpoint, stream=True, request_usage=False)
+        self.assertEqual(exit_code, 0)
+        result = report["results"]
+        self.assertFalse(report["configuration"]["stream_usage_requested"])
+        self.assertEqual(result["successes"], 4)
+        self.assertEqual(result["completion_token_coverage"], 0)
+        self.assertIsNone(result["output_tokens"])
+        self.assertIsNone(result["output_tokens_per_second"])
 
     def test_streaming_inband_error_is_not_successful_through_gateway(self):
         with live_gateway(self.binary, self.fake.server_port) as endpoint:
