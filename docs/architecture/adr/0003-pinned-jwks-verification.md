@@ -29,3 +29,7 @@ JWKS HTTPS discovery, origin pinning, secure cache refresh, Keycloak integration
 - Implement issuer-pinned OIDC discovery and bounded JWKS caching with timeout, safe refresh and known-key retention during provider outage.
 - Integration test a locally running Keycloak instance and its supported token profiles; explicitly distinguish API access tokens from ID tokens.
 - Then implement protected API routes and database-backed tenant membership validation.
+
+## Follow-up implementation note (2026-10-13)
+
+ADR-0007 adds a narrowly scoped, fail-closed local HTTP identity-inspection endpoint using the existing trusted in-memory public JWKS verifier. The original library implementation described above remains unchanged. This does **not** implement login, dynamic JWKS discovery, database memberships or tenant RBAC enforcement.
