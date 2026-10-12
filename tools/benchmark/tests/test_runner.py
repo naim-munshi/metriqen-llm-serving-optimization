@@ -136,8 +136,6 @@ class BenchmarkRunnerTests(unittest.TestCase):
             self.assertEqual(json.loads(report)["results"]["successes"], 2)
 
 
-if __name__ == "__main__":
-    unittest.main()
 
 
 class StreamProtocolTests(unittest.TestCase):
@@ -211,3 +209,7 @@ class StreamProtocolTests(unittest.TestCase):
 
     def test_role_only_done_has_no_first_token(self):
         self.assertIsNone(self.parse(b'data: {"choices":[{"delta":{"role":"assistant"}}]}\n\ndata: [DONE]\n\n')[0])
+
+
+if __name__ == "__main__":
+    unittest.main()
