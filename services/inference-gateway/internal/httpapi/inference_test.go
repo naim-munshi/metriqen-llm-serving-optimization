@@ -368,7 +368,6 @@ func TestGatewayRejectsTruncatedUpstreamBody(t *testing.T) {
 	}
 }
 
-
 func TestStreamingGatewayStopsUnboundedUpstreamOutput(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
