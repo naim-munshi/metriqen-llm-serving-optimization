@@ -23,6 +23,7 @@ const (
 	maxOutputTokens  = 2048
 	defaultMaxTokens = 256
 	maxConcurrent    = 4
+	maxStreamedBytes = 8 << 20 // Per-request streaming response byte budget.
 	requestDeadline  = 120 * time.Second
 )
 
@@ -176,9 +177,17 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	buffer := make([]byte, 1024)
+	forwarded := 0
 	for {
 		n, readErr := response.Body.Read(buffer)
 		if n > 0 {
+			// The HTTP 200 streaming headers are already sent. Terminate an
+			// oversized stream rather than forwarding unbounded upstream data.
+			// Clients must reject streams without a completed [DONE] event.
+			if forwarded+n > maxStreamedBytes {
+				return
+			}
+			forwarded += n
 			if _, err := w.Write(buffer[:n]); err != nil {
 				return
 			}

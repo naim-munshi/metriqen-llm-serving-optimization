@@ -40,6 +40,17 @@ class FakeModel(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b'{"choices":[],"private":"DO_NOT_LEAK_FIXTURE"}')
             return
+        if request["model"] in {"stream-error", "stream-truncated"}:
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.end_headers()
+            self.wfile.write(b'data: {"choices":[{"delta":{"content":"PRIVATE_PARTIAL_TOKEN"}}]}\n\n')
+            self.wfile.flush()
+            if request["model"] == "stream-error":
+                self.wfile.write(b'data: {"error":{"message":"PRIVATE_UPSTREAM_ERROR"}}\n\n')
+                self.wfile.write(b'data: [DONE]\n\n')
+                self.wfile.flush()
+            return
         if request["stream"]:
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
@@ -127,14 +138,14 @@ class LocalInferenceE2ETests(unittest.TestCase):
                 "--model-revision", "fake-v1", "--runtime", "fake-upstream",
                 "--hardware", "CI-no-GPU", "--dataset", str(dataset),
                 "--requests", "4", "--concurrency", "2",
-                "--warmup", "0" if model in {"reject", "invalid-completion"} else "1",
+                "--warmup", "0" if model in {"reject", "invalid-completion", "stream-error", "stream-truncated"} else "1",
                 "--max-tokens", "32", "--timeout", "8", "--output", str(output),
             ]
             if stream:
                 cmd.append("--stream")
             completed = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=35)
             contents = output.read_text()
-            for secret in ("PRIVATE_TEST_PROMPT", "synthetic reply", "confidential fake error"):
+            for secret in ("PRIVATE_TEST_PROMPT", "synthetic reply", "confidential fake error", "PRIVATE_PARTIAL_TOKEN", "PRIVATE_UPSTREAM_ERROR"):
                 self.assertNotIn(secret, contents)
             return completed.returncode, json.loads(contents)
 
@@ -149,6 +160,24 @@ class LocalInferenceE2ETests(unittest.TestCase):
         self.assertEqual(result["ttft_samples"], 4)
         self.assertGreater(result["ttft_ms"]["p95"], 0)
         self.assertEqual(len(result["observations"]), 4)
+
+    def test_streaming_inband_error_is_not_successful_through_gateway(self):
+        with live_gateway(self.binary, self.fake.server_port) as endpoint:
+            exit_code, report = self.benchmark(endpoint, stream=True, model="stream-error")
+        self.assertEqual(exit_code, 1)
+        result = report["results"]
+        self.assertEqual((result["successes"], result["failures"]), (0, 4))
+        self.assertEqual(result["errors"], {"upstream_stream_error": 4})
+        self.assertIsNone(result["output_tokens_per_second"])
+
+    def test_streaming_truncation_is_not_successful_through_gateway(self):
+        with live_gateway(self.binary, self.fake.server_port) as endpoint:
+            exit_code, report = self.benchmark(endpoint, stream=True, model="stream-truncated")
+        self.assertEqual(exit_code, 1)
+        result = report["results"]
+        self.assertEqual((result["successes"], result["failures"]), (0, 4))
+        self.assertEqual(result["errors"], {"missing_stream_terminator": 4})
+        self.assertIsNone(result["output_tokens_per_second"])
 
     def test_nonstream_ttft_is_not_invented(self):
         with live_gateway(self.binary, self.fake.server_port) as endpoint:

@@ -20,7 +20,7 @@ Throughput, time to first token (TTFT), p95 latency, GPU memory, and serving cos
 - Tenant-scoped authorization policy and negative permission tests (not yet wired into APIs).
 - OIDC RS256 claim verification and trusted in-memory JWKS key selection tests (no live identity provider).
 - Local-only Go `POST /v1/chat/completions` forwarding to a configured local OpenAI-compatible runtime, including SSE flush, input limits, bounded validated non-streaming responses, concurrency backpressure and cancellation (tested with loopback HTTP mocks).
-- A dependency-free local benchmark runner for streamed TTFT, p95 latency, successful throughput, error rates and optional token usage. Offline and cross-service (Go gateway + Python runner + fixture upstream) tests; **no real model benchmark results yet**.
+- A dependency-free local benchmark runner for streamed TTFT, p95 latency, successful throughput, error rates and optional token usage. SSE framing, in-band errors and truncation are checked before counting a stream as successful. Offline and cross-service fixture tests; **no real model benchmark results yet**.
 - NLP evaluation CLI for exact/normalized matching on ID-aligned JSONL, plus a localhost-only tool that obtains model predictions and scores references in memory. Verified with mock responses, not with a real model; no semantic or hallucination grading claimed.
 
 **Not implemented:** user/admin login, enforced RBAC or API-key authentication on inference, identity-provider discovery, verified real-model generation, vLLM GPU serving, executed real-model load benchmarks, quantization, optimization UI, or production deployment. Readiness currently checks the processes only. **Do not expose inference publicly.**

@@ -138,3 +138,76 @@ class BenchmarkRunnerTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StreamProtocolTests(unittest.TestCase):
+    """Protocol-level regression tests; all data is synthetic."""
+
+    def parse(self, data: bytes):
+        import io
+        return runner._consume_stream(io.BytesIO(data), time.perf_counter())
+
+    def test_valid_usage_and_content(self):
+        events = (
+            b'data: {"choices":[{"delta":{"role":"assistant"}}]}\n\n'
+            b'data: {"choices":[{"delta":{"content":"yes"}}]}\n\n'
+            b'data: {"choices":[],"usage":{"completion_tokens":2,"prompt_tokens":7}}\n\n'
+            b'data: [DONE]\n\n'
+        )
+        first, completion, prompt = self.parse(events)
+        self.assertIsNotNone(first)
+        self.assertEqual((completion, prompt), (2, 7))
+
+    def test_multiline_data_and_comments(self):
+        data = (
+            b': heartbeat\n\nevent: message\n'
+            b'data: {"choices":[{"delta":\n'
+            b'data: {"content":"hello"}}]}\n\n'
+            b'data: [DONE]\n\n'
+        )
+        self.assertIsNotNone(self.parse(data)[0])
+
+    def test_usage_only_sse_event_supported(self):
+        data = (
+            b'data: {"choices":[{"delta":{"content":"hello"}}]}\n\n'
+            b'data: {"usage":{"completion_tokens":5}}\n\n'
+            b'data: [DONE]\n\n'
+        )
+        self.assertEqual(self.parse(data)[1], 5)
+
+    def test_error_after_content_rejected(self):
+        data = (
+            b'data: {"choices":[{"delta":{"content":"partial secret"}}]}\n\n'
+            b'data: {"error":{"message":"private runtime secret"}}\n\n'
+            b'data: [DONE]\n\n'
+        )
+        with self.assertRaisesRegex(ValueError, "upstream_stream_error"):
+            self.parse(data)
+
+    def test_explicit_error_event_rejected(self):
+        with self.assertRaisesRegex(ValueError, "upstream_stream_error"):
+            self.parse(b'event: error\ndata: {"message":"secret"}\n\ndata: [DONE]\n\n')
+
+    def test_filtered_completion_rejected(self):
+        data = b'data: {"choices":[{"delta":{"content":"partial"},"finish_reason":"content_filter"}]}\n\ndata: [DONE]\n\n'
+        with self.assertRaisesRegex(ValueError, "upstream_stream_error"):
+            self.parse(data)
+
+    def test_invalid_sse_json_rejected(self):
+        with self.assertRaisesRegex(ValueError, "invalid_sse_json"):
+            self.parse(b'data: {not-valid}\n\ndata: [DONE]\n\n')
+
+    def test_invalid_delta_rejected(self):
+        with self.assertRaisesRegex(ValueError, "invalid_sse_event"):
+            self.parse(b'data: {"choices":[{"delta":{"content":42}}]}\n\ndata: [DONE]\n\n')
+
+    def test_missing_done_rejected_even_after_content(self):
+        with self.assertRaisesRegex(ValueError, "missing_stream_terminator"):
+            self.parse(b'data: {"choices":[{"delta":{"content":"partial"}}]}\n\n')
+
+    def test_byte_limit_rejects_unbounded_sse(self):
+        with self.assertRaisesRegex(ValueError, "response_too_large"):
+            self.parse(b":" + b"x" * runner.MAX_RESPONSE_BYTES + b"\n\n")
+
+    def test_role_only_done_has_no_first_token(self):
+        self.assertIsNone(self.parse(b'data: {"choices":[{"delta":{"role":"assistant"}}]}\n\ndata: [DONE]\n\n')[0])

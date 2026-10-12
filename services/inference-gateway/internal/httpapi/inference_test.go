@@ -367,3 +367,25 @@ func TestGatewayRejectsTruncatedUpstreamBody(t *testing.T) {
 		t.Fatalf("truncated body incorrectly accepted: %d %q", result.Code, result.Body.String())
 	}
 }
+
+
+func TestStreamingGatewayStopsUnboundedUpstreamOutput(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"content\":\"first\"}}]}\n\n")
+		_, _ = io.WriteString(w, strings.Repeat("x", maxStreamedBytes+4096))
+		_, _ = io.WriteString(w, "\ndata: [DONE]\n\n")
+	}))
+	defer upstream.Close()
+	body := `{"model":"test-model","messages":[{"role":"user","content":"hi"}],"stream":true}`
+	result := request(t, newGateway(t, upstream.URL), body, "application/json")
+	if result.Code != http.StatusOK {
+		t.Fatalf("unexpected streaming status: %d", result.Code)
+	}
+	if result.Body.Len() > maxStreamedBytes {
+		t.Fatalf("gateway forwarded more than %d bytes", maxStreamedBytes)
+	}
+	if strings.Contains(result.Body.String(), "[DONE]") {
+		t.Fatal("oversized stream was incorrectly completed")
+	}
+}
