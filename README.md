@@ -4,7 +4,7 @@
 
 Metriqen is an engineering project focused on deploying open-weight language models under concurrent traffic, then testing quantization, batching, and GPU-memory strategies against an objective baseline.
 
-**Status: local inference and offline-verified benchmarking tooling.** The Go gateway provides a tested local-only OpenAI-compatible inference bridge (including streaming); a Python CLI now records reproducible local load-test observations. A developer-operated Apple M2 with Ollama 0.30.8 has produced real local completions and one preliminary six-request benchmark through the Go gateway; the raw private report is not committed, the model revision is not pinned, and no optimization improvement or vLLM GPU performance has been verified. A read-only control-plane identity endpoint now verifies strictly typed access JWTs against a configured, pinned local public JWKS; tenant RBAC is still not enforced on HTTP and the Go inference gateway remains unauthenticated.
+**Status: local inference and offline-verified benchmarking tooling.** The Go gateway provides a tested local-only OpenAI-compatible inference bridge (including streaming); a Python CLI now records reproducible local load-test observations. A developer-operated Apple M2 with Ollama 0.30.8 has produced real local completions and one preliminary six-request benchmark through the Go gateway; the raw private report is not committed, the model revision is not pinned, and no optimization improvement or vLLM GPU performance has been verified. A read-only control-plane identity endpoint verifies strictly typed access JWTs against a configured, pinned public JWKS. A second read-only project endpoint now checks the existing RBAC policy against server-resolved projects and memberships **only when a trusted backend store is injected**; no persistent store is configured in default startup. The Go inference gateway remains unauthenticated.
 
 ## Problem and research goal
 
@@ -17,7 +17,7 @@ Throughput, time to first token (TTFT), p95 latency, GPU memory, and serving cos
 - Unit tests for both services; Go tests run with the race detector.
 - Docker Compose configuration that only binds host ports to loopback.
 - CI workflow for Python and Go tests.
-- Tenant-scoped authorization policy and negative permission tests (not yet wired into APIs).
+- Tenant-scoped authorization policy with HTTP project-read enforcement through a trusted server-side lookup interface. The only project route is disabled without a configured authoritative membership store; no database persistence exists yet.
 - OIDC RS256 claim verification and trusted in-memory JWKS key selection tests (no live identity provider).
 - A fail-closed FastAPI `GET /api/v1/identity` boundary verifies a dedicated `at+jwt` bearer access token against an operator-pinned local public JWKS snapshot; disabled without complete trusted settings. It grants no tenant rights and does not secure Go inference.
 - Local-only Go `POST /v1/chat/completions` forwarding to a configured local OpenAI-compatible runtime, including SSE flush, input limits, bounded validated non-streaming responses, concurrency backpressure and cancellation (tested with loopback HTTP mocks).
@@ -26,7 +26,7 @@ Throughput, time to first token (TTFT), p95 latency, GPU memory, and serving cos
 - An evidence-bundle CLI cross-validates completed run reports, concurrency summary, a separate local answer-quality report and human-provided runtime metadata before creating a non-overwriting manifest. It does not attest actual hardware or execution. SSE framing, in-band errors and truncation are checked before counting a stream as successful; streaming token usage is requested by default and recorded for reproducibility. Offline and cross-service fixture tests; **a preliminary real-model benchmark was supplied, but no reproducible optimization comparison yet**.
 - NLP evaluation CLI for exact/normalized matching on ID-aligned JSONL, plus a localhost-only tool that obtains model predictions and scores references in memory. Verified with mock responses, not with a real model; no semantic or hallucination grading claimed.
 
-**Not implemented:** user/admin login, server-persisted memberships, enforced tenant RBAC or API-key authentication on inference, identity-provider discovery, independently reproduced model benchmarks with a pinned digest, vLLM GPU serving, controlled optimization comparisons, quantization, optimization UI, or production deployment. Readiness currently checks the processes only. **Do not expose inference publicly.**
+**Not implemented:** user/admin login, server-persisted memberships or production RBAC integration, API-key authentication on inference, identity-provider discovery, independently reproduced model benchmarks with a pinned digest, vLLM GPU serving, controlled optimization comparisons, quantization, optimization UI, or production deployment. Readiness currently checks the processes only. **Do not expose inference publicly.**
 
 ## Develop locally
 
@@ -51,7 +51,7 @@ With Docker Engine, use `docker compose up --build` for local-only HTTP services
 
 ```mermaid
 flowchart LR
-    Dev[Developer] --> API[FastAPI control API: health only]
+    Dev[Developer] --> API[FastAPI control API: health and limited auth routes]
     Client[Local inference client] --> Gateway[Go gateway: local-only chat API]
     Gateway --> Local[Developer-provided local Ollama-compatible runtime]
     Gateway -.-> LLM[vLLM GPU serving: planned]
@@ -61,7 +61,7 @@ flowchart LR
 
 Solid lines are current interfaces; dashed lines are planned components.
 
-See [local control API identity test](docs/operations/pinned-oidc-identity.md), [ADR-0007](docs/architecture/adr/0007-pinned-jwks-http-identity.md), [real-model evidence bundle](docs/benchmarks/real-model-evidence-bundle.md), [repeated local benchmark workflow](docs/benchmarks/repeated-sweep.md), [real-model baseline protocol](docs/operations/real-model-baseline.md), [NLP evaluation guide](docs/nlp-eval/README.md), [end-to-end verification guide](docs/operations/e2e-contract-validation.md), [requirements](docs/product/PRD.md), [roadmap](ROADMAP.md), [security policy](SECURITY.md), [local inference guide](docs/operations/local-inference.md), [local benchmark guide](docs/benchmarks/local-load-testing.md), and [ADR-0004](docs/architecture/adr/0004-local-inference-bridge.md).
+See [project RBAC HTTP contract](docs/architecture/adr/0008-project-rbac-http-boundary.md), [local control API identity test](docs/operations/pinned-oidc-identity.md), [ADR-0007](docs/architecture/adr/0007-pinned-jwks-http-identity.md), [real-model evidence bundle](docs/benchmarks/real-model-evidence-bundle.md), [repeated local benchmark workflow](docs/benchmarks/repeated-sweep.md), [real-model baseline protocol](docs/operations/real-model-baseline.md), [NLP evaluation guide](docs/nlp-eval/README.md), [end-to-end verification guide](docs/operations/e2e-contract-validation.md), [requirements](docs/product/PRD.md), [roadmap](ROADMAP.md), [security policy](SECURITY.md), [local inference guide](docs/operations/local-inference.md), [local benchmark guide](docs/benchmarks/local-load-testing.md), and [ADR-0004](docs/architecture/adr/0004-local-inference-bridge.md).
 
 ## Measurement standards
 

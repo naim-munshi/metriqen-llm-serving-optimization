@@ -2,8 +2,9 @@
 
 This policy operates on an already authenticated, server-resolved membership.
 It MUST NOT accept membership claims directly from a browser or unverified JWT.
-An API layer will bind it to identity, membership persistence and audit logging
-in a later milestone. It currently protects no HTTP endpoint.
+A narrow, read-only HTTP project route now uses this policy with a trusted,
+injected membership lookup contract. No production membership persistence,
+audit log or other protected business endpoint is implemented.
 """
 
 from dataclasses import dataclass
@@ -139,8 +140,9 @@ def is_allowed(
 ) -> bool:
     """Return True only for a known action within an authorized scope.
 
-    Identity/membership verification and HTTP enforcement are separate concerns;
-    no API route currently calls this function.
+    Identity verification is separate from this policy. The new project-read
+    HTTP route calls it only after resolving trusted project and membership
+    records; other business routes are not yet implemented.
     """
     if membership is None or not isinstance(membership.role, Role):
         return False
