@@ -72,8 +72,9 @@ def _validate_run(report: dict, args: argparse.Namespace, concurrency: int,
         "warmup": args.warmup, "max_tokens": args.max_tokens,
         "timeout_seconds": args.timeout,
     }
-    if any(config.get(key) != value for key, value in expected_config.items()):
-        raise ValueError("run configuration mismatch")
+    for key, value in expected_config.items():
+        if config.get(key) != value:
+            raise ValueError(f"run configuration mismatch: {key}")
     expected_env = {
         "endpoint": args.endpoint, "model": args.model,
         "model_revision": args.model_revision, "dataset_sha256": fingerprint,
