@@ -198,6 +198,11 @@ class EvidenceBundleTests(unittest.TestCase):
         self.assertEqual(self.call(), 2)
         self.assertFalse(self.manifest_path.exists())
 
+    def test_documentation_quantization_placeholder_refused(self):
+        self.cli[self.cli.index("Q4_0 verified")] = "ENTER_ACTUAL_QUANTIZATION_FROM_OLLAMA_SHOW"
+        self.assertEqual(self.call(), 2)
+        self.assertFalse(self.manifest_path.exists())
+
     def test_missing_quality_hash_refused(self):
         self.quality["dataset_sha256"] = "not-a-hash"
         self.save_quality()

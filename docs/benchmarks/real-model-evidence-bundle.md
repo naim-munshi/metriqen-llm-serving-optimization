@@ -13,7 +13,7 @@ real execution after observing an actual local model response.
 ## 1. Finish the real concurrency sweep
 
 Follow the [sweep runbook](repeated-sweep.md). Wait for
-\`sweep-summary.json\`; any aborted run must be investigated, not excluded.
+`sweep-summary.json`; any aborted run must be investigated, not excluded.
 
 ## 2. Run model answer-quality checks separately
 
@@ -37,8 +37,8 @@ two questions; it is not a rigorous production-quality evaluation.
 
 ## 3. Verify environment, then attest the evidence
 
-Inspect the actual quantization details using \`ollama show llama3.2:1b\`,
-the local OS using \`sw_vers\`, and the model digest in the completed sweep.
+Inspect the actual quantization details using `ollama show llama3.2:1b`,
+the local OS using `sw_vers`, and the model digest in the completed sweep.
 Specify accurate labels; do not invent hardware configuration.
 
 ~~~sh
@@ -57,7 +57,7 @@ Replace the quantization and note details with **verified facts**. The
 timestamp records operator attestation at bundle creation, not the
 individual experiment start time.
 
-The \`--confirm-real-model-executed\` flag is an **explicit human declaration**,
+The `--confirm-real-model-executed` flag is an **explicit human declaration**,
 not a GPU attestation mechanism. Never use it for synthetic reports.
 
 The CLI refuses to overwrite an existing evidence-manifest.json. It also

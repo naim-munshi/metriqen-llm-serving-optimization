@@ -142,6 +142,8 @@ def collect_manifest(args: argparse.Namespace) -> tuple[dict, Path]:
     if not isinstance(quality_hash, str) or HEX_SHA256.fullmatch(quality_hash) is None:
         raise ValueError("quality dataset must have a SHA-256 fingerprint")
 
+    if re.search(r"(?i)enter_actual|replace_with|example_value|placeholder", args.quantization):
+        raise ValueError("quantization must be verified, not a documentation placeholder")
     timestamp = _utc_timestamp(args.timestamp_utc)
     manifest = {
         "model_tag": env["model"],
