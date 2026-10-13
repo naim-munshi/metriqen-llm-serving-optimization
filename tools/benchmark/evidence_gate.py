@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 import sys
 
+from tools.benchmark import run_timing
+
 REQUIRED = ("model_tag", "model_digest", "ollama_version", "host_os",
             "hardware", "quantization", "timestamp_utc", "notes")
 PLACEHOLDERS = ("replace", "todo", "unknown", "tbd", "example", "fixture", "mock")
@@ -150,6 +152,8 @@ def verify_report_contents(data: dict, manifest_path: Path) -> list[str]:
             n, good, bad = (result.get(k) for k in ("requests", "successes", "failures"))
             if not all(type(v) is int and v >= 0 for v in (n, good, bad)) or n < 1 or good + bad != n:
                 raise ValueError("inconsistent request counts")
+            if "timing" in report:
+                run_timing.validate(report["timing"], result.get("wall_seconds"))
             if config.get("requests") != n:
                 raise ValueError("requested / observed counts differ")
             items = result.get("observations")
