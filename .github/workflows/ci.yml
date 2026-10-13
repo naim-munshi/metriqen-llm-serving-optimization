@@ -50,7 +50,7 @@ jobs:
       - name: Run offline benchmark contract tests
         run: python -m unittest discover -s tools/benchmark/tests -v
       - name: Check Python syntax
-        run: python -m compileall -q tools
+        run: python -W error::SyntaxWarning -m compileall -q -f tools
 
   local-inference-e2e:
     runs-on: ubuntu-latest
