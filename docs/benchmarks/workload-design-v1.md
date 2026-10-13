@@ -81,4 +81,4 @@ then follow [the evidence bundle](real-model-evidence-bundle.md) and
 take a long time on a laptop and may cause heating and throttling.
 Record thermal/background-load conditions. Keep both services loopback
 only. These commands have **not** been executed on real hardware in CI;
-there are no measured v1 throughput/quality numbers in this repository.
+a [2026-10-13 operator-reported case study](experiments/2026-10-13-ollama-parallelism.md) now includes sanitized local v1 aggregates, but its private raw reports are not included or independently revalidated in CI.

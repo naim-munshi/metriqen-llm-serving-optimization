@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "kind": "developer_transcribed_real_local_aggregate",
+  "experiment_date": "2026-10-13",
+  "provenance": {
+    "origin": "Developer-provided terminal output of the real local sweep, quality evaluator, evidence gate and comparison CLI.",
+    "private_evidence_verified_locally_by_operator": true,
+    "github_ci_revalidates_raw_hardware_reports": false,
+    "private_report_policy": "Raw nine-run JSON files, quality reports, manifests and comparison JSON remain only under gitignored reports/local/ on the developer's Mac.",
+    "comparator_status": "descriptive_not_causal",
+    "disclaimer": "Transcribed aggregates do not independently prove measurement authenticity or causality. Checks in GitHub CI validate arithmetic and schema only."
+  },
+  "model": {
+    "tag": "llama3.2:1b",
+    "digest": "baf6a787fdffd633537aa2eb51cfd54cb93ff08e28040095462bb63daf552878",
+    "format": "GGUF V3",
+    "quantization": "Q8_0"
+  },
+  "environment": {
+    "runtime": "Ollama 0.30.8",
+    "host": "Apple M2 MacBook Air, 8 GiB unified memory",
+    "backend": "Ollama llama.cpp/Metal via loopback Go inference gateway",
+    "note": "Machine and runtime names are operator-reported; Metal offload and active slots were observed in local logs."
+  },
+  "methodology": {
+    "baseline_ollama_num_parallel": 1,
+    "candidate_ollama_num_parallel": 2,
+    "concurrency_levels": [
+      1,
+      2,
+      4
+    ],
+    "repeats_per_concurrency": 3,
+    "measured_requests_per_run": 36,
+    "warmup_requests_per_run": 2,
+    "max_completion_tokens": 128,
+    "timeout_seconds": 120,
+    "temperature": 0,
+    "streaming": true,
+    "benchmark_dataset": "docs/benchmarks/workload.v1.jsonl",
+    "quality_dataset": "docs/nlp-eval/workload.v1.jsonl",
+    "requests_per_configuration": 324,
+    "total_measured_requests_across_both_configurations": 648
+  },
+  "quality": {
+    "baseline": {
+      "samples": 36,
+      "successful_requests": 36,
+      "failed_requests": 0,
+      "exact_correct": 31,
+      "normalized_exact_correct": 33
+    },
+    "candidate": {
+      "samples": 36,
+      "successful_requests": 36,
+      "failed_requests": 0,
+      "exact_correct": 31,
+      "normalized_exact_correct": 33
+    },
+    "evaluator": "strict exact-match and normalized exact-match on narrow deterministic-answer questions",
+    "claim": "No observed change on this 36-question reference dataset; not semantic, production, or safety quality equivalence."
+  },
+  "metrics_by_concurrency": {
+    "1": {
+      "baseline": {
+        "requests_per_second": 0.1566,
+        "latency_run_p95_ms": 8966.2689,
+        "ttft_run_p50_ms": 393.3558,
+        "output_tokens_per_second": 17.117
+      },
+      "candidate": {
+        "requests_per_second": 0.1505,
+        "latency_run_p95_ms": 8801.3853,
+        "ttft_run_p50_ms": 499.6595,
+        "output_tokens_per_second": 16.4497
+      },
+      "successful_requests_per_configuration": 108,
+      "failed_requests_per_configuration": 0,
+      "percentage_change": {
+        "requests_per_second": -3.895,
+        "latency_run_p95_ms": -1.839,
+        "ttft_run_p50_ms": 27.025,
+        "output_tokens_per_second": -3.898
+      }
+    },
+    "2": {
+      "baseline": {
+        "requests_per_second": 0.1811,
+        "latency_run_p95_ms": 13560.9616,
+        "ttft_run_p50_ms": 5940.239,
+        "output_tokens_per_second": 19.7925
+      },
+      "candidate": {
+        "requests_per_second": 0.2431,
+        "latency_run_p95_ms": 11163.5042,
+        "ttft_run_p50_ms": 653.942,
+        "output_tokens_per_second": 26.5674
+      },
+      "successful_requests_per_configuration": 108,
+      "failed_requests_per_configuration": 0,
+      "percentage_change": {
+        "requests_per_second": 34.235,
+        "latency_run_p95_ms": -17.679,
+        "ttft_run_p50_ms": -88.991,
+        "output_tokens_per_second": 34.23
+      }
+    },
+    "4": {
+      "baseline": {
+        "requests_per_second": 0.2101,
+        "latency_run_p95_ms": 21874.2145,
+        "ttft_run_p50_ms": 14250.7396,
+        "output_tokens_per_second": 22.963
+      },
+      "candidate": {
+        "requests_per_second": 0.2374,
+        "latency_run_p95_ms": 20788.4693,
+        "ttft_run_p50_ms": 8512.9893,
+        "output_tokens_per_second": 25.9531
+      },
+      "successful_requests_per_configuration": 108,
+      "failed_requests_per_configuration": 0,
+      "percentage_change": {
+        "requests_per_second": 12.994,
+        "latency_run_p95_ms": -4.964,
+        "ttft_run_p50_ms": -40.263,
+        "output_tokens_per_second": 13.021
+      }
+    }
+  }
+}
