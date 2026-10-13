@@ -67,10 +67,7 @@ Interpretation is automatically restricted:
   remains descriptive and cannot establish cause, statistical significance
   or production SLOs by itself.
 
-Example datasets currently shipped in the repository are intentionally tiny
-functional fixtures: **three performance prompts and two quality questions**.
-Do **not** use their results as general performance or model-quality claims.
-Choose a larger licensed and reviewed workload before publishing a case study.
+Legacy example datasets contain **three performance prompts and two quality questions**. Versioned [v1 synthetic starter workloads](workload-design-v1.md) contain 36 technical prompts and 36 simple reference questions. Neither set establishes representative latency or semantic quality. Use the same dataset bytes for baseline and candidate, and choose a reviewed workload that matches your intended use case before publishing a case study.
 
 ## 3. Recruiter-ready evidence
 

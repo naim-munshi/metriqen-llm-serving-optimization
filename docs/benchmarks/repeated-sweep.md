@@ -76,3 +76,7 @@ controlled before/after configuration change at comparable quality.
 
 The report is not a cryptographic proof of GPU execution or hardware
 identity. CI tests use synthetic reports, not Ollama measurements.
+
+## Versioned synthetic evaluation workloads
+
+The basic copy/paste example above uses a tiny three-prompt dataset; treat its results as a smoke test. For a more varied but still **synthetic, unrepresentative** baseline, use `--dataset docs/benchmarks/workload.v1.jsonl` and a fresh output directory, with e.g. 36 requests per run. Pair it with `docs/nlp-eval/workload.v1.jsonl` via the quality evaluation CLI. See [workload design v1](workload-design-v1.md), including tokenizer and thermal limitations. Never silently switch datasets between baseline and candidate.

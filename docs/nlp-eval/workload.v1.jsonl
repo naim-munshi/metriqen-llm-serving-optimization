@@ -1,0 +1,36 @@
+{"id":"q01","messages":[{"role":"user","content":"What is the capital of France? Reply with only the answer, without any extra words or punctuation."}],"reference":"Paris"}
+{"id":"q02","messages":[{"role":"user","content":"What is the capital of Germany? Reply with only the answer, without any extra words or punctuation."}],"reference":"Berlin"}
+{"id":"q03","messages":[{"role":"user","content":"What is the capital of Japan? Reply with only the answer, without any extra words or punctuation."}],"reference":"Tokyo"}
+{"id":"q04","messages":[{"role":"user","content":"What is the capital of Spain? Reply with only the answer, without any extra words or punctuation."}],"reference":"Madrid"}
+{"id":"q05","messages":[{"role":"user","content":"What is the capital of Italy? Reply with only the answer, without any extra words or punctuation."}],"reference":"Rome"}
+{"id":"q06","messages":[{"role":"user","content":"What is the capital of Bangladesh? Reply with only the answer, without any extra words or punctuation."}],"reference":"Dhaka"}
+{"id":"q07","messages":[{"role":"user","content":"What is the capital of Nepal? Reply with only the answer, without any extra words or punctuation."}],"reference":"Kathmandu"}
+{"id":"q08","messages":[{"role":"user","content":"What is the capital of Canada? Reply with only the answer, without any extra words or punctuation."}],"reference":"Ottawa"}
+{"id":"q09","messages":[{"role":"user","content":"What is the capital of Australia? Reply with only the answer, without any extra words or punctuation."}],"reference":"Canberra"}
+{"id":"q10","messages":[{"role":"user","content":"What is the capital of Portugal? Reply with only the answer, without any extra words or punctuation."}],"reference":"Lisbon"}
+{"id":"q11","messages":[{"role":"user","content":"What is the capital of Egypt? Reply with only the answer, without any extra words or punctuation."}],"reference":"Cairo"}
+{"id":"q12","messages":[{"role":"user","content":"What is the capital of Thailand? Reply with only the answer, without any extra words or punctuation."}],"reference":"Bangkok"}
+{"id":"q13","messages":[{"role":"user","content":"Calculate 8 + 7. Reply with only the answer, without any extra words or punctuation."}],"reference":"15"}
+{"id":"q14","messages":[{"role":"user","content":"Calculate 12 - 5. Reply with only the answer, without any extra words or punctuation."}],"reference":"7"}
+{"id":"q15","messages":[{"role":"user","content":"Calculate 9 × 6. Reply with only the answer, without any extra words or punctuation."}],"reference":"54"}
+{"id":"q16","messages":[{"role":"user","content":"Calculate 36 ÷ 4. Reply with only the answer, without any extra words or punctuation."}],"reference":"9"}
+{"id":"q17","messages":[{"role":"user","content":"Calculate 11 + 14. Reply with only the answer, without any extra words or punctuation."}],"reference":"25"}
+{"id":"q18","messages":[{"role":"user","content":"Calculate 7 squared. Reply with only the answer, without any extra words or punctuation."}],"reference":"49"}
+{"id":"q19","messages":[{"role":"user","content":"Calculate 100 - 37. Reply with only the answer, without any extra words or punctuation."}],"reference":"63"}
+{"id":"q20","messages":[{"role":"user","content":"Calculate 12 × 4. Reply with only the answer, without any extra words or punctuation."}],"reference":"48"}
+{"id":"q21","messages":[{"role":"user","content":"Calculate 81 ÷ 9. Reply with only the answer, without any extra words or punctuation."}],"reference":"9"}
+{"id":"q22","messages":[{"role":"user","content":"Calculate 25 + 17. Reply with only the answer, without any extra words or punctuation."}],"reference":"42"}
+{"id":"q23","messages":[{"role":"user","content":"Calculate 90 ÷ 10. Reply with only the answer, without any extra words or punctuation."}],"reference":"9"}
+{"id":"q24","messages":[{"role":"user","content":"Calculate 13 × 3. Reply with only the answer, without any extra words or punctuation."}],"reference":"39"}
+{"id":"q25","messages":[{"role":"user","content":"What does CPU stand for? Reply with only the answer, without any extra words or punctuation."}],"reference":"Central Processing Unit"}
+{"id":"q26","messages":[{"role":"user","content":"What does GPU stand for? Reply with only the answer, without any extra words or punctuation."}],"reference":"Graphics Processing Unit"}
+{"id":"q27","messages":[{"role":"user","content":"What does RAM stand for? Reply with only the answer, without any extra words or punctuation."}],"reference":"Random Access Memory"}
+{"id":"q28","messages":[{"role":"user","content":"What does ROM stand for? Reply with only the answer, without any extra words or punctuation."}],"reference":"Read Only Memory"}
+{"id":"q29","messages":[{"role":"user","content":"What does HTTP stand for? Reply with only the answer, without any extra words or punctuation."}],"reference":"Hypertext Transfer Protocol"}
+{"id":"q30","messages":[{"role":"user","content":"What does URL stand for? Reply with only the answer, without any extra words or punctuation."}],"reference":"Uniform Resource Locator"}
+{"id":"q31","messages":[{"role":"user","content":"What does DNS stand for? Reply with only the answer, without any extra words or punctuation."}],"reference":"Domain Name System"}
+{"id":"q32","messages":[{"role":"user","content":"What does API stand for? Reply with only the answer, without any extra words or punctuation."}],"reference":"Application Programming Interface"}
+{"id":"q33","messages":[{"role":"user","content":"What does SQL stand for? Reply with only the answer, without any extra words or punctuation."}],"reference":"Structured Query Language"}
+{"id":"q34","messages":[{"role":"user","content":"What does HTML stand for? Reply with only the answer, without any extra words or punctuation."}],"reference":"Hypertext Markup Language"}
+{"id":"q35","messages":[{"role":"user","content":"What does JSON stand for? Reply with only the answer, without any extra words or punctuation."}],"reference":"JavaScript Object Notation"}
+{"id":"q36","messages":[{"role":"user","content":"What does OS stand for? Reply with only the answer, without any extra words or punctuation."}],"reference":"Operating System"}
