@@ -32,6 +32,10 @@ Follow one reviewable change per PR; do not manufacture a commit history.
 
 The offline comparator can revalidate two local evidence bundles and report p50/p95, TTFT and throughput deltas with a separately checked exact-match quality gate. **A passing comparison is descriptive, not a causal optimization result.** The legacy example workloads contain just three performance prompts and two reference questions; new **versioned v1 starter datasets** contain 36 technical prompts and 36 deterministic-answer references, with offline schema checks. Both remain synthetic and potentially unrepresentative; the first developer-run comparison is documented as `descriptive_not_causal`, and no general/causal speedup claim is eligible until independently replicated experiments, representative workloads and uncertainty analyses exist. See [controlled comparison protocol](docs/benchmarks/controlled-comparison.md).
 
+## A/B/A study readiness
+
+The existing A1/B parallelism observations are documented, and an offline A/B/A analysis CLI can now validate three private evidence bundles and show A1-to-A2 drift without claiming a verified causal effect. **A2 measurement is pending**; the first study remains descriptive and an entirely new uninterrupted A/B/A session would be stronger. See [the A/B/A analysis guide](docs/benchmarks/aba-analysis.md) and [reversion protocol](docs/benchmarks/aba-reversion-protocol.md).
+
 ## NLP quality-evaluation track
 
 - Baseline: deterministic ID-aligned exact and normalized exact match, versioned dataset fingerprints and aggregate-only reports.
