@@ -47,9 +47,20 @@ and unauthenticated; never expose it publicly.
   temperature remain fixed. Stream usage is requested by default.
 - For OpenAI-compatible runtimes without streaming usage support, choose
   --no-stream-usage. Token throughput then remains null, never estimated.
+- Every new run report records `timing.started_at_utc`,
+  `timing.finished_at_utc` (RFC3339 UTC milliseconds), and a monotonic
+  `timing.elapsed_seconds` duration **including sequential warmups**.
+  `results.wall_seconds` still measures only the post-warmup requests.
+  This exposes run ordering and time-of-day drift, but does **not** measure
+  GPU temperature, effective prompt cache hits or energy consumption.
 - Every run produces its own private report. Only after all nine succeed does
   the tool write sweep-summary.json with median/min/max **of per-run metrics**, including p50 and p95 latency/TTFT.
   These are not pooled request percentiles or confidence intervals.
+  The sweep summary also copies the validated timing into each `run_files`
+  entry. Evidence bundling and offline comparison reject mismatched timing,
+  implausible durations, or overlapping timestamps.
+- Existing legacy reports without timing remain valid for historical
+  analysis. Never invent or backfill clock timestamps for old runs.
 - Any failed or inconsistent run aborts the sweep, retains the partial reports
   for investigation, and does NOT write an aggregate summary.
 - Pre-existing output directories are rejected to protect earlier evidence.

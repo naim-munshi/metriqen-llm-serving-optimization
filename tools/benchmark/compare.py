@@ -11,7 +11,7 @@ import math
 from pathlib import Path
 import sys
 
-from tools.benchmark import evidence_bundle, evidence_gate, runner, sweep
+from tools.benchmark import evidence_bundle, evidence_gate, runner, sweep, run_timing
 
 
 def _read_experiment(filename: Path) -> dict:
@@ -74,7 +74,10 @@ def _read_experiment(filename: Path) -> dict:
         seen.add((repeat, concurrency))
         raw, _ = evidence_gate._load_local_report(root, label)
         result = sweep._validate_run(raw, check_args, concurrency, env["dataset_sha256"])
+        if entry.get("timing") != raw.get("timing"):
+            raise ValueError("sweep run timing differs from raw report")
         calculated.append({"concurrency": concurrency, "results": result})
+    run_timing.validate_sequence(run_entries)
     if len(seen) != 3 * repeats:
         raise ValueError("missing concurrency repetition")
     actual_summary = sweep.summarize_runs(calculated, argparse.Namespace(repeats=repeats))

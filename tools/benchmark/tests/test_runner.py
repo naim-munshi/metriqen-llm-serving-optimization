@@ -137,7 +137,13 @@ class BenchmarkRunnerTests(unittest.TestCase):
             self.assertEqual(runner.main(args), 0)
             report = output.read_text()
             self.assertNotIn("private fixture prompt", report)
-            self.assertEqual(json.loads(report)["results"]["successes"], 2)
+            parsed = json.loads(report)
+            self.assertEqual(parsed["results"]["successes"], 2)
+            from tools.benchmark import run_timing
+            self.assertEqual(
+                run_timing.validate(parsed["timing"], parsed["results"]["wall_seconds"]),
+                parsed["timing"],
+            )
 
 
 

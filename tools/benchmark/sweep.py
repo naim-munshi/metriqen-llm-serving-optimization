@@ -14,7 +14,7 @@ import statistics
 import sys
 from typing import Any
 
-from tools.benchmark import runner
+from tools.benchmark import runner, run_timing
 
 CONCURRENCIES = (1, 2, 4)
 MAX_REPEATS = 10
@@ -112,6 +112,8 @@ def _validate_run(report: dict, args: argparse.Namespace, concurrency: int,
             raise ValueError("invalid token throughput with complete usage")
     elif result.get("output_tokens") is not None or token_throughput is not None:
         raise ValueError("token throughput must be null when usage is incomplete")
+    if "timing" in report:
+        run_timing.validate(report["timing"], result["wall_seconds"])
     return result
 
 
@@ -172,8 +174,12 @@ def run(args: argparse.Namespace) -> Path:
             summary = _validate_run(report, args, concurrency, fingerprint)
         except (OSError, ValueError) as exc:
             raise RuntimeError(f"run {ordinal} invalid ({type(exc).__name__}: {exc}); partial reports retained at {output}") from None
-        records.append({"path": basename, "repeat": repeat,
-                        "concurrency": concurrency, "results": summary})
+        record = {"path": basename, "repeat": repeat,
+                  "concurrency": concurrency, "results": summary}
+        if "timing" in report:
+            record["timing"] = report["timing"]
+        records.append(record)
+    run_timing.validate_sequence(records)
     output_report = {
         "schema_version": 1,
         "method": "rotating-order repeated local client-observed streaming benchmarks",
@@ -185,13 +191,15 @@ def run(args: argparse.Namespace) -> Path:
                           "warmup_per_run": args.warmup, "concurrency": list(CONCURRENCIES),
                           "max_tokens": args.max_tokens, "timeout_seconds": args.timeout,
                           "stream_usage_requested": not args.no_stream_usage},
-        "run_files": [{k: r[k] for k in ("path", "repeat", "concurrency")} for r in records],
+        "run_files": [{k: r[k] for k in ("path", "repeat", "concurrency", "timing") if k in r}
+                      for r in records],
         "summary": summarize_runs(records, args),
         "limitations": [
             "Run-level medians/ranges are not pooled request percentiles or confidence intervals",
             "Hardware, model and runtime identifiers are self-reported; execution is not attested",
             "Complete output-token throughput is unavailable unless every successful run reports usage",
             "No GPU utilization, model quality, pricing or optimization speedup is measured",
+            "UTC run timestamps and elapsed durations are local observations, not authenticated clocks",
         ],
     }
     destination = output / "sweep-summary.json"

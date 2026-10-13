@@ -12,7 +12,7 @@ from pathlib import Path
 import re
 import sys
 
-from tools.benchmark import evidence_gate, runner, sweep
+from tools.benchmark import evidence_gate, runner, sweep, run_timing
 
 MANIFEST_NAME = "evidence-manifest.json"
 SUMMARY_NAME = "sweep-summary.json"
@@ -116,8 +116,11 @@ def collect_manifest(args: argparse.Namespace) -> tuple[dict, Path]:
             raise ValueError(f"run {index}: duplicate report file")
         seen_paths.add(path)
         result = sweep._validate_run(report, verifier_args, concurrency, env["dataset_sha256"])
+        if entry.get("timing") != report.get("timing"):
+            raise ValueError(f"run {index}: timeline differs from raw report")
         reports.append({"concurrency": concurrency, "report_path": name})
         computed_runs.append({"concurrency": concurrency, "results": result})
+    run_timing.validate_sequence(items)
     if len(seen_pairs) != 3 * repetitions:
         raise ValueError("missing run / concurrency combination")
     observed_summary = sweep.summarize_runs(computed_runs, argparse.Namespace(repeats=repetitions))

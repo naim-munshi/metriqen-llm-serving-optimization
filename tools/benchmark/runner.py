@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
@@ -301,10 +302,20 @@ def main(argv: list[str] | None = None) -> int:
         if args.dataset.resolve() == args.output.resolve():
             raise ValueError("dataset and output paths must be different")
         samples, dataset_hash = read_dataset(args.dataset)
+        clock_started = datetime.now(timezone.utc)
+        elapsed_started = time.perf_counter()
         results = run(args.endpoint, args.model, samples, stream=args.stream,
                       max_tokens=args.max_tokens, concurrency=args.concurrency,
                       requests=args.requests, warmup=args.warmup, timeout=args.timeout,
                       include_usage=not args.no_stream_usage)
+        clock_finished = datetime.now(timezone.utc)
+        elapsed_seconds = time.perf_counter() - elapsed_started
+        timing = {
+            "started_at_utc": clock_started.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+            "finished_at_utc": clock_finished.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+            "elapsed_seconds": round(elapsed_seconds, 4),
+            "scope": "warmup_and_measured_requests",
+        }
         report = {
             "schema_version": 1,
             "method": "locally_observed_wall_clock; throughput is completed-successes/wall-time; latency p95 nearest-rank on successful requests; warmups excluded",
@@ -318,6 +329,7 @@ def main(argv: list[str] | None = None) -> int:
                               "stream_usage_requested": args.stream and not args.no_stream_usage,
                               "max_tokens": args.max_tokens, "timeout_seconds": args.timeout},
             "results": results,
+            "timing": timing,
             "limitations": ["Hardware/model/runtime identifiers are caller-provided, not independently verified",
                             "No GPU memory utilization or tokenization performed by this tool",
                             "Streaming token usage is requested by default, but may be unavailable from some runtimes",
