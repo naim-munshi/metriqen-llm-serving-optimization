@@ -50,6 +50,13 @@ class ABAReviewTests(unittest.TestCase):
         self.assertIn("100.00%", report)
         self.assertIn("NOT proof of a causal speedup", report)
 
+    def test_markdown_inline_code_is_not_backslash_escaped(self):
+        result = aba_analysis.analyze(self.a1, self.b, self.a2)
+        report = aba_review.render(result)
+        self.assertIn("**Classification:** `exploratory_small_sample`", report)
+        self.assertIn(f"`{result['metadata']['model_digest']}`", report)
+        self.assertNotIn(r"\`", report)
+
     def test_quality_scores_include_all_three_phases(self):
         result = aba_analysis.analyze(self.a1, self.b, self.a2)
         md = aba_review.render(result)
