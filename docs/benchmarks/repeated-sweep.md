@@ -79,6 +79,8 @@ Check success rate, per-run p50/p95 latency and TTFT, token-usage coverage,
 response length, and throughput variation. With only twelve requests per run,
 p95 is noisy and not suitable for production SLO claims.
 
+For a reproducible, **offline per-run variability review**, use the [run-variability reviewer](run-variability-review.md). It checks the raw files against the aggregate summary, records run order, and flags unusually wide repeat-run ranges without dropping observations or claiming causality.
+
 ## Limits and follow-up
 
 This sweep measures throughput and latency but **not model answer quality**.
