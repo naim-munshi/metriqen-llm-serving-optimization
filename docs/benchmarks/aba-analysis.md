@@ -82,3 +82,48 @@ treat median-p95 differences as statistically significant.
 This is a local read-only evidence analysis until the final **new**
 aggregate JSON is written. Never commit private `reports/local/`,
 raw model responses or private operational logs.
+
+
+## Operator-reported A2 completion (2026-10-13)
+
+The developer reported nine successful 36-request A2 benchmark runs in
+`reports/local/aba-A2-20261013-145925`, evaluated 36 reference questions,
+created a human-attested local evidence manifest, and ran this tool.
+The generated private summary path was
+`reports/local/aba-analysis-20261013-153817.json` with the classification
+`descriptive_reversion_observations_only`.
+
+**This classification does not say the original baseline recovered.**
+The actual A2 throughput, TTFT, p95 latency, A1-to-A2 drift and A2 quality
+counts have not yet been inspected by the repository reviewer. Human notes
+about the returned slot count and thermal/power conditions remain necessary.
+The original public two-phase case study has not been silently rewritten
+to include A2 values.
+
+## Produce a private reviewer-friendly three-phase Markdown report
+
+From the project root on the machine with all three complete private
+evidence bundles, run:
+
+~~~sh
+python3 -m tools.benchmark.aba_review \
+  --a1 reports/local/v1-baseline-20261013-104946/evidence-manifest.json \
+  --b reports/local/v1-parallel2-20261013-120425/evidence-manifest.json \
+  --a2 reports/local/aba-A2-20261013-145925/evidence-manifest.json \
+  --output "reports/local/aba-review-$(date +%Y%m%d-%H%M%S).md"
+~~~
+
+The CLI independently invokes the strict A/B/A verifier on all three
+source bundles and writes only aggregate per-concurrency medians, percent
+changes, quality rates, identities and explicit uncertainty/provenance
+disclaimers. It does not export prompts, individual responses, local
+server logs or complete raw measurements, and refuses to overwrite an
+existing report. The resulting Markdown is **private under reports/local/**
+until manually reviewed for accurate context and cleared for publication.
+Do not commit it or claim causal speedup based only on the generated
+table.
+
+The original saved JSON A/B/A summary can also be read offline with
+`python3 -m json.tool reports/local/aba-analysis-20261013-153817.json`.
+The running Ollama server and gateway are not required for either
+reporting command.

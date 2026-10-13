@@ -1,6 +1,6 @@
 # A/B/A reversion study — Ollama inference parallelism
 
-**Status: future protocol only; no A/B/A execution or outcome is claimed.**
+**Status:** the operator has reported a completed **historical A1 → B → later A2** sequence and generated a local descriptive A/B/A report on 2026-10-13. The A2 numeric results have not been independently inspected or published. **This protocol is still intended for future prospectively planned, uninterrupted replications; no causal effect or verified recovery is claimed.**
 The [first operator-reported experiment](experiments/2026-10-13-ollama-parallelism.md)
 observed a descriptive improvement for parallelism 2 under client concurrency 2,
 but not under every load. An A/B/A (1 → 2 → 1) reversion tests whether the
