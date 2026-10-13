@@ -57,6 +57,14 @@ class ABAReviewTests(unittest.TestCase):
         self.assertIn(f"`{result['metadata']['model_digest']}`", report)
         self.assertNotIn(r"\`", report)
 
+    def test_repeat_ranges_are_explicitly_not_confidence_intervals(self):
+        result = aba_analysis.analyze(self.a1, self.b, self.a2)
+        report = aba_review.render(result)
+        self.assertIn("## Repeat-run variability", report)
+        self.assertIn("not the range of individual requests, a confidence interval", report)
+        self.assertIn("| C=2 | Client latency p50 (ms) | 51.000–53.000 | 26.000–28.000 | 53.500–55.500 |", report)
+        self.assertIn("A1 repeat range | B repeat range | A2 repeat range", report)
+
     def test_quality_scores_include_all_three_phases(self):
         result = aba_analysis.analyze(self.a1, self.b, self.a2)
         md = aba_review.render(result)
@@ -97,6 +105,7 @@ class ABAReviewTests(unittest.TestCase):
         self.fixture.write_bundle(self.a2_dir, wall=1.05, completion_usage=False)
         report = aba_review.render(aba_analysis.analyze(self.a1, self.b, self.a2))
         self.assertIn("Output tokens/sec (tokens/s) | N/A | N/A | N/A", report)
+        self.assertIn("| C=2 | Output tokens/sec (tokens/s) | N/A | N/A | N/A |", report)
 
     def test_bad_file_extension_rejected(self):
         self.output = self.output.with_suffix(".json")

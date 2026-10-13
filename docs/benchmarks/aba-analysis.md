@@ -57,6 +57,10 @@ Per client concurrency (1, 2 and 4), and for throughput, latency
 p50/p95 and TTFT p50/p95, the report shows:
 
 - Median across repeated A1, B and A2 measurements.
+- Repeat-run **minimum and maximum** of each of the six metrics across all
+  three phases (computed from the original validated run summaries).
+  These are run-level descriptive ranges, not confidence intervals,
+  pooled per-request statistics or proof of an effect.
 - **A1 → B** percent change: original candidate observation.
 - **B → A2** percent change: descriptive reversal observation.
 - **A1 → A2 drift** percent change: original vs returned configuration.
@@ -114,9 +118,10 @@ python3 -m tools.benchmark.aba_review \
 ~~~
 
 The CLI independently invokes the strict A/B/A verifier on all three
-source bundles and writes only aggregate per-concurrency medians, percent
-changes, quality rates, identities and explicit uncertainty/provenance
-disclaimers. It does not export prompts, individual responses, local
+source bundles and writes only aggregate per-concurrency medians, per-run
+minimum/maximum ranges, percent changes, quality rates, identities and
+explicit uncertainty/provenance disclaimers. It does not export prompts,
+individual responses, local
 server logs or complete raw measurements, and refuses to overwrite an
 existing report. The resulting Markdown is **private under reports/local/**
 until manually reviewed for accurate context and cleared for publication.

@@ -30,6 +30,12 @@ def _change(number: int | float | None) -> str:
     return "N/A" if number is None else f"{number:+.2f}%"
 
 
+def _repeat_range(bounds: dict | None) -> str:
+    if bounds is None:
+        return "N/A"
+    return f"{_value(bounds['min'])}–{_value(bounds['max'])}"
+
+
 def render(result: dict) -> str:
     """Use only verified numeric summaries and fixed textual labels."""
     if (result.get("schema_version") != 1
@@ -83,6 +89,28 @@ def render(result: dict) -> str:
                 f"{_change(item['A1_to_B_percentage_change'])} | "
                 f"{_change(item['A1_to_A2_drift_percentage_change'])} | "
                 f"{_change(item['B_vs_A1_A2_center_percentage_change'])} |"
+            )
+
+    sections += [
+        "",
+        "## Repeat-run variability",
+        "",
+        "Each cell is the minimum–maximum across repeated run-level summaries,",
+        "not the range of individual requests, a confidence interval, or a",
+        "statistical significance test. Three repetitions are exploratory.",
+        "",
+        "| Client concurrency | Metric | A1 repeat range | B repeat range | A2 repeat range |",
+        "| --- | --- | ---: | ---: | ---: |",
+    ]
+    for concurrency in ("1", "2", "4"):
+        for key in aba_analysis.METRICS:
+            item = results[concurrency][key]
+            label, unit = TITLES[key]
+            bounds = item["repeat_run_ranges"]
+            sections.append(
+                f"| C={concurrency} | {label} ({unit}) | "
+                f"{_repeat_range(bounds['A1'])} | {_repeat_range(bounds['B'])} | "
+                f"{_repeat_range(bounds['A2'])} |"
             )
 
     sections += [
