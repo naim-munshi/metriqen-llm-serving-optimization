@@ -37,7 +37,7 @@ class DeveloperReportedParallelismCaseStudyTests(unittest.TestCase):
         self.assertEqual(p["comparator_status"], "descriptive_not_causal")
         self.assertIs(p["private_evidence_verified_locally_by_operator"], True)
         self.assertIs(p["github_ci_revalidates_raw_hardware_reports"], False)
-        self.assertIn("does not independently prove", p["disclaimer"])
+        self.assertIn("do not independently prove", p["disclaimer"])
         self.assertIn("not a verified causal speedup", self.markdown)
         self.assertIn("CI", self.markdown)
 
