@@ -16,13 +16,13 @@ Each item is a milestone; planned work must not appear in the README as implemen
 | 10 | Secure web console and deployment lifecycle | End-to-end role-aware tests |
 | 11 | Operational hardening and portfolio release | Security, recovery, performance and demo evidence |
 
-## Verified local tooling (not model performance)
+## Local tooling and operator-reported performance evidence
 
-A dependency-free Python benchmark CLI with offline tests now records warm-up-excluded TTFT, p50/p95 latency, successes, failures, request throughput and optional token usage for a loopback inference endpoint. Its measurements are *not* real until executed against a pinned model and documented hardware; vLLM/GPU testing remains required.
+A dependency-free Python benchmark CLI with offline tests now records warm-up-excluded TTFT, p50/p95 latency, successes, failures, request throughput and optional token usage for a loopback inference endpoint. A developer has now executed pinned-model runs and locally validated their report consistency; see the [public aggregate experiment](docs/benchmarks/experiments/2026-10-13-ollama-parallelism.md). GitHub CI still checks synthetic fixtures only; there is no independent hardware attestation or vLLM/GPU measurement.
 
 ## Completed proof of concept
 
-A local-only Go streaming inference bridge with request validation, cancellation and mocked integration tests is implemented independently of a future public serving gateway. A developer has subsequently verified real Ollama 0.30.8 generation on Apple M2 and provided preliminary six-request local benchmark outputs, including a pinned-digest run with streamed token counts. **The repository contains no published reproducible nine-run comparison or vLLM GPU result**; production gateway controls remain planned.
+A local-only Go streaming inference bridge with request validation, cancellation and mocked integration tests is implemented independently of a future public serving gateway. A developer has subsequently verified real Ollama 0.30.8 generation on Apple M2 and completed two separate nine-run 36-request-per-run sweeps with strict, operator-attested evidence consistency checks and a separate reference-quality comparison. **Only sanitized aggregates are public; the raw evidence is private and public CI cannot independently reproduce the measurements**. See the [2026-10-13 parallelism experiment](docs/benchmarks/experiments/2026-10-13-ollama-parallelism.md). vLLM GPU serving and production gateway controls remain planned.
 
 A PostgreSQL-targeted tenant schema and read-only SQLAlchemy adapter have offline SQLite-backed integration tests, including composite foreign-key tenant boundaries. This is **not** a deployed or PostgreSQL-tested membership store. An operator may opt in locally with an explicit loopback PostgreSQL configuration; no database is wired into default runtime. Live identity-provider authentication, migrations execution and production RBAC remain planned.
 
@@ -30,12 +30,13 @@ Follow one reviewable change per PR; do not manufacture a commit history.
 
 ## Serving comparison readiness
 
-The offline comparator can revalidate two local evidence bundles and report p50/p95, TTFT and throughput deltas with a separately checked exact-match quality gate. **A passing comparison is descriptive, not a causal optimization result.** The legacy example workloads contain just three performance prompts and two reference questions; new **versioned v1 starter datasets** contain 36 technical prompts and 36 deterministic-answer references, with offline schema checks. Both remain synthetic and potentially unrepresentative; publish no general speedup claim until adequately sized real experiments and uncertainty analyses exist. See [controlled comparison protocol](docs/benchmarks/controlled-comparison.md).
+The offline comparator can revalidate two local evidence bundles and report p50/p95, TTFT and throughput deltas with a separately checked exact-match quality gate. **A passing comparison is descriptive, not a causal optimization result.** The legacy example workloads contain just three performance prompts and two reference questions; new **versioned v1 starter datasets** contain 36 technical prompts and 36 deterministic-answer references, with offline schema checks. Both remain synthetic and potentially unrepresentative; the first developer-run comparison is documented as `descriptive_not_causal`, and no general/causal speedup claim is eligible until independently replicated experiments, representative workloads and uncertainty analyses exist. See [controlled comparison protocol](docs/benchmarks/controlled-comparison.md).
 
 ## NLP quality-evaluation track
 
 - Baseline: deterministic ID-aligned exact and normalized exact match, versioned dataset fingerprints and aggregate-only reports.
-- Next: compare real-model outputs under controlled prompt and generation settings; add semantic evaluation only with validated datasets and calibration.
+- Completed locally on 2026-10-13: the developer obtained 36 reference responses per setting; exact match was 31/36 and normalized match 33/36 for both parallelism 1 and 2. Raw outputs were not published.
+- Next: independently inspect response quality under stronger datasets; add semantic evaluation only with validated references and calibration.
 - Gate: do not claim quantization or batching improves performance at equivalent quality until benchmark and NLP evaluation evidence is paired.
 
 NLP quality measurement is not the same as runtime inference performance and must be reported separately.
