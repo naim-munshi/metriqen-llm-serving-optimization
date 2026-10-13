@@ -136,7 +136,9 @@ def summarize_runs(runs: list[dict], args: argparse.Namespace) -> dict:
             "failed_requests": sum(r["failures"] for r in records),
             "requests_per_second": _range([r["requests_per_second"] for r in records]),
             "latency_run_p50_ms": _range([r["latency_ms"]["p50"] for r in records]),
+            "latency_run_p95_ms": _range([r["latency_ms"]["p95"] for r in records]),
             "ttft_run_p50_ms": _range([r["ttft_ms"]["p50"] for r in records]),
+            "ttft_run_p95_ms": _range([r["ttft_ms"]["p95"] for r in records]),
             "completion_token_coverage": sum(r["completion_token_coverage"] for r in records),
             "output_tokens_per_second": (
                 _range([r["output_tokens_per_second"] for r in records]) if full_usage else None

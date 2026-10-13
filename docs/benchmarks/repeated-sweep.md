@@ -48,7 +48,7 @@ and unauthenticated; never expose it publicly.
 - For OpenAI-compatible runtimes without streaming usage support, choose
   --no-stream-usage. Token throughput then remains null, never estimated.
 - Every run produces its own private report. Only after all nine succeed does
-  the tool write sweep-summary.json with median/min/max **of per-run metrics**.
+  the tool write sweep-summary.json with median/min/max **of per-run metrics**, including p50 and p95 latency/TTFT.
   These are not pooled request percentiles or confidence intervals.
 - Any failed or inconsistent run aborts the sweep, retains the partial reports
   for investigation, and does NOT write an aggregate summary.
@@ -71,7 +71,7 @@ p95 is noisy and not suitable for production SLO claims.
 ## Limits and follow-up
 
 This sweep measures throughput and latency but **not model answer quality**.
-After the sweep finishes, follow the [evidence-bundle workflow](real-model-evidence-bundle.md) to run the separate NLP reference evaluation and validate the raw reports together. Use the same pinned model and honest runtime/hardware labels. Do not claim optimization speedup without a
+After the sweep finishes, follow the [evidence-bundle workflow](real-model-evidence-bundle.md) to run the separate NLP reference evaluation and validate the raw reports together. Use the same pinned model and honest runtime/hardware labels. To compare two matching and separately verified runs, follow the [controlled-comparison protocol](controlled-comparison.md). Do not claim optimization speedup without a
 controlled before/after configuration change at comparable quality.
 
 The report is not a cryptographic proof of GPU execution or hardware

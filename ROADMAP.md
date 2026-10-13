@@ -22,11 +22,15 @@ A dependency-free Python benchmark CLI with offline tests now records warm-up-ex
 
 ## Completed proof of concept
 
-A local-only Go streaming inference bridge with request validation, cancellation and mocked integration tests is implemented independently of the future public serving gateway. **Real Ollama or vLLM model execution has not been tested in this milestone**; GPU-serving, benchmarks and tenant-level controls remain on the roadmap.
+A local-only Go streaming inference bridge with request validation, cancellation and mocked integration tests is implemented independently of a future public serving gateway. A developer has subsequently verified real Ollama 0.30.8 generation on Apple M2 and provided preliminary six-request local benchmark outputs, including a pinned-digest run with streamed token counts. **The repository contains no published reproducible nine-run comparison or vLLM GPU result**; production gateway controls remain planned.
 
-A PostgreSQL-targeted tenant schema and read-only SQLAlchemy adapter have offline SQLite-backed integration tests, including composite foreign-key tenant boundaries. This is **not** a deployed or PostgreSQL-tested membership store, and it is not wired into default runtime. Live identity-provider authentication, migrations execution and production RBAC remain planned.
+A PostgreSQL-targeted tenant schema and read-only SQLAlchemy adapter have offline SQLite-backed integration tests, including composite foreign-key tenant boundaries. This is **not** a deployed or PostgreSQL-tested membership store. An operator may opt in locally with an explicit loopback PostgreSQL configuration; no database is wired into default runtime. Live identity-provider authentication, migrations execution and production RBAC remain planned.
 
 Follow one reviewable change per PR; do not manufacture a commit history.
+
+## Serving comparison readiness
+
+The offline comparator can revalidate two local evidence bundles and report p50/p95, TTFT and throughput deltas with a separately checked exact-match quality gate. **A passing comparison is descriptive, not a causal optimization result.** The stock workloads are small protocol examples; publish no general speedup claim until adequately sized real experiments and uncertainty analyses exist. See [controlled comparison protocol](docs/benchmarks/controlled-comparison.md).
 
 ## NLP quality-evaluation track
 

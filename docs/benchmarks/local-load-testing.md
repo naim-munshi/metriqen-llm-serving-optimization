@@ -81,3 +81,7 @@ The streaming benchmark parser accepts standard SSE event framing, including mul
 **Do not claim an optimization benefit without real-model/real-hardware measurements and comparable output quality.**
 
 **Field verification:** On a local Apple M2 running Ollama 0.30.8, a manual Metriqen streaming test with `stream_options.include_usage=true` returned a final `choices: []` chunk with `prompt_tokens=32` and `completion_tokens=35`, then `[DONE]`. This verifies runtime compatibility, not a complete performance study. An earlier six-request user-provided baseline had 6/6 successes but no streaming usage; do not recompute or backfill its missing token counts from a separate request. Repeat that benchmark with this version to collect token throughput legitimately.
+
+## Validated comparison (new)
+
+For paired local performance runs and an independently checked quality reference, use the [controlled comparison protocol](controlled-comparison.md). The repeat sweep now includes median/min/max of per-run p95 latency and TTFT as well as per-run p50. These summaries are descriptive; neither CI fixture timings nor unpinned model tags constitute performance evidence.
