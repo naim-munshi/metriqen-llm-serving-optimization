@@ -58,6 +58,15 @@ def analyze(a1: Path, b: Path, a2: Path) -> dict:
     else:
         quality_regression = False
 
+    # Re-read the three locally verified sweep summaries so the reviewer can
+    # examine variation across repeats, not just their medians. These ranges
+    # are recomputed from raw run reports by the strict evidence reader.
+    phase_summaries = {
+        "A1": compare._read_experiment(a1)["summary"],
+        "B": compare._read_experiment(b)["summary"],
+        "A2": compare._read_experiment(a2)["summary"],
+    }
+
     metrics = {}
     usage_missing = False
     for level in ("1", "2", "4"):
@@ -78,7 +87,23 @@ def analyze(a1: Path, b: Path, a2: Path) -> dict:
                 center = None
             else:
                 center = (values[0] + values[2]) / 2
+            repeat_ranges = {}
+            for phase, expected_median in zip(("A1", "B", "A2"), values):
+                report = phase_summaries[phase][level].get(metric)
+                if report is None:
+                    if expected_median is not None:
+                        raise ValueError("repeat-run evidence disagrees with pairwise comparison")
+                    repeat_ranges[phase] = None
+                else:
+                    if (not isinstance(report, dict)
+                            or report.get("median") != expected_median):
+                        raise ValueError("repeat-run evidence disagrees with pairwise comparison")
+                    repeat_ranges[phase] = {
+                        "min": report["min"],
+                        "max": report["max"],
+                    }
             per_level[metric] = {
+                "repeat_run_ranges": repeat_ranges,
                 "A1_median": values[0],
                 "B_median": values[1],
                 "A2_median": values[2],
@@ -122,7 +147,7 @@ def analyze(a1: Path, b: Path, a2: Path) -> dict:
         "limitations": [
             "Operator phase labels and runtime slot counts are not authenticated by these JSON reports",
             "Old A1/B sessions combined with a later A2 are exploratory, not a prospective uninterrupted A/B/A",
-            "Three per-run medians at each concurrency do not establish confidence intervals or causality",
+            "Three per-run medians and repeat-run minimum/maximum ranges are not confidence intervals or causal estimates",
             "A1-to-A2 drift has no predetermined stability threshold; no automatic pass/fail on recovery",
             "Center of two A medians is only a descriptive reference, not a causal counterfactual",
             "Cache, thermal, power, OS load and model lifetime may differ across phases",
