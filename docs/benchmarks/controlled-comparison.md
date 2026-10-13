@@ -1,6 +1,6 @@
 # Controlled local serving configuration comparisons
 
-**First operator-reported real experiment:** [Ollama parallelism 1 versus 2 on Apple M2](experiments/2026-10-13-ollama-parallelism.md) (2026-10-13). Includes measured client-side throughput/latency, narrow quality scores, trade-offs and provenance limitations. The private raw reports were checked locally by the operator, not in public GitHub CI.
+**First operator-reported real experiment:** [Ollama parallelism 1 versus 2 on Apple M2](experiments/2026-10-13-ollama-parallelism.md) (2026-10-13). Includes measured client-side throughput/latency, narrow quality scores, trade-offs and provenance limitations. The private raw reports were checked locally by the operator, not in public GitHub CI. Owners retaining the original raw files can execute the new read-only `audit_public_case_study` CLI to independently re-check the *published transcription against their own local evidence* without uploading raw data.
 
 This workflow compares **two separately measured local sweeps**, not a
 synthetic CI speedup. It is for the **same pinned model weights, hardware,

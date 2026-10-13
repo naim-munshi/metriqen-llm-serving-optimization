@@ -88,3 +88,27 @@ On a local development machine with the **same pinned model digest** and version
 - **No claim about broader hardware/runtime configurations**: Q8_0 Metal measurements do not generalize to other quantization, vLLM continuous batching, GPU VRAM pressure, production loads or cost.
 
 **Recommended follow-up:** repeat an A/B/A (1 → 2 → 1) protocol with cooling/background-load notes and more repeats; then assess whether the original result persists under controlled conditions. Only consider parallelism 4 or alternative queue scheduling after collecting additional latency, throughput and quality evidence. No claims of SLA attainment or statistical significance are made here.
+
+## Recheck the published figures against private evidence (offline)
+
+After `git pull --ff-only origin main` on the same Mac where the private
+`reports/local/` directories still exist, run this **read-only** audit:
+
+~~~sh
+python3 -m tools.benchmark.audit_public_case_study \
+  --published docs/benchmarks/experiments/2026-10-13-ollama-parallelism.json \
+  --baseline reports/local/v1-baseline-20261013-104946/evidence-manifest.json \
+  --candidate reports/local/v1-parallel2-20261013-120425/evidence-manifest.json
+~~~
+
+The CLI checks **all 18 local raw run reports**, both human-attested manifests,
+the per-run aggregate calculations, quality scores, actual v1 dataset SHA-256
+fingerprints and every published percentage. It refuses discrepancies and does
+not upload or modify any local report. Ollama/Gateway **do not need to run** for
+this offline check.
+
+This gives a reproducible consistency check that the public transcription was
+copied correctly **if the private files are authentic**, not remote
+verification by GitHub CI. Active Ollama parallelism (1 versus 2), actual
+hardware, thermal state and causal attribution still require independent
+operator observation. Never commit `reports/local/` or publish prompt text.

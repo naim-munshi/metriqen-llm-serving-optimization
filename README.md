@@ -24,6 +24,8 @@ Exact match remained **31/36** and normalized exact match **33/36**, but these s
 
 [Read experimental design, all compared metrics, limitations and reproduction](docs/benchmarks/experiments/2026-10-13-ollama-parallelism.md) · [Machine-readable aggregate transcription](docs/benchmarks/experiments/2026-10-13-ollama-parallelism.json)
 
+With the original private report directories still on the developer's Mac, `python3 -m tools.benchmark.audit_public_case_study` can re-run the strict local comparison, hash the checked-in v1 workloads, and check every published numeric aggregate. It does **not** attest the true server configuration, physical device or causality, and GitHub CI still cannot access those private files.
+
 ## Implemented
 
 - FastAPI control service: `GET /health/live` and `GET /health/ready`.
