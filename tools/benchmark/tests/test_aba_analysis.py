@@ -44,6 +44,14 @@ class ABAAnalysisTests(unittest.TestCase):
         self.assertNotIn("causal_speedup_verified", json.dumps(record))
         self.assertEqual(record["quality"]["samples"], 2)
 
+    def test_verified_repeat_ranges_agree_with_three_run_summary(self):
+        record = aba_analysis.analyze(self.a1, self.b, self.a2)
+        c2 = record["metrics_by_concurrency"]["2"]["latency_run_p50_ms"]
+        self.assertEqual(c2["repeat_run_ranges"]["A1"], {"min": 51.0, "max": 53.0})
+        self.assertEqual(c2["repeat_run_ranges"]["B"], {"min": 26.0, "max": 28.0})
+        self.assertEqual(c2["repeat_run_ranges"]["A2"], {"min": 53.5, "max": 55.5})
+        self.assertNotIn(str(self.fixture.root), json.dumps(record))
+
     def test_path_reuse_rejected(self):
         with self.assertRaisesRegex(ValueError, "distinct"):
             aba_analysis.analyze(self.a1, self.b, self.a1)
