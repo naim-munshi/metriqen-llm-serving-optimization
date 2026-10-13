@@ -125,8 +125,8 @@ def render(report: dict) -> str:
         "**Classification:** descriptive screening only; not an optimization speedup, "
         "causal test, hardware attestation, or confidence interval.",
         "",
-        f"- Model digest: \`{report['model_revision']}\`",
-        f"- Workload SHA-256: \`{report['dataset_sha256']}\`",
+        f"- Model digest: `{report['model_revision']}`",
+        f"- Workload SHA-256: `{report['dataset_sha256']}`",
         f"- Repeats per concurrency: {report['repeats']}",
         "- Timestamps: " + ("recorded by local runner" if report["has_timing"]
                              else "unavailable in legacy raw reports"),
