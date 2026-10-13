@@ -147,7 +147,7 @@ def analyze(a1: Path, b: Path, a2: Path) -> dict:
         "limitations": [
             "Operator phase labels and runtime slot counts are not authenticated by these JSON reports",
             "Old A1/B sessions combined with a later A2 are exploratory, not a prospective uninterrupted A/B/A",
-            "Three per-run medians and repeat-run minimum/maximum ranges are not confidence intervals or causal estimates",
+            "Three per-run medians and repeat-run minimum/maximum ranges are not confidence intervals and cannot establish causality",
             "A1-to-A2 drift has no predetermined stability threshold; no automatic pass/fail on recovery",
             "Center of two A medians is only a descriptive reference, not a causal counterfactual",
             "Cache, thermal, power, OS load and model lifetime may differ across phases",
