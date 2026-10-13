@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timedelta, timezone
 from contextlib import redirect_stdout
 from io import StringIO
 import json
@@ -142,6 +143,59 @@ class SweepTests(unittest.TestCase):
             p.write_text(json.dumps(item))
             return rc
         with patch.object(sweep.runner, "main", side_effect=inconsistent):
+            with redirect_stdout(StringIO()):
+                with self.assertRaisesRegex(RuntimeError, "partial reports retained"):
+                    sweep.run(self.args)
+        self.assertFalse((self.args.output_dir / "sweep-summary.json").exists())
+
+    def test_run_timestamps_saved_in_summary_and_verified(self):
+        origin = datetime(2026, 10, 14, tzinfo=timezone.utc)
+
+        def timed_fixture(argv):
+            rc = self.write_fixture(argv)
+            args = dict(zip(argv[::2], argv[1::2]))
+            # --stream is a trailing flag, not a key/value pair.
+            file = Path(args["--output"])
+            raw = json.loads(file.read_text())
+            start = origin + timedelta(seconds=(len(self.calls) - 1) * 20)
+            finish = start + timedelta(seconds=10.3)
+            raw["timing"] = {
+                "started_at_utc": start.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+                "finished_at_utc": finish.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+                "elapsed_seconds": 10.3,
+                "scope": "warmup_and_measured_requests",
+            }
+            file.write_text(json.dumps(raw))
+            return rc
+
+        with patch.object(sweep.runner, "main", side_effect=timed_fixture):
+            with redirect_stdout(StringIO()):
+                summary_file = sweep.run(self.args)
+        summary = json.loads(summary_file.read_text())
+        self.assertEqual(len(summary["run_files"]), 9)
+        self.assertTrue(all("timing" in entry for entry in summary["run_files"]))
+        for entry in summary["run_files"]:
+            raw = json.loads((self.args.output_dir / entry["path"]).read_text())
+            self.assertEqual(entry["timing"], raw["timing"])
+        from tools.benchmark import run_timing
+        run_timing.validate_sequence(summary["run_files"])
+
+    def test_tampered_timing_blocks_aggregate(self):
+        def invalid_fixture(argv):
+            rc = self.write_fixture(argv)
+            stripped = [item for item in argv if item not in ("--stream", "--no-stream-usage")]
+            filename = Path(dict(zip(stripped[::2], stripped[1::2]))["--output"])
+            raw = json.loads(filename.read_text())
+            raw["timing"] = {
+                "started_at_utc": "2026-10-14T00:00:00.000Z",
+                "finished_at_utc": "2026-10-14T00:00:01.000Z",
+                "elapsed_seconds": 1.0,
+                "scope": "warmup_and_measured_requests",
+            }
+            filename.write_text(json.dumps(raw))
+            return rc
+
+        with patch.object(sweep.runner, "main", side_effect=invalid_fixture):
             with redirect_stdout(StringIO()):
                 with self.assertRaisesRegex(RuntimeError, "partial reports retained"):
                     sweep.run(self.args)
