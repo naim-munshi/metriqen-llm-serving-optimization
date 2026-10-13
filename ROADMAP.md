@@ -30,7 +30,7 @@ Follow one reviewable change per PR; do not manufacture a commit history.
 
 ## Serving comparison readiness
 
-The offline comparator can revalidate two local evidence bundles and report p50/p95, TTFT and throughput deltas with a separately checked exact-match quality gate. **A passing comparison is descriptive, not a causal optimization result.** The stock workloads are small protocol examples; publish no general speedup claim until adequately sized real experiments and uncertainty analyses exist. See [controlled comparison protocol](docs/benchmarks/controlled-comparison.md).
+The offline comparator can revalidate two local evidence bundles and report p50/p95, TTFT and throughput deltas with a separately checked exact-match quality gate. **A passing comparison is descriptive, not a causal optimization result.** The legacy example workloads contain just three performance prompts and two reference questions; new **versioned v1 starter datasets** contain 36 technical prompts and 36 deterministic-answer references, with offline schema checks. Both remain synthetic and potentially unrepresentative; publish no general speedup claim until adequately sized real experiments and uncertainty analyses exist. See [controlled comparison protocol](docs/benchmarks/controlled-comparison.md).
 
 ## NLP quality-evaluation track
 

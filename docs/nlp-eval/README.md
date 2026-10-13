@@ -71,3 +71,7 @@ Real model quality has not been verified by this documentation or CI. A develope
 ## Before/after quality guard
 
 The [serving comparison CLI](../benchmarks/controlled-comparison.md) checks the same quality dataset SHA-256, model revision and decoding settings in both evidence bundles, and labels any exact- or normalized-match regression as ineligible for a positive optimization conclusion. These exact-match metrics are not a substitute for semantic, factuality or safety evaluation.
+
+## Larger synthetic reference workload
+
+A new versioned **36-question** deterministic reference dataset is available at `docs/nlp-eval/workload.v1.jsonl`, with answer-only geography, arithmetic and computing acronym questions. See [workload design v1](../benchmarks/workload-design-v1.md) for its limitations. It can support initial local quality-regression checks, but its answers do not test nuanced semantic quality, factuality under ambiguity, or model safety. The older two-question example remains available and unchanged for smoke tests.
