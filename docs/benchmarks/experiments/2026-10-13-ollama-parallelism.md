@@ -87,7 +87,7 @@ On a local development machine with the **same pinned model digest** and version
 - **No per-request public data or quality-response review**: the repo has sanitized aggregate values, not original artifacts; no independent auditor can recalculate every result from GitHub alone.
 - **No claim about broader hardware/runtime configurations**: Q8_0 Metal measurements do not generalize to other quantization, vLLM continuous batching, GPU VRAM pressure, production loads or cost.
 
-**Recommended follow-up:** repeat an A/B/A (1 → 2 → 1) protocol with cooling/background-load notes and more repeats; then assess whether the original result persists under controlled conditions. Only consider parallelism 4 or alternative queue scheduling after collecting additional latency, throughput and quality evidence. No claims of SLA attainment or statistical significance are made here.
+**Recommended follow-up:** run the [documented A/B/A (1 → 2 → 1) reversion protocol](../aba-reversion-protocol.md) with cooling/background-load notes and new run directories; then assess whether the original result persists under controlled conditions. Only consider parallelism 4 or alternative queue scheduling after collecting additional latency, throughput and quality evidence. No claims of SLA attainment or statistical significance are made here.
 
 ## Recheck the published figures against private evidence (offline)
 

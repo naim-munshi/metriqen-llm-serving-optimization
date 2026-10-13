@@ -2,8 +2,9 @@
 
 No Ollama execution is required for this preparation phase. The
 `evidence_gate.py` tool checks that a completed experiment manifest has
-required fields and enough runs. **It does not authenticate report contents,
-validate measurements or prove model execution.** Never set
+required fields and enough runs. **With `--verify-reports`, it checks referenced local report schema,
+metrics and quality consistency. It does not independently authenticate
+hardware, prove genuine execution or establish causality.** Never set
 `real_model_executed` to true until you have actually run the model.
 
 ## Before going home
@@ -22,7 +23,7 @@ validate measurements or prove model execution.** Never set
 4. Keep report artifacts under `reports/local/` and create a private
    manifest based on the schema below. This is a *template*, not evidence.
 5. Run `python -m tools.benchmark.evidence_gate path/to/manifest.json --verify-reports`.
-   A pass checks completeness only; review raw measurements manually.
+   A pass checks report consistency, not independent model/hardware authenticity; review raw measurements manually.
 
 ## Manifest fields
 
@@ -35,6 +36,7 @@ Required report paths: `quality_report` and `benchmark_reports` containing
 at least three entries each for concurrency 1, 2 and 4. Each entry contains
 `concurrency` (integer) and `report_path` (string).
 
-All metadata is self-reported. Paths are labels; this validator does not
-open or authenticate benchmark reports. Do not publish performance claims
+All metadata is self-reported. In `--verify-reports` mode the validator
+opens and checks the referenced local benchmark and quality reports;
+it cannot independently authenticate their origin. Do not publish performance claims
 solely because the validator exits successfully.
