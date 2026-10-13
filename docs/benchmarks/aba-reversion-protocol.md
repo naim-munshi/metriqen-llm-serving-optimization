@@ -24,6 +24,18 @@ thermal/caching/time drift, but it is **not** randomized causal identification.
   thermal and cache conditions were not prospectively randomized, a
   **new, uninterrupted A/B/A session** is preferable for a stronger study.
 
+## Per-phase macOS preflight (new)
+
+Before starting any **new** benchmark phase, use the [read-only local
+preflight](preflight.md) to check AC power, pinned Ollama model digest,
+Ollama version, local Go gateway liveness, exactly one Ollama server, and
+the visible configured parallelism. Save each snapshot under private
+`reports/local/` using a unique output filename. **The preflight does
+not verify active slots**; the operator must still inspect model-load
+logs for `n_seq_max` and `n_slots`, as well as record background load
+and relevant time/thermal conditions. A blocked preflight means no
+benchmark should be started.
+
 ## Phase sequence
 
 From repository root, check `git status --short` and
