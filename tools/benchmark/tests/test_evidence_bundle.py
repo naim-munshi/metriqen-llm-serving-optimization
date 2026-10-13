@@ -5,6 +5,7 @@ These tests never execute a real model or attest a GPU.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timedelta, timezone
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import asdict
 from io import StringIO
@@ -91,6 +92,36 @@ class EvidenceBundleTests(unittest.TestCase):
             "summary": sweep.summarize_runs(computed, argparse.Namespace(repeats=3)),
         }
         self.save_summary()
+
+    def enable_timed_reports(self):
+        start = datetime(2026, 10, 12, tzinfo=timezone.utc)
+        for index, entry in enumerate(self.summary["run_files"]):
+            raw_path = self.sweep_dir / entry["path"]
+            raw = json.loads(raw_path.read_text())
+            began = start + timedelta(seconds=index * 5)
+            finished = began + timedelta(seconds=1.4)
+            timeline = {
+                "started_at_utc": began.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+                "finished_at_utc": finished.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+                "elapsed_seconds": 1.4,
+                "scope": "warmup_and_measured_requests",
+            }
+            raw["timing"] = timeline
+            entry["timing"] = timeline
+            raw_path.write_text(json.dumps(raw))
+        self.save_summary()
+
+    def test_evidence_bundle_accepts_valid_timed_reports(self):
+        self.enable_timed_reports()
+        self.assertEqual(self.call(), 0)
+        self.assertTrue((self.sweep_dir / "evidence-manifest.json").exists())
+
+    def test_evidence_bundle_rejects_modified_summary_timing(self):
+        self.enable_timed_reports()
+        self.summary["run_files"][0]["timing"]["elapsed_seconds"] = 30
+        self.save_summary()
+        self.assertEqual(self.call(), 2)
+        self.assertFalse((self.sweep_dir / "evidence-manifest.json").exists())
 
     def save_summary(self):
         (self.sweep_dir / "sweep-summary.json").write_text(json.dumps(self.summary))
