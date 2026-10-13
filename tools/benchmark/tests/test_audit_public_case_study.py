@@ -13,12 +13,12 @@ import unittest
 from unittest.mock import patch
 
 from tools.benchmark import audit_public_case_study, compare
-from tools.benchmark.tests.test_compare import ComparisonTests
+from tools.benchmark.tests import test_compare
 
 
 class PublishedEvidenceAuditTests(unittest.TestCase):
     def setUp(self):
-        self.fixture = ComparisonTests(
+        self.fixture = test_compare.ComparisonTests(
             methodName="test_valid_results_are_labeled_exploratory_not_speedups")
         self.fixture.setUp()
         self.addCleanup(self.fixture.doCleanups)
