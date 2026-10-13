@@ -34,7 +34,7 @@ The offline comparator can revalidate two local evidence bundles and report p50/
 
 ## A/B/A study readiness
 
-The existing A1/B parallelism observations are documented, and an offline A/B/A analysis CLI can now validate three private evidence bundles and show A1-to-A2 drift without claiming a verified causal effect. **A2 measurement is pending**; the first study remains descriptive and an entirely new uninterrupted A/B/A session would be stronger. See [the A/B/A analysis guide](docs/benchmarks/aba-analysis.md) and [reversion protocol](docs/benchmarks/aba-reversion-protocol.md).
+The existing A1/B parallelism observations are documented, and the developer now reports an A2 return-to-one-slot nine-run sweep and private A/B/A analysis (`descriptive_reversion_observations_only`). The third-phase numeric table and thermal/context notes have not been independently examined or published; **this does not establish recovered performance or a causal effect**. The new local-only reviewer CLI can render the validated three-phase comparison for inspection. An entirely new prospectively planned uninterrupted A/B/A session remains a stronger future experiment. See [the A/B/A analysis guide](docs/benchmarks/aba-analysis.md) and [reversion protocol](docs/benchmarks/aba-reversion-protocol.md).
 
 ## NLP quality-evaluation track
 
