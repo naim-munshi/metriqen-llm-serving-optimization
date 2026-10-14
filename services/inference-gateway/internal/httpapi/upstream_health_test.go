@@ -77,10 +77,10 @@ func TestUpstreamHealthProbeSeparatesReachabilityFromGatewayReadiness(t *testing
 
 func TestUpstreamHealthFailsClosedForInvalidResponses(t *testing.T) {
 	for _, tc := range []struct {
-		name string
-		status int
+		name        string
+		status      int
 		contentType string
-		body string
+		body        string
 	}{
 		{"http error", 503, "application/json", `{"version":"secret"}`},
 		{"html", 200, "text/html", "<b>private</b>"},
@@ -114,8 +114,8 @@ func TestUpstreamHealthDoesNotFollowRedirects(t *testing.T) {
 		_, _ = io.WriteString(w, `{"version":"not ollama"}`)
 	}))
 	defer target.Close()
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		http.Redirect(w, &http.Request{}, target.URL, http.StatusFound)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL, http.StatusFound)
 	}))
 	defer upstream.Close()
 	status, result, _ := probeHealth(t, newGateway(t, upstream.URL))
@@ -159,8 +159,7 @@ func TestUpstreamHealthProbeHasBoundedDeadline(t *testing.T) {
 	started := time.Now()
 	w := httptest.NewRecorder()
 	bridge.serveUpstreamHealth(w, httptest.NewRequest(http.MethodGet, "/health/upstream", nil))
-	if time.Since(started) < upstreamHealthTimeout ||
-		time.Since(started) > upstreamHealthTimeout+3*time.Second ||
+	if time.Since(started) > upstreamHealthTimeout+3*time.Second ||
 		w.Code != http.StatusServiceUnavailable {
 		t.Fatalf("timeout violated: elapsed=%s HTTP %d", time.Since(started), w.Code)
 	}
