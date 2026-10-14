@@ -13,7 +13,7 @@ Metriqen is an **engineering research prototype** for understanding how concurre
 | Area | Implemented today | Boundary |
 | --- | --- | --- |
 | **Serving** | Go `/v1/chat/completions` gateway; streaming SSE and non-streaming JSON; bounded validation, cancellation and sanitized errors | Local upstream only; inference is **unauthenticated** |
-| **Admission control** | Four active gateway requests; opt-in FIFO wait queue (depth 0–32), wait timeout, backpressure and `GET /metrics/admission` aggregate diagnostics; optional exact model-tag allowlist | No continuous batching, model-digest enforcement or tenant-level scheduling |
+| **Admission control** | Four active gateway requests; opt-in FIFO wait queue (depth 0–32), wait timeout, backpressure and versioned `GET /metrics/admission` diagnostics with fixed queue-wait duration buckets; optional exact model-tag allowlist | No continuous batching, model-digest enforcement or tenant-level scheduling |
 | **Measurement** | Versioned workloads, repeated rotating-order sweeps, TTFT, latency, throughput, token-usage coverage and run-timing diagnostics | Primarily single-machine local experiments |
 | **Evaluation** | Separate exact and normalized answer-reference checks; matched-report comparison, evidence bundles and A/B/A/B drift-review tooling | String matching is **not** semantic/factual quality evaluation |
 | **Control plane** | FastAPI health routes, pinned-JWKS access-token boundary, trusted project-read RBAC seam and optional local PostgreSQL adapter | No integrated production login, tenant API keys or live-PostgreSQL CI verification |
