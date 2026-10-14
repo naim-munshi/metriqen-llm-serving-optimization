@@ -57,7 +57,6 @@ class FourPhaseTests(unittest.TestCase):
         self.assertIn("A1→A2 drift", rendered)
         self.assertIn("B1→B2 drift", rendered)
         self.assertIn("Repeat-run variability", rendered)
-        self.assertIn("N/A", rendered) if False else None
         self.assertIn("NOT causal", rendered)
         self.assertEqual(
             sum(line.startswith("| 2 |") for line in rendered.splitlines()), 12
