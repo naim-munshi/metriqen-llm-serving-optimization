@@ -52,7 +52,7 @@ func TestInferenceOutcomesRemainZeroForInvalidRejectedAndHealthRequests(t *testi
 		}
 	}
 	m, raw := readInferenceMetrics(t, handler)
-	if m.SchemaVersion != 1 || m.AttemptsTotal != 0 || m.ActiveAttempts != 0 {
+	if m.SchemaVersion != 2 || m.AttemptsTotal != 0 || m.ActiveAttempts != 0 {
 		t.Fatalf("rejected requests counted as admitted inference: %+v", m)
 	}
 	for _, private := range []string{"prompt", "model", "user", "token", "PRIVATE", "address", "127.0.0.1"} {
@@ -101,8 +101,16 @@ func TestInferenceOutcomesCountExactlyOneTerminalResult(t *testing.T) {
 				t.Fatalf("got HTTP %d, want %d", result.Code, tc.expectedCode)
 			}
 			m, raw := readInferenceMetrics(t, handler)
+			wantDone, wantMissing := uint64(0), uint64(0)
+			if tc.name == "stream complete marker" {
+				wantDone = 1
+			}
+			if tc.name == "stream empty EOF not certified" {
+				wantMissing = 1
+			}
 			if m.AttemptsTotal != 1 || m.ActiveAttempts != 0 ||
 				m.NonstreamCompleteTotal != tc.nonstream || m.StreamCleanEOFTotal != tc.streamEOF ||
+				m.StreamDoneTotal != wantDone || m.StreamMissingDoneTotal != wantMissing ||
 				m.PreResponseFailureTotal != tc.pre || m.PostResponseInterruptedTotal != tc.post ||
 				m.ClientCanceledTotal != 0 {
 				t.Fatalf("wrong result for %s: %+v", tc.name, m)

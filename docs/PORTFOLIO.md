@@ -35,7 +35,7 @@ backpressure, request wait handoff, metrics reconciliation and privacy.
 It cleans up the processes when finished.
 
 **Expected proof:** a JSON document with `passed: true`,
-`checks_passed: 14`,
+`checks_passed: 15`,
 `model_inference_executed: false`, and
 `performance_measurement: false`. These values describe synthetic
 contract testing, **not** model-quality or performance measurements.
@@ -84,8 +84,9 @@ for safe, independently testable local behavior.
   It was *not* a performance improvement attributed to Metriqen.
   Raw local evidence is private and the comparison is not causal.
 - **Metric accounting:** `GET /metrics/inference` partitions each
-  admitted attempt into a single terminal outcome; `stream_clean_eof`
-  deliberately does **not** assert a valid final SSE `[DONE]` event.
+  admitted attempt into a single terminal outcome; schema v2 distinguishes standalone terminal SSE `stream_done_total`
+  from clean EOF without a marker (`stream_missing_done_total`).
+  This checks framing, not JSON events, in-band errors or answer quality.
   See [precise definitions](operations/inference-outcomes.md).
 
 **No performance, uptime, success-rate or model-quality statistic

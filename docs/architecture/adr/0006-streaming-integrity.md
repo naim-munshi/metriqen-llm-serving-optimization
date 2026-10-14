@@ -13,7 +13,12 @@ would inflate benchmark throughput and distort latency summaries.
 ## Decision
 
 The Go gateway continues to forward SSE incrementally, flushing chunks
-without waiting for the full response. It stops forwarding after a strict
+without waiting for the full response.
+A constant-memory observer now separately identifies a framed terminal
+`data: [DONE]` event at a complete SSE event boundary, including when
+transport reads split lines. Schema v2 inference metrics report
+`stream_done_total` and `stream_missing_done_total` as a breakdown of
+clean upstream EOFs without retaining raw generated text. It stops forwarding after a strict
 8 MiB per-request byte budget. This does **not** guarantee a client-visible
 HTTP error after the 200 headers were sent; clients must inspect the SSE
 stream and its termination.

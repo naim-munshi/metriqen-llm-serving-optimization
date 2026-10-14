@@ -23,7 +23,7 @@ class OfflinePortfolioDemoTests(unittest.TestCase):
         self.assertIs(report["performance_measurement"], False)
         self.assertIs(report["passed"], True)
         self.assertEqual(report["checks_passed"], len(report["checks"]))
-        self.assertEqual(report["checks_passed"], 14)
+        self.assertEqual(report["checks_passed"], 15)
         self.assertEqual(len(set(report["checks"])), len(report["checks"]))
         self.assertEqual(report["admission"]["queued"], 2)
         self.assertEqual(report["admission"]["rejected_full"], 1)
@@ -32,8 +32,9 @@ class OfflinePortfolioDemoTests(unittest.TestCase):
         )
         self.assertEqual(
             report["inference_outcomes"],
-            {"attempts": 10, "nonstream_complete": 7,
-             "stream_clean_eof": 1, "pre_response_failure": 2},
+            {"attempts": 11, "nonstream_complete": 7,
+             "stream_clean_eof": 2, "stream_done": 1,
+             "stream_missing_done": 1, "pre_response_failure": 2},
         )
         for secret in (
             "PRIVATE_DEMO_PROMPT", "PRIVATE_FIXTURE_REJECTION",

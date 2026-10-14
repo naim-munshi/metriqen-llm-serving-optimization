@@ -1,4 +1,4 @@
-# Inference outcome metrics (schema v1)
+# Inference outcome metrics (schema v2)
 
 The local Go gateway exposes read-only, process-local counters at
 `GET http://127.0.0.1:8081/metrics/inference`. They describe **the
@@ -13,11 +13,13 @@ An idle, newly started gateway returns:
 
 ~~~json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "attempts_total": 0,
   "active_attempts": 0,
   "nonstream_complete_total": 0,
   "stream_clean_eof_total": 0,
+  "stream_done_total": 0,
+  "stream_missing_done_total": 0,
   "pre_response_failure_total": 0,
   "post_response_interrupted_total": 0,
   "client_canceled_total": 0
@@ -35,18 +37,21 @@ for each completed admitted request:
 | Field | Precise event |
 | --- | --- |
 | `nonstream_complete_total` | A bounded, schema-validated non-stream JSON completion was entirely written to the downstream `http.ResponseWriter` without a reported write error |
-| `stream_clean_eof_total` | SSE upstream body reached clean `io.EOF` after forwarding received chunks; **not proof of SSE `[DONE]`**, valid events or model-quality success |
+| `stream_clean_eof_total` | SSE upstream body reached clean `io.EOF` after forwarding received chunks; this is the sum of `stream_done_total` and `stream_missing_done_total` |
+| `stream_done_total` | After clean upstream EOF, gateway observed one standalone SSE `data: [DONE]` event and no subsequent data events; transport-level terminal marker only |
+| `stream_missing_done_total` | Clean upstream EOF without a confirmed terminal marker (including truncated or spoofed terminal framing). This is **not** a valid completed SSE generation |
 | `pre_response_failure_total` | Handler finished after admission without reaching a validated non-stream completion or sending streaming HTTP 200 headers (e.g., upstream connection refused/429/503 or response protocol invalid) |
 | `post_response_interrupted_total` | After sending HTTP 200, the gateway observed downstream write failure, upstream streaming read failure, stream byte limit, or timeout (except caller cancellations) |
 | `client_canceled_total` | After admission, the caller's request context was canceled before the handler completed |
 | `active_attempts` | Current admitted requests whose outcome has not yet been recorded; not actual GPU/runner execution parallelism |
 
-**Accounting invariant** for every consistent snapshot:
+**Accounting invariants** for every consistent snapshot:
 
 ~~~text
 attempts_total = active_attempts + nonstream_complete_total
                + stream_clean_eof_total + pre_response_failure_total
                + post_response_interrupted_total + client_canceled_total
+stream_clean_eof_total = stream_done_total + stream_missing_done_total
 ~~~
 
 Invalid/malformed input, allowlist HTTP 403, full-queue HTTP 429,
@@ -60,9 +65,12 @@ does not change the gateway's existing HTTP status codes or scheduling.
 - These counters are **mutually exclusive per handler completion**,
   not an availability or correctness metric; use a known observation
   window and a suitable benchmark client for output validation.
-- In particular, **a stream without `[DONE]` can still have clean
-  network EOF**. Always validate SSE semantics separately using the
-  Python benchmark client before claiming completed generation.
+- A gateway stream without a valid terminal marker still has clean network
+  EOF; `stream_missing_done_total` identifies that condition. Marker detection
+  is **constant-memory** and robust to chunk boundaries, SSE comments,
+  CRLF and marker-looking JSON text, but does not validate JSON envelopes,
+  model answer correctness or in-band errors. Always validate SSE semantics
+  separately using the Python benchmark client before claiming success.
 - A successful non-stream writer call does not prove the remote client
   actually received all bytes, nor that the language model's answer
   was correct. A canceled request has no automatically inferred model

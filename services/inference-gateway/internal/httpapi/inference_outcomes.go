@@ -22,21 +22,25 @@ type inferenceOutcomeCounters struct {
 	active              uint64
 	nonstreamComplete   uint64
 	streamCleanEOF      uint64
+	streamDone          uint64
+	streamMissingDone   uint64
 	preResponseFailure  uint64
 	postResponseFailure uint64
 	canceled            uint64
 }
 
 // These counters are local to one process and reset on gateway restart.
-// "nonstream_complete" is the successful delivery of validated JSON to
-// http.ResponseWriter, not a model quality guarantee. "stream_clean_eof"
-// means only that upstream ended with io.EOF; it does NOT verify SSE [DONE].
+// Schema v2 adds a mutually exclusive breakdown of stream_clean_eof_total:
+// stream_done_total versus stream_missing_done_total. The former means a
+// standalone SSE terminal event was observed, NOT JSON-event validation.
 type inferenceOutcomeSnapshot struct {
 	SchemaVersion                int    `json:"schema_version"`
 	AttemptsTotal                uint64 `json:"attempts_total"`
 	ActiveAttempts               uint64 `json:"active_attempts"`
 	NonstreamCompleteTotal       uint64 `json:"nonstream_complete_total"`
 	StreamCleanEOFTotal          uint64 `json:"stream_clean_eof_total"`
+	StreamDoneTotal              uint64 `json:"stream_done_total"`
+	StreamMissingDoneTotal       uint64 `json:"stream_missing_done_total"`
 	PreResponseFailureTotal      uint64 `json:"pre_response_failure_total"`
 	PostResponseInterruptedTotal uint64 `json:"post_response_interrupted_total"`
 	ClientCanceledTotal          uint64 `json:"client_canceled_total"`
@@ -49,7 +53,7 @@ func (c *inferenceOutcomeCounters) start() {
 	c.active++
 }
 
-func (c *inferenceOutcomeCounters) finish(outcome inferenceOutcome) {
+func (c *inferenceOutcomeCounters) finish(outcome inferenceOutcome, done bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.active == 0 {
@@ -61,6 +65,11 @@ func (c *inferenceOutcomeCounters) finish(outcome inferenceOutcome) {
 		c.nonstreamComplete++
 	case inferenceStreamCleanEOF:
 		c.streamCleanEOF++
+		if done {
+			c.streamDone++
+		} else {
+			c.streamMissingDone++
+		}
 	case inferencePostResponseInterrupted:
 		c.postResponseFailure++
 	case inferenceClientCanceled:
@@ -74,11 +83,13 @@ func (c *inferenceOutcomeCounters) snapshot() inferenceOutcomeSnapshot {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return inferenceOutcomeSnapshot{
-		SchemaVersion:                1,
+		SchemaVersion:                2,
 		AttemptsTotal:                c.attempts,
 		ActiveAttempts:               c.active,
 		NonstreamCompleteTotal:       c.nonstreamComplete,
 		StreamCleanEOFTotal:          c.streamCleanEOF,
+		StreamDoneTotal:              c.streamDone,
+		StreamMissingDoneTotal:       c.streamMissingDone,
 		PreResponseFailureTotal:      c.preResponseFailure,
 		PostResponseInterruptedTotal: c.postResponseFailure,
 		ClientCanceledTotal:          c.canceled,

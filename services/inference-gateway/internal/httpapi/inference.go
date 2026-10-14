@@ -142,7 +142,8 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 	// Invalid inputs, model allowlist failures and admission 429s are excluded.
 	bridge.outcomes.start()
 	outcome := inferencePreResponseFailure
-	defer func() { bridge.outcomes.finish(outcome) }()
+	streamDone := false
+	defer func() { bridge.outcomes.finish(outcome, streamDone) }()
 
 	ctx, cancel := context.WithTimeout(r.Context(), requestDeadline)
 	defer cancel()
@@ -239,6 +240,7 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 	}
 	buffer := make([]byte, 1024)
 	forwarded := 0
+	var terminal sseTerminalTracker
 	for {
 		n, readErr := response.Body.Read(buffer)
 		if n > 0 {
@@ -258,6 +260,9 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 				return
 			}
 			flusher.Flush()
+			// Observe only bytes successfully forwarded to the caller.
+			// The tracker stores a constant number of bytes, not model text.
+			terminal.observe(buffer[:n])
 		}
 		if readErr != nil {
 			if errors.Is(r.Context().Err(), context.Canceled) {
@@ -265,8 +270,10 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 			} else if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				bridge.upstreamFailures.record(upstreamTimeout)
 			} else if errors.Is(readErr, io.EOF) {
-				// EOF is a transport observation, NOT proof of SSE [DONE].
+				// Preserve transport-EOF accounting; v2 metrics explicitly
+				// distinguish an SSE terminal marker from a truncated stream.
 				outcome = inferenceStreamCleanEOF
+				streamDone = terminal.completed()
 			} else {
 				bridge.upstreamFailures.record(upstreamStreamReadError)
 			}
