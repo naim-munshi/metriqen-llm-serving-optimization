@@ -13,15 +13,19 @@ Open the [repository homepage](https://github.com/naim-munshi/metriqen-llm-servi
 - **Visibility:** public (existing).
 - **Default branch:** `main` (existing).
 
-These GitHub About/profile settings are not editable through the available
-file/PR workflow, and adding text to README does **not** update them.
+The description and seven repository topics above were confirmed live on
+October 14, 2026. Their current state is a GitHub repository setting, **not**
+part of the Git history. Recheck via the GitHub About panel before assuming
+these settings are unchanged.
 
 ## Branch cleanup: review before deletion
 
-On October 14, 2026, the repository had 36 branches: `main`, 34 topic
-branches associated with 34 **merged** pull requests, and a separate
-legacy branch `MdNaim`. The legacy branch was 0 commits ahead and 37
-commits behind main *at that inspection time*.
+At the October 14, 2026 audit, `main` was the default branch and
+35 topic branches were checked against the exact head SHAs of their 35
+**merged** pull requests. A separate legacy branch `MdNaim` had
+**zero unique commits ahead of `main`**. Branch counts and ahead/behind
+distances change after each merge, so **never act from these historical
+numbers alone**.
 
 Before deleting anything, **recheck live GitHub state**. This review is
 not a permanent authorization to delete a branch if new commits appear.
@@ -52,3 +56,18 @@ reuse/redistribution grant.
 For a portfolio, pin Metriqen alongside other maintained AI engineering
 projects and link it from the [profile README](https://github.com/naim-munshi/naim-munshi).
 Only showcase verified features and public, provenance-labeled results.
+
+## Continuous integration and dependency maintenance
+
+The [CI workflow](../.github/workflows/ci.yml) checks pull requests and
+`main` pushes, avoiding duplicate push-triggered jobs for open feature PRs.
+Every job has a bounded timeout, and external Actions are pinned to full
+commit digests. Only `contents: read` is granted to CI workflows. This
+constrains routine test execution, but does not replace branch protection.
+
+[Dependabot](../.github/dependabot.yml) checks GitHub Actions, the Python
+control API and Go module metadata weekly. Every generated PR must pass
+the same checks before merging. No auto-merge is configured. Python
+dependency versions still use ranges, not a complete cryptographically
+locked reproducible environment; that remains a separate reproducibility
+task before production deployment.
