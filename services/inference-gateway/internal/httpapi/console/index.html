@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Metriqen local inference operations dashboard">
+  <title>Metriqen | Local Operations</title>
+  <link rel="stylesheet" href="/console/app.css">
+  <script src="/console/app.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="/console" aria-label="Metriqen operations home">
+        <span class="brand-mark">M<span class="brand-dot">.</span></span>
+        <span class="brand-word">METRIQEN<span class="brand-sub">Inference infrastructure</span></span>
+      </a>
+      <div class="side-rule"></div>
+      <nav aria-label="Dashboard sections" class="navigation">
+        <a class="nav-link active" href="#overview"><span class="nav-indicator"></span>Overview</a>
+        <a class="nav-link" href="#admission"><span class="nav-indicator"></span>Admission control</a>
+        <a class="nav-link" href="#outcomes"><span class="nav-indicator"></span>Inference outcomes</a>
+        <a class="nav-link" href="#failures"><span class="nav-indicator"></span>Failure diagnostics</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <span class="mode-pill"><span class="signal-dot"></span>LOCAL DEVELOPMENT</span>
+        <p>Read-only diagnostics. This console is not an authenticated public service.</p>
+        <a href="https://github.com/naim-munshi/metriqen-llm-serving-optimization" target="_blank" rel="noopener noreferrer">View source <span aria-hidden="true">↗</span></a>
+      </div>
+    </aside>
+
+    <main id="overview" class="content">
+      <div class="topbar">
+        <span class="breadcrumb">METRIQEN <span class="slash">/</span> OPERATIONS <span class="slash">/</span> OVERVIEW</span>
+        <div class="top-right">
+          <span class="refresh-label">Auto-refresh <strong>5s</strong></span>
+          <button id="refresh" type="button" class="refresh-button">↻ <span>Refresh</span></button>
+        </div>
+      </div>
+      <header class="hero">
+        <div>
+          <div class="eyebrow"><span class="accent-line"></span> INFERENCE CONTROL PLANE · LOCAL</div>
+          <h1>Operations <span>Overview</span></h1>
+          <p>Live process telemetry from your local inference gateway. No prompts, model outputs, or private user data are collected here.</p>
+        </div>
+        <div class="live-state" role="status" aria-live="polite"><span id="data-dot" class="live-indicator pending"></span><span id="data-state">Connecting to gateway</span></div>
+      </header>
+
+      <section class="health-grid" aria-label="Health status">
+        <article class="health-card">
+          <div class="card-overline"><span class="card-glyph">◈</span> GATEWAY PROCESS</div>
+          <div class="health-value" id="gateway-label">Checking…</div>
+          <div class="card-footer"><span id="gateway-badge" class="pill neutral">Unknown</span><span> /health/ready</span></div>
+        </article>
+        <article class="health-card">
+          <div class="card-overline"><span class="card-glyph">◇</span> UPSTREAM API</div>
+          <div class="health-value" id="upstream-label">Checking…</div>
+          <div class="card-footer"><span id="upstream-badge" class="pill neutral">Unknown</span><span> /health/upstream</span></div>
+        </article>
+        <article class="health-card">
+          <div class="card-overline"><span class="card-glyph">▤</span> TOTAL INFERENCE ATTEMPTS</div>
+          <div class="health-number mono" id="attempts">—</div>
+          <div class="card-footer">Admitted since gateway start</div>
+        </article>
+        <article class="health-card">
+          <div class="card-overline"><span class="card-glyph">▦</span> FULL-QUEUE REJECTIONS</div>
+          <div class="health-number mono" id="rejected">—</div>
+          <div class="card-footer">HTTP 429 admission rejections</div>
+        </article>
+      </section>
+
+      <div class="two-column">
+        <section id="admission" class="panel" aria-labelledby="admission-title">
+          <div class="panel-head"><div><div class="mini-label">01 / CAPACITY MANAGEMENT</div><h2 id="admission-title">Admission control</h2></div><span class="panel-tag">FIFO</span></div>
+          <div class="resource">
+            <div class="resource-heading"><div>Active requests <span>· gateway slots</span></div><div class="metric-ratio mono"><span id="active">—</span><span class="muted"> / </span><span id="max-active">—</span></div></div>
+            <div class="progress-track"><div id="active-bar" class="progress-fill blue"></div></div>
+          </div>
+          <div class="resource">
+            <div class="resource-heading"><div>Waiting requests <span>· bounded queue</span></div><div class="metric-ratio mono"><span id="waiting">—</span><span class="muted"> / </span><span id="max-waiting">—</span></div></div>
+            <div class="progress-track"><div id="waiting-bar" class="progress-fill violet"></div></div>
+          </div>
+          <div class="stats-line">
+            <div><span>Immediate admissions</span><strong class="mono" id="immediate">—</strong></div>
+            <div><span>Queued admissions</span><strong class="mono" id="queued">—</strong></div>
+            <div><span>Queue timeouts</span><strong class="mono" id="queue-timeouts">—</strong></div>
+          </div>
+          <p class="panel-note">Gateway admission slots do not represent actual Ollama model execution parallelism.</p>
+        </section>
+
+        <section id="outcomes" class="panel" aria-labelledby="outcomes-title">
+          <div class="panel-head"><div><div class="mini-label">02 / REQUEST ACCOUNTING</div><h2 id="outcomes-title">Inference outcomes</h2></div><span class="panel-tag">SCHEMA V2</span></div>
+          <div class="split-metrics">
+            <div class="feature-metric"><span>Non-stream complete</span><strong id="nonstream" class="mono">—</strong></div>
+            <div class="feature-metric"><span>Stream with [DONE]</span><strong id="stream-done" class="mono">—</strong></div>
+            <div class="feature-metric"><span>Stream missing [DONE]</span><strong id="stream-missing" class="mono">—</strong></div>
+            <div class="feature-metric"><span>Pre-response failures</span><strong id="pre-fail" class="mono">—</strong></div>
+          </div>
+          <div class="sub-stat">Active attempts <strong id="active-attempts" class="mono">—</strong> <span class="separator">·</span> Interrupted <strong id="interrupted" class="mono">—</strong> <span class="separator">·</span> Canceled <strong id="cancelled" class="mono">—</strong></div>
+          <p class="panel-note">A [DONE] marker indicates SSE framing, not model accuracy or full event validity.</p>
+        </section>
+      </div>
+
+      <section id="failures" class="panel failure-panel" aria-labelledby="failures-title">
+        <div class="panel-head"><div><div class="mini-label">03 / RELIABILITY DIAGNOSTICS</div><h2 id="failures-title">Upstream failures</h2></div><span class="panel-tag">PROCESS-LOCAL</span></div>
+        <div class="failure-grid">
+          <div class="failure-stat"><span>Connection refused</span><strong id="refused" class="mono">—</strong></div>
+          <div class="failure-stat"><span>Transport errors</span><strong id="transport" class="mono">—</strong></div>
+          <div class="failure-stat"><span>Timeouts</span><strong id="timeouts" class="mono">—</strong></div>
+          <div class="failure-stat"><span>HTTP rejected</span><strong id="http-rejected" class="mono">—</strong></div>
+          <div class="failure-stat"><span>Other HTTP errors</span><strong id="http-other" class="mono">—</strong></div>
+          <div class="failure-stat"><span>Protocol errors</span><strong id="protocol" class="mono">—</strong></div>
+          <div class="failure-stat"><span>Response too large</span><strong id="too-large" class="mono">—</strong></div>
+          <div class="failure-stat"><span>Stream read errors</span><strong id="stream-read" class="mono">—</strong></div>
+          <div class="failure-stat"><span>Stream size limit</span><strong id="stream-limit" class="mono">—</strong></div>
+        </div>
+      </section>
+      <footer class="footer"><span>METRIQEN / LOCAL OPERATIONS CONSOLE</span><span>Last sampled <time id="last-sample">—</time> · Counters reset on gateway restart</span></footer>
+    </main>
+  </div>
+</body>
+</html>
