@@ -44,6 +44,7 @@ the real Go gateway server:
 | Queue handoff | Two waiting requests complete after the four active slots release |
 | Admission counters | Active/waiting return to zero; 2 queued, 1 full rejection |
 | Privacy | Synthetic private prompt marker is not present in exported metrics |
+| Inference outcome accounting | Ten admitted fixture requests partition into validated non-stream writes, clean-stream EOF and pre-response failures; the admission 429 is excluded |
 
 The mock's blocking behavior is controlled by an explicit synchronization
 event, not by slow model generation or an approximate sleep duration.
@@ -60,12 +61,12 @@ The output contains:
   "model_inference_executed": false,
   "performance_measurement": false,
   "passed": true,
-  "checks_passed": 13
+  "checks_passed": 14
 }
 ~~~
 
 This **illustrative subset** is not an execution result. The actual CLI
-prints additional fixed, aggregate counters and the 13 passed check names.
+prints additional fixed, aggregate counters and the 14 passed check names.
 A failed assertion exits nonzero without printing private fixture content.
 The output should not be reported as LLM accuracy, runtime throughput,
 token latency or GPU performance.
