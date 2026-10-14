@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	upstreamHealthTimeout = 2 * time.Second
+	upstreamHealthTimeout   = 2 * time.Second
 	maxHealthResponseBytes = 4096
 )
 
