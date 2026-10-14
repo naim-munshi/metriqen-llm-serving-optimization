@@ -78,14 +78,7 @@ func (s *admissionScheduler) recordQueuedOutcome(err error, enqueuedAt time.Time
 	us := uint64(elapsed / time.Microsecond)
 	s.counters.queueWaitSamples++
 	s.counters.queueWaitTotalUs += us
-	bucket := len(queueWaitUpperBoundsMs)
-	for i, boundMs := range queueWaitUpperBoundsMs {
-		if elapsed <= time.Duration(boundMs)*time.Millisecond {
-			bucket = i
-			break
-		}
-	}
-	s.counters.queueWaitBuckets[bucket]++
+	s.counters.queueWaitBuckets[queueWaitBucket(elapsed)]++
 
 	switch {
 	case err == nil:
@@ -95,4 +88,13 @@ func (s *admissionScheduler) recordQueuedOutcome(err error, enqueuedAt time.Time
 	default:
 		s.counters.canceled++
 	}
+}
+
+func queueWaitBucket(elapsed time.Duration) int {
+	for i, boundMs := range queueWaitUpperBoundsMs {
+		if elapsed <= time.Duration(boundMs)*time.Millisecond {
+			return i
+		}
+	}
+	return len(queueWaitUpperBoundsMs)
 }
