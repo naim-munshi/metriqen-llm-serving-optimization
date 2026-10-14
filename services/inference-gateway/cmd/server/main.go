@@ -25,7 +25,8 @@ func main() {
 		log.Fatal("unauthenticated inference must bind to loopback only")
 	}
 	allowedModels := os.Getenv("METRIQEN_ALLOWED_MODELS")
-	router, err := httpapi.NewRouterWithInferenceAndModels(upstream, allowedModels)
+	queueDepth := os.Getenv("METRIQEN_QUEUE_DEPTH")
+	router, err := httpapi.NewRouterWithInferenceAndScheduler(upstream, allowedModels, queueDepth)
 	if err != nil {
 		log.Fatal("invalid local inference upstream configuration")
 	}
