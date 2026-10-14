@@ -104,6 +104,12 @@ class FixtureHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b"PRIVATE_FIXTURE_REJECTION_DO_NOT_LEAK")
             return
+        if model == "fixture:truncated":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.end_headers()
+            self.wfile.write(b'data: {"choices":[{"delta":{"content":"synthetic-partial"}}]}\\n\\n'.replace(b"\\\\n", b"\\n"))
+            return
         if model == "fixture:malformed":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -146,7 +152,7 @@ def gateway(binary, upstream_port):
     env.update({
         "METRIQEN_GATEWAY_BIND_ADDR": f"127.0.0.1:{port}",
         "METRIQEN_UPSTREAM_URL": f"http://127.0.0.1:{upstream_port}",
-        "METRIQEN_ALLOWED_MODELS": "fixture:success,fixture:reject,fixture:malformed,fixture:hold",
+        "METRIQEN_ALLOWED_MODELS": "fixture:success,fixture:reject,fixture:malformed,fixture:truncated,fixture:hold",
         "METRIQEN_QUEUE_DEPTH": "2",
     })
     process = subprocess.Popen(
@@ -211,6 +217,10 @@ def run_demo(base, state):
           and headers.get("Content-Type", "").startswith("text/event-stream")
           and b'fixture-token' in raw and b"data: [DONE]" in raw)
 
+    status, _, raw = fetch(endpoint, payload=chat("fixture:truncated", stream=True))
+    check("truncated_sse_not_terminal", status == 200
+          and b"synthetic-partial" in raw and b"data: [DONE]" not in raw)
+
     initial_calls, _ = state.snapshot()
     status, _, raw = fetch(endpoint, payload=chat("fixture:not-allowed"))
     subsequent_calls, _ = state.snapshot()
@@ -274,11 +284,13 @@ def run_demo(base, state):
     status, _, raw = fetch(base + "/metrics/inference")
     outcomes = json.loads(raw)
     check("inference_outcome_counters_reconcile", status == 200
-          and outcomes["schema_version"] == 1
-          and outcomes["attempts_total"] == 10
+          and outcomes["schema_version"] == 2
+          and outcomes["attempts_total"] == 11
           and outcomes["active_attempts"] == 0
           and outcomes["nonstream_complete_total"] == 7
-          and outcomes["stream_clean_eof_total"] == 1
+          and outcomes["stream_clean_eof_total"] == 2
+          and outcomes["stream_done_total"] == 1
+          and outcomes["stream_missing_done_total"] == 1
           and outcomes["pre_response_failure_total"] == 2
           and outcomes["post_response_interrupted_total"] == 0
           and outcomes["client_canceled_total"] == 0
@@ -304,6 +316,8 @@ def run_demo(base, state):
         },
         "inference_outcomes": {
             "attempts": outcomes["attempts_total"],
+            "stream_done": outcomes["stream_done_total"],
+            "stream_missing_done": outcomes["stream_missing_done_total"],
             "nonstream_complete": outcomes["nonstream_complete_total"],
             "stream_clean_eof": outcomes["stream_clean_eof_total"],
             "pre_response_failure": outcomes["pre_response_failure_total"],
