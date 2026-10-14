@@ -24,7 +24,8 @@ func main() {
 	if !listenerAllowed(addr, upstream) {
 		log.Fatal("unauthenticated inference must bind to loopback only")
 	}
-	router, err := httpapi.NewRouterWithInference(upstream)
+	allowedModels := os.Getenv("METRIQEN_ALLOWED_MODELS")
+	router, err := httpapi.NewRouterWithInferenceAndModels(upstream, allowedModels)
 	if err != nil {
 		log.Fatal("invalid local inference upstream configuration")
 	}
