@@ -7,6 +7,7 @@
 | Component | What exists | Verification | Not established |
 | --- | --- | --- | --- |
 | Go inference gateway | OpenAI-compatible local chat relay, SSE, input/output limits, timeout, cancellation, four active admissions | Unit tests, race-enabled CI, synthetic loopback E2E, developer-reported local Ollama test | Authenticated public endpoint or GPU serving |
+| Upstream failure observability | Read-only process-local `GET /metrics/upstream` (v1) with fixed sanitized transport, timeout, HTTP status, protocol and stream-failure counters | Offline fake-transport regression tests and race-enabled CI | Cause of earlier Ollama process exit, process monitoring, streaming `[DONE]` completion guarantees, uptime or production service-level metrics |
 | Request admission | Opt-in FIFO queue (0–32 pending, 5-second wait cap), default immediate 429, per-process cancellation, backpressure, aggregate `GET /metrics/admission` snapshot and fixed queue-wait histogram | Go race-enabled tests, HTTP fixtures and counter/queue-state regression tests | Batching, fairness between tenants, inference completion metrics, speedup, GPU memory optimization |
 | Model allowlist | Optional strict model **tag** filtering before upstream | Negative/configuration tests | Immutable approved model digests |
 | Benchmark runner | Versioned workload, rotating concurrency 1/2/4 repeated sweeps, TTFT, p50/p95, success rates, token usage, optional UTC run timing | Python unit tests and private operator-run measurements | Cloud/GPU-attested measurements, broad workload representativeness |
@@ -46,6 +47,10 @@ a model's live answers as reproducible CI assertions.
 ### FIFO admission and upstream-health smoke — October 14, 2026
 
 The developer reported [local FIFO scheduler validation](benchmarks/experiments/2026-10-14-fifo-local-validation.md): four existing mock-upstream tests passed ten iterations each with Go's race detector (40 passing test invocations, no race reported). An exploratory seven-request Ollama burst gave four immediate admissions, two queued admissions and one full-queue rejection, **but six HTTP 502s**; a later direct probe found Ollama unreachable. After restart, two concurrent gateway requests returned HTTP 200 and Ollama remained reachable in a follow-up probe. The cause of the earlier process outage, sustained serving stability, true live peak concurrency and performance benefit remain **unestablished**. These results must not be treated as a successful load benchmark or confused with deterministic FIFO-order tests.
+
+### Upstream failure observability — October 14, 2026
+
+An independent [v1 aggregate upstream failure endpoint](operations/upstream-failure-metrics.md) classifies connection refusal, timeout, other transport errors, upstream HTTP rejection/status, malformed response and streaming failures. Counters are local, anonymous, reset on restart, and independent of admission counts. This is diagnostic instrumentation only: it cannot attribute the earlier Ollama process outage or establish improved uptime, reliability or inference performance.
 
 ## Engineering milestones
 

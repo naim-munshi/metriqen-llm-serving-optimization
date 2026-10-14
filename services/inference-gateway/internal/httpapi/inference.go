@@ -30,14 +30,15 @@ const (
 // inferenceBridge deliberately has no API authentication. It MUST remain on a
 // loopback-only development listener until authentication and quotas are wired.
 type inferenceBridge struct {
-	endpoint      string
-	client        *http.Client
-	admission     *admissionScheduler
-	allowedModels map[string]struct{}
+	endpoint         string
+	client           *http.Client
+	admission        *admissionScheduler
+	allowedModels    map[string]struct{}
+	upstreamFailures *upstreamFailureCounters
 }
 
 func newInferenceBridge(rawURL string) (*inferenceBridge, error) {
-	bridge := &inferenceBridge{admission: newAdmissionScheduler(maxConcurrent, 0)}
+	bridge := &inferenceBridge{admission: newAdmissionScheduler(maxConcurrent, 0), upstreamFailures: &upstreamFailureCounters{}}
 	if strings.TrimSpace(rawURL) == "" {
 		return bridge, nil // disabled unless explicitly configured
 	}
@@ -153,10 +154,12 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 	response, err := bridge.client.Do(outbound)
 	if err != nil {
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			bridge.upstreamFailures.record(upstreamTimeout)
 			writeError(w, http.StatusGatewayTimeout, "inference_timeout", "Inference request timed out")
 		} else if errors.Is(ctx.Err(), context.Canceled) {
 			return // Client disconnected; do not write further.
 		} else {
+			bridge.upstreamFailures.record(classifyUpstreamTransport(err))
 			writeError(w, http.StatusBadGateway, "upstream_unavailable", "Local inference upstream unavailable")
 		}
 		return
@@ -166,14 +169,17 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		switch response.StatusCode {
 		case http.StatusBadRequest, http.StatusNotFound, http.StatusTooManyRequests:
+			bridge.upstreamFailures.record(upstreamHTTPRejected)
 			writeError(w, response.StatusCode, "upstream_rejected", "Inference runtime rejected the request")
 		default:
+			bridge.upstreamFailures.record(upstreamHTTPError)
 			writeError(w, http.StatusBadGateway, "upstream_unavailable", "Inference runtime returned an error")
 		}
 		return
 	}
 	contentType, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
 	if err != nil || (streaming && contentType != "text/event-stream") || (!streaming && contentType != "application/json") {
+		bridge.upstreamFailures.record(upstreamProtocolError)
 		writeError(w, http.StatusBadGateway, "upstream_protocol", "Inference runtime returned an unexpected response format")
 		return
 	}
@@ -184,12 +190,15 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 		completion, err := readValidatedCompletion(response.Body)
 		if err != nil {
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				bridge.upstreamFailures.record(upstreamTimeout)
 				writeError(w, http.StatusGatewayTimeout, "inference_timeout", "Inference request timed out")
 			} else if errors.Is(ctx.Err(), context.Canceled) {
 				return
 			} else if errors.Is(err, errChatCompletionTooLarge) {
+				bridge.upstreamFailures.record(upstreamResponseTooLarge)
 				writeError(w, http.StatusBadGateway, "upstream_response_too_large", "Inference response exceeded the size limit")
 			} else {
+				bridge.upstreamFailures.record(upstreamProtocolError)
 				writeError(w, http.StatusBadGateway, "upstream_protocol", "Inference runtime returned an invalid completion")
 			}
 			return
@@ -219,6 +228,7 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 			// oversized stream rather than forwarding unbounded upstream data.
 			// Clients must reject streams without a completed [DONE] event.
 			if forwarded+n > maxStreamedBytes {
+				bridge.upstreamFailures.record(upstreamStreamTooLarge)
 				return
 			}
 			forwarded += n
@@ -228,6 +238,11 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 			flusher.Flush()
 		}
 		if readErr != nil {
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				bridge.upstreamFailures.record(upstreamTimeout)
+			} else if !errors.Is(ctx.Err(), context.Canceled) && !errors.Is(readErr, io.EOF) {
+				bridge.upstreamFailures.record(upstreamStreamReadError)
+			}
 			return
 		}
 	}

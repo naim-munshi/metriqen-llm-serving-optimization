@@ -53,6 +53,12 @@ func NewRouterWithInferenceAndScheduler(localUpstreamURL, rawAllowedModels, rawQ
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(bridge.admission.snapshot())
 	})
+	// Separate aggregate error counters from admission decisions. Read-only,
+	// process-local; no model names, addresses, or upstream error content.
+	mux.HandleFunc("GET /metrics/upstream", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(bridge.upstreamFailures.snapshot())
+	})
 	mux.HandleFunc("POST /v1/chat/completions", bridge.serveChat)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
