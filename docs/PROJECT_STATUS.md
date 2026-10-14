@@ -6,6 +6,7 @@
 
 | Component | What exists | Verification | Not established |
 | --- | --- | --- | --- |
+| Reproducible portfolio demo | One-command `python3 -m tools.demo.offline` starts the real Go gateway with a deterministic loopback-only synthetic model fixture and checks 13 contracts; no model install or model inference | Offline CLI regression in `local-inference-e2e` CI; assertions include FIFO backpressure, sanitized failures and privacy | Real-model performance, production readiness, GPU inference, measured optimization |
 | Go inference gateway | OpenAI-compatible local chat relay, SSE, input/output limits, timeout, cancellation, four active admissions | Unit tests, race-enabled CI, synthetic loopback E2E, developer-reported local Ollama test | Authenticated public endpoint or GPU serving |
 | Upstream failure observability | Read-only process-local `GET /metrics/upstream` (v1) with fixed sanitized transport, timeout, HTTP status, protocol and stream-failure counters | Offline fake-transport regression tests and race-enabled CI | Cause of earlier Ollama process exit, process monitoring, streaming `[DONE]` completion guarantees, uptime or production service-level metrics |
 | Upstream API reachability | Explicit, read-only `GET /health/upstream` checks bounded local Ollama `/api/version` response with 2-second timeout and sanitized 200/503 status | Deterministic probe, redirect, timeout, malformed-body and cancellation tests (CI required) | Model loaded/inference ready, automated Ollama recovery, crash/root-cause diagnosis or SLA |
