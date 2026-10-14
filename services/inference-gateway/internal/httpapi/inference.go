@@ -30,10 +30,10 @@ const (
 // inferenceBridge deliberately has no API authentication. It MUST remain on a
 // loopback-only development listener until authentication and quotas are wired.
 type inferenceBridge struct {
-	endpoint     string
-	client       *http.Client
-	slots        chan struct{}
-	allowedModels map[string]struct{}
+	endpoint	string
+	client	*http.Client
+	slots	chan struct{}
+	allowedModels	map[string]struct{}
 }
 
 func newInferenceBridge(rawURL string) (*inferenceBridge, error) {
