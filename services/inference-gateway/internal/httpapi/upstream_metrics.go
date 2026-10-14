@@ -27,15 +27,15 @@ const (
 )
 
 type upstreamFailureCounters struct {
-	mu sync.Mutex
-	refused uint64
-	transport uint64
-	timeout uint64
-	rejected uint64
-	httpError uint64
-	protocol uint64
-	tooLarge uint64
-	streamRead uint64
+	mu             sync.Mutex
+	refused        uint64
+	transport      uint64
+	timeout        uint64
+	rejected       uint64
+	httpError      uint64
+	protocol       uint64
+	tooLarge       uint64
+	streamRead     uint64
 	streamTooLarge uint64
 }
 
@@ -43,16 +43,16 @@ type upstreamFailureCounters struct {
 // failure-event counters, NOT throughput, success-rate, or availability
 // measurements. Streaming failures can occur after HTTP 200 was sent.
 type upstreamFailureSnapshot struct {
-	SchemaVersion int `json:"schema_version"`
+	SchemaVersion          int    `json:"schema_version"`
 	ConnectionRefusedTotal uint64 `json:"connection_refused_total"`
-	TransportErrorsTotal uint64 `json:"transport_errors_total"`
-	TimeoutsTotal uint64 `json:"timeouts_total"`
-	HTTPRejectedTotal uint64 `json:"http_rejected_total"`
-	HTTPOtherStatusTotal uint64 `json:"http_other_status_total"`
-	ProtocolErrorsTotal uint64 `json:"protocol_errors_total"`
-	ResponseTooLargeTotal uint64 `json:"response_too_large_total"`
-	StreamReadErrorsTotal uint64 `json:"stream_read_errors_total"`
-	StreamSizeLimitTotal uint64 `json:"stream_size_limit_total"`
+	TransportErrorsTotal   uint64 `json:"transport_errors_total"`
+	TimeoutsTotal          uint64 `json:"timeouts_total"`
+	HTTPRejectedTotal      uint64 `json:"http_rejected_total"`
+	HTTPOtherStatusTotal   uint64 `json:"http_other_status_total"`
+	ProtocolErrorsTotal    uint64 `json:"protocol_errors_total"`
+	ResponseTooLargeTotal  uint64 `json:"response_too_large_total"`
+	StreamReadErrorsTotal  uint64 `json:"stream_read_errors_total"`
+	StreamSizeLimitTotal   uint64 `json:"stream_size_limit_total"`
 }
 
 func (m *upstreamFailureCounters) record(kind upstreamFailureKind) {
@@ -84,16 +84,16 @@ func (m *upstreamFailureCounters) snapshot() upstreamFailureSnapshot {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return upstreamFailureSnapshot{
-		SchemaVersion: 1,
+		SchemaVersion:          1,
 		ConnectionRefusedTotal: m.refused,
-		TransportErrorsTotal: m.transport,
-		TimeoutsTotal: m.timeout,
-		HTTPRejectedTotal: m.rejected,
-		HTTPOtherStatusTotal: m.httpError,
-		ProtocolErrorsTotal: m.protocol,
-		ResponseTooLargeTotal: m.tooLarge,
-		StreamReadErrorsTotal: m.streamRead,
-		StreamSizeLimitTotal: m.streamTooLarge,
+		TransportErrorsTotal:   m.transport,
+		TimeoutsTotal:          m.timeout,
+		HTTPRejectedTotal:      m.rejected,
+		HTTPOtherStatusTotal:   m.httpError,
+		ProtocolErrorsTotal:    m.protocol,
+		ResponseTooLargeTotal:  m.tooLarge,
+		StreamReadErrorsTotal:  m.streamRead,
+		StreamSizeLimitTotal:   m.streamTooLarge,
 	}
 }
 
