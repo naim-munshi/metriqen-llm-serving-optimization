@@ -14,6 +14,8 @@ import (
 func TestOptInQueueWaitsWithoutForwardingUntilCapacityIsReleased(t *testing.T) {
 	entered := make(chan struct{}, maxConcurrent+1)
 	release := make(chan struct{})
+	var releaseOnce sync.Once
+	unblock := func() { releaseOnce.Do(func() { close(release) }) }
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		entered <- struct{}{}
 		select {
@@ -25,6 +27,7 @@ func TestOptInQueueWaitsWithoutForwardingUntilCapacityIsReleased(t *testing.T) {
 		_, _ = io.WriteString(w, `{"choices":[{"message":{"role":"assistant","content":"ok"}}]}`)
 	}))
 	defer upstream.Close()
+	defer unblock() // Always release blocked test handlers on assertion failure.
 	bridge, err := newInferenceBridge(upstream.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -67,7 +70,7 @@ func TestOptInQueueWaitsWithoutForwardingUntilCapacityIsReleased(t *testing.T) {
 		rejected.Header().Get("Retry-After") != "1" {
 		t.Fatalf("expected bounded queue rejection, got %d: %s", rejected.Code, rejected.Body.String())
 	}
-	close(release)
+	unblock()
 	select {
 	case <-entered:
 	case <-time.After(3 * time.Second):
@@ -96,6 +99,8 @@ func TestOptInQueueWaitsWithoutForwardingUntilCapacityIsReleased(t *testing.T) {
 func TestCanceledHTTPQueuedRequestNeverForwardsPrompt(t *testing.T) {
 	entered := make(chan struct{}, maxConcurrent+1)
 	release := make(chan struct{})
+	var releaseOnce sync.Once
+	unblock := func() { releaseOnce.Do(func() { close(release) }) }
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		entered <- struct{}{}
 		select {
@@ -107,6 +112,7 @@ func TestCanceledHTTPQueuedRequestNeverForwardsPrompt(t *testing.T) {
 		_, _ = io.WriteString(w, `{"choices":[{"message":{"role":"assistant","content":"ok"}}]}`)
 	}))
 	defer upstream.Close()
+	defer unblock() // Always release blocked test handlers on assertion failure.
 	bridge, err := newInferenceBridge(upstream.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -143,7 +149,7 @@ func TestCanceledHTTPQueuedRequestNeverForwardsPrompt(t *testing.T) {
 		t.Fatal("canceled queued request did not exit")
 	}
 	waitForQueue(t, bridge.admission, 0)
-	close(release)
+	unblock()
 	for i := 0; i < maxConcurrent; i++ {
 		select {
 		case <-active:
