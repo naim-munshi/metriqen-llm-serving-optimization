@@ -1,0 +1,25 @@
+# Weekly dependency checks; pull requests must pass the standard CI gates.
+# There are currently no external Go module dependencies; retaining this
+# ecosystem ensures future runtime dependencies receive update PRs.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: pip
+    directory: "/services/control-api"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: gomod
+    directory: "/services/inference-gateway"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
