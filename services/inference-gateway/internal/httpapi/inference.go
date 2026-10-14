@@ -32,12 +32,12 @@ const (
 type inferenceBridge struct {
 	endpoint      string
 	client        *http.Client
-	slots         chan struct{}
+	admission     *admissionScheduler
 	allowedModels map[string]struct{}
 }
 
 func newInferenceBridge(rawURL string) (*inferenceBridge, error) {
-	bridge := &inferenceBridge{slots: make(chan struct{}, maxConcurrent)}
+	bridge := &inferenceBridge{admission: newAdmissionScheduler(maxConcurrent, 0)}
 	if strings.TrimSpace(rawURL) == "" {
 		return bridge, nil // disabled unless explicitly configured
 	}
@@ -113,14 +113,28 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	select {
-	case bridge.slots <- struct{}{}:
-		defer func() { <-bridge.slots }()
-	default:
-		w.Header().Set("Retry-After", "1")
-		writeError(w, http.StatusTooManyRequests, "capacity_exceeded", "Local inference concurrency limit reached")
+	// The default queue depth is zero: preserve immediate HTTP 429 on
+	// saturation. Positive opt-in depths wait briefly, first-in-first-out.
+	admissionCtx := r.Context()
+	if bridge.admission.maxQueued > 0 {
+		var cancelWait context.CancelFunc
+		admissionCtx, cancelWait = context.WithTimeout(r.Context(), queueWaitTimeout)
+		defer cancelWait()
+	}
+	if err := bridge.admission.acquire(admissionCtx); err != nil {
+		switch {
+		case errors.Is(err, context.Canceled):
+			return // Disconnected while queued; no upstream request sent.
+		case errors.Is(err, context.DeadlineExceeded):
+			w.Header().Set("Retry-After", "1")
+			writeError(w, http.StatusTooManyRequests, "queue_wait_timeout", "Local inference queue wait expired")
+		default:
+			w.Header().Set("Retry-After", "1")
+			writeError(w, http.StatusTooManyRequests, "capacity_exceeded", "Local inference concurrency limit reached")
+		}
 		return
 	}
+	defer bridge.admission.release()
 
 	ctx, cancel := context.WithTimeout(r.Context(), requestDeadline)
 	defer cancel()
