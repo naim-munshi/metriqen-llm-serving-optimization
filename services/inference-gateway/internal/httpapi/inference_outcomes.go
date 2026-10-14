@@ -32,14 +32,14 @@ type inferenceOutcomeCounters struct {
 // http.ResponseWriter, not a model quality guarantee. "stream_clean_eof"
 // means only that upstream ended with io.EOF; it does NOT verify SSE [DONE].
 type inferenceOutcomeSnapshot struct {
-	SchemaVersion                 int    `json:"schema_version"`
-	AttemptsTotal                 uint64 `json:"attempts_total"`
-	ActiveAttempts                uint64 `json:"active_attempts"`
-	NonstreamCompleteTotal        uint64 `json:"nonstream_complete_total"`
-	StreamCleanEOFTotal           uint64 `json:"stream_clean_eof_total"`
-	PreResponseFailureTotal       uint64 `json:"pre_response_failure_total"`
-	PostResponseInterruptedTotal  uint64 `json:"post_response_interrupted_total"`
-	ClientCanceledTotal           uint64 `json:"client_canceled_total"`
+	SchemaVersion                int    `json:"schema_version"`
+	AttemptsTotal                uint64 `json:"attempts_total"`
+	ActiveAttempts               uint64 `json:"active_attempts"`
+	NonstreamCompleteTotal       uint64 `json:"nonstream_complete_total"`
+	StreamCleanEOFTotal          uint64 `json:"stream_clean_eof_total"`
+	PreResponseFailureTotal      uint64 `json:"pre_response_failure_total"`
+	PostResponseInterruptedTotal uint64 `json:"post_response_interrupted_total"`
+	ClientCanceledTotal          uint64 `json:"client_canceled_total"`
 }
 
 func (c *inferenceOutcomeCounters) start() {
