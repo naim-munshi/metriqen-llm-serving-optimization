@@ -171,7 +171,7 @@ does not retroactively validate previous Ollama parallelism experiments.
 - Non-streaming successful completions are checked before returning HTTP 200: up to 2 MiB of JSON, nonempty `choices`, and a first assistant message with a string `content` field. Empty text strings are allowed; non-text/tool-call-only replies are **not** in this milestone's contract. Malformed, truncated and oversized completions return sanitized HTTP 502 errors without forwarding upstream text. Valid non-streaming JSON is forwarded unchanged.
 - SSE streaming remains incremental rather than fully buffered and has an **8 MiB per-request forwarding budget**. Once success headers are sent, upstream interruption, an excessive response or malformed event cannot be turned into a new HTTP error code; clients must verify the expected `[DONE]` terminator and handle in-band errors. The benchmark client rejects these incomplete/error streams.
 - Upstream JSON/error responses are not guaranteed to be byte-for-byte preserved: requests are validated and re-encoded, and upstream error messages are sanitized.
-- `/health/ready` indicates the process is responsive; **it does not mean a model is loaded or that the upstream is reachable**.
+- `/health/ready` indicates the gateway process is responsive. The independent [on-demand upstream health probe](upstream-health-probe.md) at `GET /health/upstream` checks Ollama's lightweight HTTP version API with a two-second deadline; it does **not** prove a model is loaded or inference will succeed.
 - Docker Compose exposes host ports on loopback; inference remains disabled in Compose unless explicitly configured. A host-native Go process is simplest when Ollama runs natively on macOS.
 
 ## Security boundary

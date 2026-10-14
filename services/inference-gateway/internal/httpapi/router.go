@@ -47,6 +47,8 @@ func NewRouterWithInferenceAndScheduler(localUpstreamURL, rawAllowedModels, rawQ
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health/live", health("ok"))
 	mux.HandleFunc("GET /health/ready", health("ready"))
+	// On-demand dependency reachability is independent of process readiness.
+	mux.HandleFunc("GET /health/upstream", bridge.serveUpstreamHealth)
 	// Local-only JSON diagnostic endpoint. No model/request identifiers,
 	// prompt text, or personally identifying labels leave the scheduler.
 	mux.HandleFunc("GET /metrics/admission", func(w http.ResponseWriter, _ *http.Request) {
