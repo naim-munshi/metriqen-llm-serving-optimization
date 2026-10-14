@@ -111,6 +111,42 @@ This is still an **unauthenticated loopback-only gateway**. Queuing does
 not make it secure for public traffic, allocate GPU memory or replace
 project-level quotas and admission controls.
 
+## Admission observability (local JSON endpoint)
+
+The gateway exposes `GET /metrics/admission` as a **process-local**
+diagnostic. It returns a schema-versioned JSON snapshot without prompt text,
+output, model name, user identity, IP addresses or per-request labels:
+
+~~~sh
+curl -fsS http://127.0.0.1:8081/metrics/admission | python3 -m json.tool
+~~~
+
+The exact field names are:
+
+| Fields | Interpretation |
+| --- | --- |
+| `active_requests`, `waiting_requests` | Current active gateway admissions and FIFO waiters (not GPU execution slots) |
+| `max_active_requests`, `max_waiting_requests` | Configured gateway limits |
+| `admitted_immediate_total`, `admitted_queued_total` | Requests successfully **admitted** immediately / after waiting; **not** successful inference completions |
+| `rejected_full_total` | Requests rejected because active capacity or bounded queue was full |
+| `queue_timeout_total`, `queue_canceled_total` | Requests that **entered the queue** but failed admission by deadline or client cancellation |
+| `schema_version` | Current response format revision (1) |
+
+Metrics are aggregate, in-memory, monotonic counters and instantaneous gauges.
+They reset whenever the gateway process restarts. They do **not** measure
+TTFT, latency percentiles, GPU utilization, response correctness, model-level
+concurrency, or scheduler speedup. The initial response is useful even when
+inference is disabled (zero active requests). `POST /metrics/admission` is
+rejected; all responses are `Cache-Control: no-store`.
+
+This endpoint is intended for **loopback development use only**, like the
+unauthenticated inference gateway. Do not port-forward or publish it publicly;
+the current deployment is not production-hardened. A production observability
+stack would require authorization, stable metric naming/collection and
+carefully designed export paths. For historical benchmarking, record the
+gateway revision and metrics schema if observing the scheduler; this endpoint
+does not retroactively validate previous Ollama parallelism experiments.
+
 ## Contract and constraints
 
 - Supported endpoint: **POST `/v1/chat/completions`**, JSON body only, chat messages and non-empty model required.
