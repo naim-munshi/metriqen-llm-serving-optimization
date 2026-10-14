@@ -72,6 +72,18 @@ Real model quality has not been verified by this documentation or CI. A develope
 
 The [serving comparison CLI](../benchmarks/controlled-comparison.md) checks the same quality dataset SHA-256, model revision and decoding settings in both evidence bundles, and labels any exact- or normalized-match regression as ineligible for a positive optimization conclusion. These exact-match metrics are not a substitute for semantic, factuality or safety evaluation.
 
+## Exploratory arithmetic quality-regression case
+
+An independent [October 14 arithmetic observation](observations/2026-10-14-arithmetic-model-smoke.md)
+records an operator-reported `2+2` discrepancy: `llama3.2:1b`
+returned `2` in 3/3 native API trials, whereas
+`llama3.2:latest` returned `4` in 3/3. It is a two-question,
+separately versioned [smoke dataset](workload.arithmetic-regression.v1.jsonl),
+**not** a revision of the historical 36-question workload or evidence
+of a gateway correctness defect. The attached offline CI test validates
+only the dataset contract and synthetic answer scoring; live model
+reproduction remains an operator-run experiment.
+
 ## Larger synthetic reference workload
 
 A new versioned **36-question** deterministic reference dataset is available at `docs/nlp-eval/workload.v1.jsonl`, with answer-only geography, arithmetic and computing acronym questions. See [workload design v1](../benchmarks/workload-design-v1.md) for its limitations. It can support initial local quality-regression checks, but its answers do not test nuanced semantic quality, factuality under ambiguity, or model safety. The older two-question example remains available and unchanged for smoke tests.
