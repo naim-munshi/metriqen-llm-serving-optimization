@@ -21,7 +21,13 @@ from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_ope
 
 ROOT = Path(__file__).resolve().parents[2]
 GATEWAY_DIR = ROOT / "services" / "inference-gateway"
-OPENER = build_opener(ProxyHandler({}))
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, request, fp, code, msg, headers, newurl):
+        return None
+
+
+# A demo probe never silently follows an upstream redirect or environment proxy.
+OPENER = build_opener(ProxyHandler({}), NoRedirect())
 
 
 def fetch(url, *, payload=None, timeout=10):
