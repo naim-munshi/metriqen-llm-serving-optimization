@@ -20,11 +20,11 @@ var errAdmissionFull = errors.New("local inference admission is full")
 // stored in the scheduler except a completion channel: no prompts, model
 // outputs or tenant information. It is process-local and not distributed.
 type admissionScheduler struct {
-	mu         sync.Mutex
-	active     int
-	maxActive  int
-	maxQueued  int
-	waiting    []*admissionWaiter
+	mu        sync.Mutex
+	active    int
+	maxActive int
+	maxQueued int
+	waiting   []*admissionWaiter
 }
 
 type admissionWaiter struct {
