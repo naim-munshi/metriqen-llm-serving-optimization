@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"time"
 	"syscall"
 	"testing"
 )
@@ -150,12 +151,61 @@ func TestCanceledUpstreamAttemptIsNotRecordedAsFailure(t *testing.T) {
 		bridge.serveChat(httptest.NewRecorder(), req)
 		close(finished)
 	}()
-	<-started
+	select {
+	case <-started:
+	case <-time.After(3 * time.Second):
+		t.Fatal("mock transport did not start")
+	}
 	cancel()
-	<-finished
+	select {
+	case <-finished:
+	case <-time.After(3 * time.Second):
+		t.Fatal("canceling upstream did not finish")
+	}
 	s := bridge.upstreamFailures.snapshot()
 	if s.TransportErrorsTotal != 0 || s.TimeoutsTotal != 0 || s.ConnectionRefusedTotal != 0 {
 		t.Fatalf("client canceled request counted as upstream failure: %+v", s)
+	}
+}
+
+type readErrorReader struct{}
+
+func (readErrorReader) Read([]byte) (int, error) {
+	return 0, errors.New("private upstream streaming error")
+}
+
+func TestUpstreamStreamingFailureCounters(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		body io.ReadCloser
+		wantReadErrors, wantSizeLimit uint64
+	}{
+		{"read failure", io.NopCloser(readErrorReader{}), 1, 0},
+		{"size limit", io.NopCloser(strings.NewReader(strings.Repeat("x", maxStreamedBytes+1024))), 0, 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			bridge, err := newInferenceBridge("http://127.0.0.1:11434")
+			if err != nil {
+				t.Fatal(err)
+			}
+			bridge.client = &http.Client{Transport: fakeRoundTripper(func(*http.Request) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header: http.Header{"Content-Type": []string{"text/event-stream"}},
+					Body: tc.body,
+				}, nil
+			})}
+			res := request(t, http.HandlerFunc(bridge.serveChat),
+				"{\"model\":\"test\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true}",
+				"application/json")
+			if res.Code != http.StatusOK {
+				t.Fatalf("stream should already have HTTP 200: %d", res.Code)
+			}
+			s := bridge.upstreamFailures.snapshot()
+			if s.StreamReadErrorsTotal != tc.wantReadErrors || s.StreamSizeLimitTotal != tc.wantSizeLimit {
+				t.Fatalf("stream failure not captured: %+v", s)
+			}
+		})
 	}
 }
 
