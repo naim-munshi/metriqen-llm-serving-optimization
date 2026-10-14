@@ -108,7 +108,7 @@ class FixtureHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
             self.end_headers()
-            self.wfile.write(b'data: {"choices":[{"delta":{"content":"synthetic-partial"}}]}\\n\\n'.replace(b"\\\\n", b"\\n"))
+            self.wfile.write(b'data: {"choices":[{"delta":{"content":"synthetic-partial"}}]}\n\n')
             return
         if model == "fixture:malformed":
             self.send_response(200)
