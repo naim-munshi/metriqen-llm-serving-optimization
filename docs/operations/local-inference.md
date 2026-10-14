@@ -73,11 +73,49 @@ digest before benchmark phases using the existing preflight and evidence
 protocol. This filtering does not make the unauthenticated gateway safe to
 expose outside loopback and does not replace future Phase 04 model registry.
 
+## Optional bounded FIFO admission queue (development only)
+
+By default, the gateway immediately returns HTTP 429 when its four local
+inference slots are occupied. No waiting queue is created, preserving the
+baseline used by existing benchmarks.
+
+For a **separate, explicitly labeled** scheduling experiment, restart the
+local gateway with a strictly bounded waiting queue:
+
+~~~sh
+cd services/inference-gateway
+METRIQEN_UPSTREAM_URL=http://127.0.0.1:11434 \
+METRIQEN_QUEUE_DEPTH=2 \
+go run ./cmd/server
+~~~
+
+- Queue depth accepts a canonical decimal integer **0 through 32**; unset
+  or 0 means no queue. Invalid settings fail startup rather than silently
+  changing the experiment. Depth counts waiting requests only, not active.
+- At most four requests are forwarded to the configured local upstream
+  at once. A released slot is handed to the oldest queued request.
+- A waiting request is bounded by a **5-second admission deadline**.
+  A full queue returns HTTP 429 `capacity_exceeded` and `Retry-After: 1`.
+  Expired waits return HTTP 429 `queue_wait_timeout` and the same retry
+  hint. Client disconnect removes the queued waiter without forwarding
+  its prompt; canceled handoffs release their reservation safely.
+- The queue stores a small wake-up channel per request. It does not persist
+  prompts, perform batching, schedule tokens, predict token cost, or provide
+  priority or multi-tenant fairness.
+- **Changing queue depth changes the experimental system.** Do not compare
+  historical A1 throughput/TTFT to a queue-enabled gateway as though
+  all serving settings were equal. Keep the default (depth 0) for the
+  previously defined parallelism-only A/B/A/B study.
+
+This is still an **unauthenticated loopback-only gateway**. Queuing does
+not make it secure for public traffic, allocate GPU memory or replace
+project-level quotas and admission controls.
+
 ## Contract and constraints
 
 - Supported endpoint: **POST `/v1/chat/completions`**, JSON body only, chat messages and non-empty model required.
 - Default output cap: 256 tokens; maximum requested output: 2,048 tokens. Up to 32 chat messages and 1 MiB request body.
-- Maximum four concurrent inference requests across this one gateway process. Additional requests return HTTP 429 with `Retry-After: 1`.
+- Maximum four active inference requests per process. By default additional requests return HTTP 429 with `Retry-After: 1`; an explicitly enabled bounded FIFO queue may wait up to five seconds for capacity.
 - Upstream request lifetime limited to 120 seconds; upstream header timeout 30 seconds; SSE data is flushed as it arrives. Client disconnect propagates cancellation.
 - Upstream URLs are startup configuration only, not supplied by users. Only `http://127.0.0.1:PORT`, `http://localhost:PORT`, `http://[::1]:PORT`, or container-only `http://ollama:PORT` are permitted, with no path, query, or credentials. External and HTTPS endpoints are deliberately unsupported in this **development-only** slice.
 - When inference is enabled, the gateway refuses a non-loopback listener, including `0.0.0.0`; the health-only Docker Compose service is unaffected.
