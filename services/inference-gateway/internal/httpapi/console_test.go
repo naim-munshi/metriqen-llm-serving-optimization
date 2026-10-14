@@ -15,7 +15,7 @@ func TestLocalOperationsConsoleServesBundledAssetsWithStrictCSP(t *testing.T) {
 	for _, tc := range []struct {
 		path, mediaType, sentinel string
 	}{
-		{"/console", "text/html; charset=utf-8", "Operations Overview"},
+		{"/console", "text/html; charset=utf-8", "Operations <span>Overview</span>"},
 		{"/console/app.css", "text/css; charset=utf-8", ".health-grid"},
 		{"/console/app.js", "text/javascript; charset=utf-8", "stream_missing_done_total"},
 	} {
