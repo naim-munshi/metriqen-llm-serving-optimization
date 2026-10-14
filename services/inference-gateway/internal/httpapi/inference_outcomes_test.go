@@ -76,8 +76,8 @@ func TestInferenceOutcomesCountExactlyOneTerminalResult(t *testing.T) {
 		nonstream, streamEOF, pre, post   uint64
 	}{
 		{"nonstream complete", "application/json", `{"choices":[{"message":{"role":"assistant","content":"ok"}}]}`, 200, false, 200, 1, 0, 0, 0},
-		{"stream complete marker", "text/event-stream", "data: [DONE]\\n\\n", 200, true, 200, 0, 1, 0, 0},
-		{"stream empty EOF not certified", "text/event-stream", "data: {\"incomplete\":true}\\n\\n", 200, true, 200, 0, 1, 0, 0},
+		{"stream complete marker", "text/event-stream", "data: [DONE]\n\n", 200, true, 200, 0, 1, 0, 0},
+		{"stream empty EOF not certified", "text/event-stream", "data: {\"incomplete\":true}\n\n", 200, true, 200, 0, 1, 0, 0},
 		{"upstream rejected", "application/json", `{"secret":"PRIVATE_UPSTREAM"}`, 429, false, 429, 0, 0, 1, 0},
 		{"upstream 503", "application/json", `{"secret":"PRIVATE_UPSTREAM"}`, 503, false, 502, 0, 0, 1, 0},
 		{"invalid completion", "application/json", `{"choices":[]}`, 200, false, 502, 0, 0, 1, 0},
@@ -148,7 +148,7 @@ func TestInferenceOutcomesClientCancellation(t *testing.T) {
 	started := make(chan struct{})
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
-		_, _ = io.WriteString(w, "data: {\"choices\":[]}\\n\\n")
+		_, _ = io.WriteString(w, "data: {\"choices\":[]}\n\n")
 		w.(http.Flusher).Flush()
 		close(started)
 		<-r.Context().Done()
