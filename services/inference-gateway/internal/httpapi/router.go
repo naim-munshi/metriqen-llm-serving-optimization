@@ -22,7 +22,19 @@ func NewRouterWithInference(localUpstreamURL string) (http.Handler, error) {
 // explicit allowlist is supplied. It does not authenticate the caller or pin
 // Ollama model digests; the listener must still remain local-only.
 func NewRouterWithInferenceAndModels(localUpstreamURL, rawAllowedModels string) (http.Handler, error) {
+	return NewRouterWithInferenceAndScheduler(localUpstreamURL, rawAllowedModels, "")
+}
+
+// NewRouterWithInferenceAndScheduler optionally enables a bounded FIFO wait
+// queue. Zero/empty queue depth preserves the original immediate-429 behavior.
+// This is a process-local admission control, NOT GPU batching or multi-tenant
+// resource scheduling; all inference remains restricted to loopback.
+func NewRouterWithInferenceAndScheduler(localUpstreamURL, rawAllowedModels, rawQueueDepth string) (http.Handler, error) {
 	allowed, err := parseAllowedModels(rawAllowedModels)
+	if err != nil {
+		return nil, err
+	}
+	queueDepth, err := parseQueueDepth(rawQueueDepth)
 	if err != nil {
 		return nil, err
 	}
@@ -31,6 +43,7 @@ func NewRouterWithInferenceAndModels(localUpstreamURL, rawAllowedModels string) 
 		return nil, err
 	}
 	bridge.allowedModels = allowed
+	bridge.admission = newAdmissionScheduler(maxConcurrent, queueDepth)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health/live", health("ok"))
 	mux.HandleFunc("GET /health/ready", health("ready"))
