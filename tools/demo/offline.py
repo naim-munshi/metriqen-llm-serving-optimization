@@ -271,6 +271,19 @@ def run_demo(base, state):
           and admission["queue_wait_observations_total"] == 2)
     check("private_data_excluded_from_metrics", b"PRIVATE_DEMO_PROMPT_7286" not in raw)
 
+    status, _, raw = fetch(base + "/metrics/inference")
+    outcomes = json.loads(raw)
+    check("inference_outcome_counters_reconcile", status == 200
+          and outcomes["schema_version"] == 1
+          and outcomes["attempts_total"] == 10
+          and outcomes["active_attempts"] == 0
+          and outcomes["nonstream_complete_total"] == 7
+          and outcomes["stream_clean_eof_total"] == 1
+          and outcomes["pre_response_failure_total"] == 2
+          and outcomes["post_response_interrupted_total"] == 0
+          and outcomes["client_canceled_total"] == 0
+          and b"PRIVATE_DEMO_PROMPT_7286" not in raw)
+
     return {
         "schema_version": 1,
         "demo_kind": "synthetic_gateway_contract_demo",
@@ -288,6 +301,12 @@ def run_demo(base, state):
         "upstream_failures": {
             "http_rejected": upstream["http_rejected_total"],
             "protocol": upstream["protocol_errors_total"],
+        },
+        "inference_outcomes": {
+            "attempts": outcomes["attempts_total"],
+            "nonstream_complete": outcomes["nonstream_complete_total"],
+            "stream_clean_eof": outcomes["stream_clean_eof_total"],
+            "pre_response_failure": outcomes["pre_response_failure_total"],
         },
     }
 

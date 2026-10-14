@@ -35,10 +35,11 @@ type inferenceBridge struct {
 	admission        *admissionScheduler
 	allowedModels    map[string]struct{}
 	upstreamFailures *upstreamFailureCounters
+	outcomes         *inferenceOutcomeCounters
 }
 
 func newInferenceBridge(rawURL string) (*inferenceBridge, error) {
-	bridge := &inferenceBridge{admission: newAdmissionScheduler(maxConcurrent, 0), upstreamFailures: &upstreamFailureCounters{}}
+	bridge := &inferenceBridge{admission: newAdmissionScheduler(maxConcurrent, 0), upstreamFailures: &upstreamFailureCounters{}, outcomes: &inferenceOutcomeCounters{}}
 	if strings.TrimSpace(rawURL) == "" {
 		return bridge, nil // disabled unless explicitly configured
 	}
@@ -137,6 +138,12 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 	}
 	defer bridge.admission.release()
 
+	// Exactly one terminal outcome per successfully admitted inference attempt.
+	// Invalid inputs, model allowlist failures and admission 429s are excluded.
+	bridge.outcomes.start()
+	outcome := inferencePreResponseFailure
+	defer func() { bridge.outcomes.finish(outcome) }()
+
 	ctx, cancel := context.WithTimeout(r.Context(), requestDeadline)
 	defer cancel()
 	outbound, err := http.NewRequestWithContext(ctx, http.MethodPost, bridge.endpoint, bytes.NewReader(validated))
@@ -157,6 +164,7 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 			bridge.upstreamFailures.record(upstreamTimeout)
 			writeError(w, http.StatusGatewayTimeout, "inference_timeout", "Inference request timed out")
 		} else if errors.Is(ctx.Err(), context.Canceled) {
+			outcome = inferenceClientCanceled
 			return // Client disconnected; do not write further.
 		} else {
 			bridge.upstreamFailures.record(classifyUpstreamTransport(err))
@@ -193,6 +201,7 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 				bridge.upstreamFailures.record(upstreamTimeout)
 				writeError(w, http.StatusGatewayTimeout, "inference_timeout", "Inference request timed out")
 			} else if errors.Is(ctx.Err(), context.Canceled) {
+				outcome = inferenceClientCanceled
 				return
 			} else if errors.Is(err, errChatCompletionTooLarge) {
 				bridge.upstreamFailures.record(upstreamResponseTooLarge)
@@ -205,13 +214,22 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(completion)
+		written, writeErr := w.Write(completion)
+		if writeErr != nil || written != len(completion) {
+			outcome = inferencePostResponseInterrupted
+			if errors.Is(r.Context().Err(), context.Canceled) {
+				outcome = inferenceClientCanceled
+			}
+			return
+		}
+		outcome = inferenceNonstreamComplete
 		return
 	}
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
+	outcome = inferencePostResponseInterrupted // Until a clean upstream EOF is observed.
 
 	// Do not buffer SSE until completion; flush after each read and honor
 	// cancellation through the upstream request context.
@@ -232,15 +250,24 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 				return
 			}
 			forwarded += n
-			if _, err := w.Write(buffer[:n]); err != nil {
+			written, writeErr := w.Write(buffer[:n])
+			if writeErr != nil || written != n {
+				if errors.Is(r.Context().Err(), context.Canceled) {
+					outcome = inferenceClientCanceled
+				}
 				return
 			}
 			flusher.Flush()
 		}
 		if readErr != nil {
-			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			if errors.Is(r.Context().Err(), context.Canceled) {
+				outcome = inferenceClientCanceled
+			} else if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				bridge.upstreamFailures.record(upstreamTimeout)
-			} else if !errors.Is(ctx.Err(), context.Canceled) && !errors.Is(readErr, io.EOF) {
+			} else if errors.Is(readErr, io.EOF) {
+				// EOF is a transport observation, NOT proof of SSE [DONE].
+				outcome = inferenceStreamCleanEOF
+			} else {
 				bridge.upstreamFailures.record(upstreamStreamReadError)
 			}
 			return
