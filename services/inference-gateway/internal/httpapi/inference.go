@@ -30,9 +30,10 @@ const (
 // inferenceBridge deliberately has no API authentication. It MUST remain on a
 // loopback-only development listener until authentication and quotas are wired.
 type inferenceBridge struct {
-	endpoint string
-	client   *http.Client
-	slots    chan struct{}
+	endpoint      string
+	client        *http.Client
+	slots         chan struct{}
+	allowedModels map[string]struct{}
 }
 
 func newInferenceBridge(rawURL string) (*inferenceBridge, error) {
@@ -91,6 +92,25 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
+	}
+	if len(bridge.allowedModels) > 0 {
+		// The request has already passed bounded JSON/model validation. Read
+		// only its model field and reject disallowed tags before taking capacity
+		// or sending prompt content to an upstream runtime.
+		var fields map[string]json.RawMessage
+		var requestedModel string
+		if err := json.Unmarshal(validated, &fields); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid_request", "Invalid model selection")
+			return
+		}
+		if err := json.Unmarshal(fields["model"], &requestedModel); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid_request", "Invalid model selection")
+			return
+		}
+		if _, allowed := bridge.allowedModels[requestedModel]; !allowed {
+			writeError(w, http.StatusForbidden, "model_not_allowed", "Model is not allowed by this local gateway")
+			return
+		}
 	}
 
 	select {
