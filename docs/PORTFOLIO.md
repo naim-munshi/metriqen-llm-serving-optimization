@@ -35,7 +35,7 @@ backpressure, request wait handoff, metrics reconciliation and privacy.
 It cleans up the processes when finished.
 
 **Expected proof:** a JSON document with `passed: true`,
-`checks_passed: 15`,
+`checks_passed: 16`,
 `model_inference_executed: false`, and
 `performance_measurement: false`. These values describe synthetic
 contract testing, **not** model-quality or performance measurements.
@@ -43,6 +43,21 @@ See the [demo specification](operations/offline-portfolio-demo.md).
 
 For the actual local Ollama route, see [operations](operations/local-inference.md);
 the gateway is unauthenticated and **must stay bound to loopback**.
+
+## Local Operations Console
+
+Start the loopback-only Go gateway with an explicitly configured
+local upstream and open **http://127.0.0.1:8081/console**.
+
+The embedded, read-only dashboard shows the latest gateway readiness,
+Ollama API reachability, FIFO occupancy, exclusive inference outcomes,
+and fixed upstream failure counts. It uses no external scripts or
+analytics. The console is **not** an authenticated management plane,
+does not launch generation jobs, and is not a production web service.
+
+A synthetic CI test verifies bundled assets and restrictive CSP headers,
+**not browser rendering or performance**. See the
+[console runbook](operations/local-console.md).
 
 ## Architecture and decisions
 
