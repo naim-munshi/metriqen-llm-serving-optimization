@@ -95,7 +95,12 @@ def generate_one(endpoint: str, model: str, messages: list[dict],
                 raise ValueError("upstream response too large")
             result = json.loads(raw)
     except HTTPError as exc:
-        raise ValueError(f"upstream HTTP {exc.code}") from None
+        # HTTPError is also a response-like object. Explicitly close its
+        # body (including rejected redirects/429s) before discarding it.
+        # Never read or expose an untrusted upstream error body.
+        status = exc.code
+        exc.close()
+        raise ValueError(f"upstream HTTP {status}") from None
     except (URLError, OSError, TimeoutError) as exc:
         raise ValueError(f"upstream transport error: {type(exc).__name__}") from None
     except (ValueError, UnicodeDecodeError):
