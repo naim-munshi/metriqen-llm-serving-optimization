@@ -31,6 +31,18 @@ Additional Oct 13 A2 and Oct 14 A1 sweeps, variability checks, and a separate ba
 
 No new public benchmark figure should be added unless its provenance and limitations are independently checked against source reports.
 
+### Model-quality regression smoke — October 14, 2026
+
+A developer-reported [isolated arithmetic check](nlp-eval/observations/2026-10-14-arithmetic-model-smoke.md)
+found `llama3.2:1b` answered a `2+2` question as `2` in three
+native Ollama API calls (0/3 reference matches), while
+`llama3.2:latest` returned `4` in three (3/3). A separate one-off
+`7+5` native request was correct for `llama3.2:1b`.
+This is a narrow, operator-reported, uncontrolled local observation.
+A distinct two-question fixture and **synthetic CI scoring contract**
+were added without rewriting historical benchmark results or treating
+a model's live answers as reproducible CI assertions.
+
 ## Engineering milestones
 
 - **Now:** preserve a secure loopback development boundary, explicit opt-in settings, reproducible contracts, CI and concise architectural documentation.

@@ -1,0 +1,2 @@
+{"id":"arith_2_plus_2","messages":[{"role":"user","content":"What is 2 plus 2? Answer with one number."}],"reference":"4"}
+{"id":"arith_7_plus_5","messages":[{"role":"user","content":"What is 7 plus 5? Reply with only the number."}],"reference":"12"}
