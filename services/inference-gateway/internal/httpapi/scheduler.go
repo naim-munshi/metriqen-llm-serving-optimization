@@ -29,7 +29,8 @@ type admissionScheduler struct {
 }
 
 type admissionWaiter struct {
-	ready chan struct{}
+	ready      chan struct{}
+	enqueuedAt time.Time
 }
 
 func newAdmissionScheduler(maxActive, maxQueued int) *admissionScheduler {
@@ -72,18 +73,18 @@ func (s *admissionScheduler) acquire(ctx context.Context) error {
 		s.mu.Unlock()
 		return errAdmissionFull
 	}
-	waiter := &admissionWaiter{ready: make(chan struct{})}
+	waiter := &admissionWaiter{ready: make(chan struct{}), enqueuedAt: time.Now()}
 	s.waiting = append(s.waiting, waiter)
 	s.mu.Unlock()
 
 	select {
 	case <-waiter.ready:
 		if err := ctx.Err(); err != nil {
-			s.recordQueuedOutcome(err)
+			s.recordQueuedOutcome(err, waiter.enqueuedAt)
 			s.release() // A handoff occurred during cancellation.
 			return err
 		}
-		s.recordQueuedOutcome(nil)
+		s.recordQueuedOutcome(nil, waiter.enqueuedAt)
 		return nil
 	case <-ctx.Done():
 		s.mu.Lock()
@@ -93,12 +94,12 @@ func (s *admissionScheduler) acquire(ctx context.Context) error {
 				s.waiting[len(s.waiting)-1] = nil
 				s.waiting = s.waiting[:len(s.waiting)-1]
 				s.mu.Unlock()
-				s.recordQueuedOutcome(ctx.Err())
+				s.recordQueuedOutcome(ctx.Err(), waiter.enqueuedAt)
 				return ctx.Err()
 			}
 		}
 		s.mu.Unlock()
-		s.recordQueuedOutcome(ctx.Err())
+		s.recordQueuedOutcome(ctx.Err(), waiter.enqueuedAt)
 		// A release already handed off the active slot and removed our
 		// queue entry; pass that slot to the next waiter or free it.
 		s.release()
