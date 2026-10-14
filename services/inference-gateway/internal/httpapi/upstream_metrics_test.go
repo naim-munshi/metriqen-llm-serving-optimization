@@ -9,9 +9,9 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
-	"time"
 	"syscall"
 	"testing"
+	"time"
 )
 
 type fakeRoundTripper func(*http.Request) (*http.Response, error)
@@ -59,8 +59,8 @@ func TestUpstreamMetricsReadOnlyAndNoPrivateAttributes(t *testing.T) {
 
 func TestUpstreamTransportErrorsUseTypedClassification(t *testing.T) {
 	for _, tc := range []struct {
-		name string
-		failure error
+		name                        string
+		failure                     error
 		refused, transport, timeout uint64
 	}{
 		{"connection refused", syscall.ECONNREFUSED, 1, 0, 0},
@@ -90,9 +90,9 @@ func TestUpstreamTransportErrorsUseTypedClassification(t *testing.T) {
 
 func TestUpstreamStatusProtocolAndResponseSizeCounters(t *testing.T) {
 	for _, tc := range []struct {
-		name string
-		status int
-		contentType, body string
+		name                                string
+		status                              int
+		contentType, body                   string
 		rejected, other, protocol, tooLarge uint64
 	}{
 		{"rejected", 429, "text/plain", "private rejection", 1, 0, 0, 0},
@@ -176,8 +176,8 @@ func (readErrorReader) Read([]byte) (int, error) {
 
 func TestUpstreamStreamingFailureCounters(t *testing.T) {
 	for _, tc := range []struct {
-		name string
-		body io.ReadCloser
+		name                          string
+		body                          io.ReadCloser
 		wantReadErrors, wantSizeLimit uint64
 	}{
 		{"read failure", io.NopCloser(readErrorReader{}), 1, 0},
@@ -191,8 +191,8 @@ func TestUpstreamStreamingFailureCounters(t *testing.T) {
 			bridge.client = &http.Client{Transport: fakeRoundTripper(func(*http.Request) (*http.Response, error) {
 				return &http.Response{
 					StatusCode: http.StatusOK,
-					Header: http.Header{"Content-Type": []string{"text/event-stream"}},
-					Body: tc.body,
+					Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+					Body:       tc.body,
 				}, nil
 			})}
 			res := request(t, http.HandlerFunc(bridge.serveChat),
