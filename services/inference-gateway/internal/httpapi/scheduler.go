@@ -25,6 +25,7 @@ type admissionScheduler struct {
 	maxActive int
 	maxQueued int
 	waiting   []*admissionWaiter
+	counters  admissionCounters
 }
 
 type admissionWaiter struct {
@@ -62,10 +63,12 @@ func (s *admissionScheduler) acquire(ctx context.Context) error {
 	}
 	if s.active < s.maxActive && len(s.waiting) == 0 {
 		s.active++
+		s.counters.immediate++
 		s.mu.Unlock()
 		return nil
 	}
 	if len(s.waiting) >= s.maxQueued {
+		s.counters.full++
 		s.mu.Unlock()
 		return errAdmissionFull
 	}
@@ -76,9 +79,11 @@ func (s *admissionScheduler) acquire(ctx context.Context) error {
 	select {
 	case <-waiter.ready:
 		if err := ctx.Err(); err != nil {
+			s.recordQueuedOutcome(err)
 			s.release() // A handoff occurred during cancellation.
 			return err
 		}
+		s.recordQueuedOutcome(nil)
 		return nil
 	case <-ctx.Done():
 		s.mu.Lock()
@@ -88,10 +93,12 @@ func (s *admissionScheduler) acquire(ctx context.Context) error {
 				s.waiting[len(s.waiting)-1] = nil
 				s.waiting = s.waiting[:len(s.waiting)-1]
 				s.mu.Unlock()
+				s.recordQueuedOutcome(ctx.Err())
 				return ctx.Err()
 			}
 		}
 		s.mu.Unlock()
+		s.recordQueuedOutcome(ctx.Err())
 		// A release already handed off the active slot and removed our
 		// queue entry; pass that slot to the next waiter or free it.
 		s.release()
