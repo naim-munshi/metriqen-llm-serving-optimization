@@ -130,12 +130,24 @@ The exact field names are:
 | `admitted_immediate_total`, `admitted_queued_total` | Requests successfully **admitted** immediately / after waiting; **not** successful inference completions |
 | `rejected_full_total` | Requests rejected because active capacity or bounded queue was full |
 | `queue_timeout_total`, `queue_canceled_total` | Requests that **entered the queue** but failed admission by deadline or client cancellation |
-| `schema_version` | Current response format revision (1) |
+| `queue_wait_observations_total` | Number of queue entrants whose wait has **ended** (admitted, timed out or canceled) |
+| `queue_wait_duration_total_us` | Sum of completed queue wait durations in **microseconds** (divide by observations for a descriptive mean) |
+| `queue_wait_bucket_upper_bounds_ms` | Inclusive upper bounds for fixed, mutually exclusive wait buckets: 10, 50, 100, 250, 500, 1000, 2000, 5000 ms |
+| `queue_wait_bucket_counts` | Nine corresponding **noncumulative** counts: eight bounded buckets and one overflow bucket above 5000 ms |
+| `schema_version` | Current response format revision (2) |
 
-Metrics are aggregate, in-memory, monotonic counters and instantaneous gauges.
-They reset whenever the gateway process restarts. They do **not** measure
-TTFT, latency percentiles, GPU utilization, response correctness, model-level
-concurrency, or scheduler speedup. The initial response is useful even when
+Metrics are aggregate, in-memory, monotonic counters, a **fixed-size
+queue-wait histogram**, and instantaneous gauges. The wait histogram records
+the enqueue-to-outcome time for **completed queue waits only**; it includes
+waits ending in admission, timeout or client cancellation. It does not
+include rejected-full requests (which never entered the queue) or immediate
+admissions. Bucket counts sum to `queue_wait_observations_total`; totals
+include all completed queued outcomes only, and reset at process restart.
+The microsecond-sum is intended for aggregate descriptive averages; fixed
+histogram buckets cannot reconstruct exact percentiles. Queue-wait duration
+is **not** TTFT or end-to-end model latency. Metrics do **not** measure
+inference completion success, GPU utilization, response correctness,
+model-level concurrency, or scheduler speedup. The initial response is useful even when
 inference is disabled (zero active requests). `POST /metrics/admission` is
 rejected; all responses are `Cache-Control: no-store`.
 
