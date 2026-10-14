@@ -117,8 +117,11 @@ func TestCanceledQueuedWaiterFreesCapacityAndDoesNotStealSlot(t *testing.T) {
 		t.Fatal("canceled waiter remained blocked")
 	}
 	waitForQueue(t, s, 0)
-	if err := s.acquire(context.Background()); !errors.Is(err, errAdmissionFull) {
-		t.Fatalf("active slot was accidentally freed: %v", err)
+	s.mu.Lock()
+	active, queued := s.active, len(s.waiting)
+	s.mu.Unlock()
+	if active != 1 || queued != 0 {
+		t.Fatalf("cancellation changed active capacity: active=%d queued=%d", active, queued)
 	}
 	s.release()
 	if err := s.acquire(context.Background()); err != nil {
