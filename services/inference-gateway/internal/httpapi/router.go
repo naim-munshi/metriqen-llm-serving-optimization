@@ -45,6 +45,11 @@ func NewRouterWithInferenceAndScheduler(localUpstreamURL, rawAllowedModels, rawQ
 	bridge.allowedModels = allowed
 	bridge.admission = newAdmissionScheduler(maxConcurrent, queueDepth)
 	mux := http.NewServeMux()
+	// The read-only operations console is part of loopback-only inference
+	// development, never the externally bound health-only Compose service.
+	if bridge.endpoint != "" {
+		registerLocalConsole(mux)
+	}
 	mux.HandleFunc("GET /health/live", health("ok"))
 	mux.HandleFunc("GET /health/ready", health("ready"))
 	// On-demand dependency reachability is independent of process readiness.

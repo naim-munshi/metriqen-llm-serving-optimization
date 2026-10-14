@@ -23,7 +23,7 @@ class OfflinePortfolioDemoTests(unittest.TestCase):
         self.assertIs(report["performance_measurement"], False)
         self.assertIs(report["passed"], True)
         self.assertEqual(report["checks_passed"], len(report["checks"]))
-        self.assertEqual(report["checks_passed"], 15)
+        self.assertEqual(report["checks_passed"], 16)
         self.assertEqual(len(set(report["checks"])), len(report["checks"]))
         self.assertEqual(report["admission"]["queued"], 2)
         self.assertEqual(report["admission"]["rejected_full"], 1)

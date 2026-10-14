@@ -207,6 +207,17 @@ def run_demo(base, state):
     status, _, raw = fetch(base + "/health/upstream")
     check("synthetic_upstream_api_reachable", status == 200 and json.loads(raw)["status"] == "reachable")
 
+    console_status, console_headers, console_html = fetch(base + "/console")
+    js_status, js_headers, js_body = fetch(base + "/console/app.js")
+    check("local_console_assets_and_csp",
+          console_status == 200 and js_status == 200
+          and b"Operations <span>Overview</span>" in console_html
+          and b"stream_missing_done_total" in js_body
+          and console_headers.get("X-Frame-Options") == "DENY"
+          and "default-src 'none'" in console_headers.get("Content-Security-Policy", "")
+          and console_headers.get("Cache-Control") == "no-store"
+          and js_headers.get("Cache-Control") == "no-store")
+
     endpoint = base + "/v1/chat/completions"
     status, _, raw = fetch(endpoint, payload=chat())
     check("nonstream_completion", status == 200
