@@ -149,6 +149,10 @@ single-thread TTFT/throughput regressions too.
 
 After all three phases have their own quality report and verified evidence manifest, use the [A/B/A analysis CLI](aba-analysis.md) to revalidate all raw data and consolidate the A1→B, B→A2 and A1→A2 drift metrics in one local JSON report. This CLI does not verify slot-count logs, phase timing or causal attribution; do not replace the operator's environmental notes with the automated classification.
 
+## Optional four-phase replication
+
+For a separate prospectively planned A1 → B1 → A2 → B2 sequence, use the [four-phase A/B/A/B protocol and offline reviewer](abab-replication.md). Do not silently append a new phase to historical A/B/A evidence and call it prospectively controlled.
+
 ## Evidence boundaries
 
 Three repeated run summaries per concurrency per phase do not provide
