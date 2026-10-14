@@ -72,8 +72,8 @@ func TestInferenceOutcomesCountExactlyOneTerminalResult(t *testing.T) {
 		name, upstreamType, upstreamBody string
 		upstreamStatus                   int
 		stream                           bool
-		expectedCode                      int
-		nonstream, streamEOF, pre, post   uint64
+		expectedCode                     int
+		nonstream, streamEOF, pre, post  uint64
 	}{
 		{"nonstream complete", "application/json", `{"choices":[{"message":{"role":"assistant","content":"ok"}}]}`, 200, false, 200, 1, 0, 0, 0},
 		{"stream complete marker", "text/event-stream", "data: [DONE]\n\n", 200, true, 200, 0, 1, 0, 0},
