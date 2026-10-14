@@ -16,7 +16,7 @@ import (
 func TestAdmissionMetricsTrackImmediateQueueAndRejections(t *testing.T) {
 	s := newAdmissionScheduler(1, 1)
 	initial := s.snapshot()
-	if initial.SchemaVersion != 1 || initial.MaxActiveRequests != 1 || initial.MaxWaitingRequests != 1 {
+	if initial.SchemaVersion != 2 || initial.MaxActiveRequests != 1 || initial.MaxWaitingRequests != 1 {
 		t.Fatalf("invalid initial snapshot: %+v", initial)
 	}
 	if err := s.acquire(context.Background()); err != nil {
@@ -51,7 +51,7 @@ func TestAdmissionMetricsTrackImmediateQueueAndRejections(t *testing.T) {
 	}
 	granted := s.snapshot()
 	if granted.ActiveRequests != 1 || granted.WaitingRequests != 0 ||
-		granted.AdmittedQueuedTotal != 1 {
+		granted.AdmittedQueuedTotal != 1 || granted.QueueWaitObservationsTotal != 1 {
 		t.Fatalf("handoff not counted: %+v", granted)
 	}
 	s.release()
@@ -90,7 +90,7 @@ func TestAdmissionMetricsTrackTimeoutAndCancellation(t *testing.T) {
 	snapshot := s.snapshot()
 	if snapshot.ActiveRequests != 1 || snapshot.WaitingRequests != 0 ||
 		snapshot.QueueTimeoutTotal != 1 || snapshot.QueueCanceledTotal != 1 ||
-		snapshot.AdmittedQueuedTotal != 0 {
+		snapshot.AdmittedQueuedTotal != 0 || snapshot.QueueWaitObservationsTotal != 2 {
 		t.Fatalf("failed waiters counted incorrectly: %+v", snapshot)
 	}
 	s.release()
@@ -117,7 +117,7 @@ func TestAdmissionMetricsRouteIsBoundedAndReadOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	snapshot, response := readAdmissionMetrics(t, handler)
-	if snapshot.SchemaVersion != 1 || snapshot.MaxActiveRequests != maxConcurrent ||
+	if snapshot.SchemaVersion != 2 || snapshot.MaxActiveRequests != maxConcurrent ||
 		snapshot.MaxWaitingRequests != 2 || snapshot.ActiveRequests != 0 ||
 		snapshot.WaitingRequests != 0 {
 		t.Fatalf("unexpected initial metrics: %+v", snapshot)
@@ -206,7 +206,7 @@ func TestAdmissionMetricsObserveRealGatewayBackpressure(t *testing.T) {
 	final, _ := readAdmissionMetrics(t, handler)
 	if final.ActiveRequests != 0 || final.WaitingRequests != 0 ||
 		final.AdmittedImmediateTotal != uint64(maxConcurrent) || final.AdmittedQueuedTotal != 1 ||
-		final.RejectedFullTotal != 1 {
+		final.RejectedFullTotal != 1 || final.QueueWaitObservationsTotal != 1 {
 		t.Fatalf("gateway admission state not reconciled: %+v", final)
 	}
 }
