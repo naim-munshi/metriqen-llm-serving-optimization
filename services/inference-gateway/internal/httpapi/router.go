@@ -15,10 +15,22 @@ func NewRouter() http.Handler {
 // NewRouterWithInference never accepts upstream URLs from HTTP requests.
 // Non-loopback listener deployment needs authentication before use.
 func NewRouterWithInference(localUpstreamURL string) (http.Handler, error) {
+	return NewRouterWithInferenceAndModels(localUpstreamURL, "")
+}
+
+// NewRouterWithInferenceAndModels filters requested model tags only when an
+// explicit allowlist is supplied. It does not authenticate the caller or pin
+// Ollama model digests; the listener must still remain local-only.
+func NewRouterWithInferenceAndModels(localUpstreamURL, rawAllowedModels string) (http.Handler, error) {
+	allowed, err := parseAllowedModels(rawAllowedModels)
+	if err != nil {
+		return nil, err
+	}
 	bridge, err := newInferenceBridge(localUpstreamURL)
 	if err != nil {
 		return nil, err
 	}
+	bridge.allowedModels = allowed
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health/live", health("ok"))
 	mux.HandleFunc("GET /health/ready", health("ready"))
