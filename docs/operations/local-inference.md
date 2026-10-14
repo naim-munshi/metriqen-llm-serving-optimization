@@ -45,6 +45,34 @@ Metriqen's Go gateway can relay OpenAI-compatible chat requests to a **locally o
 
 Run automated checks from `services/inference-gateway`: `go test -race ./...` and `go vet ./...`.
 
+## Optional exact model-tag allowlist (loopback development only)
+
+Operators can opt in to an exact, case-sensitive **model-tag filter** at
+gateway startup without changing the default behavior:
+
+~~~sh
+cd services/inference-gateway
+METRIQEN_UPSTREAM_URL=http://127.0.0.1:11434 \
+METRIQEN_ALLOWED_MODELS=llama3.2:1b \
+go run ./cmd/server
+~~~
+
+A comma-separated list of up to 32 local model names is supported, such as
+llama3.2:1b,nomic-embed-text:latest. The variable is optional; absent or
+empty means there is **no model-name filter**, exactly as before. Nonempty
+invalid configuration (whitespace, unsupported characters, duplicates,
+empty names, oversized lists) blocks gateway startup. Disallowed model names
+return HTTP 403 with a bounded model_not_allowed error **before** any prompt
+is forwarded upstream or consumes an inference concurrency slot. The
+response does not reveal the permitted model list.
+
+This is *not authentication, access control per user or project, or a
+cryptographic model revision pin*. Ollama model tags can be moved to point
+to different underlying digests. Independently verify the immutable model
+digest before benchmark phases using the existing preflight and evidence
+protocol. This filtering does not make the unauthenticated gateway safe to
+expose outside loopback and does not replace future Phase 04 model registry.
+
 ## Contract and constraints
 
 - Supported endpoint: **POST `/v1/chat/completions`**, JSON body only, chat messages and non-empty model required.
