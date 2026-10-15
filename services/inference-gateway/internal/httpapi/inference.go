@@ -140,10 +140,11 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 
 	// Exactly one terminal outcome per successfully admitted inference attempt.
 	// Invalid inputs, model allowlist failures and admission 429s are excluded.
+	attemptStarted := time.Now() // After admission: FIFO queue wait is excluded.
 	bridge.outcomes.start()
 	outcome := inferencePreResponseFailure
 	streamDone := false
-	defer func() { bridge.outcomes.finish(outcome, streamDone) }()
+	defer func() { bridge.outcomes.finish(outcome, streamDone, time.Since(attemptStarted)) }()
 
 	ctx, cancel := context.WithTimeout(r.Context(), requestDeadline)
 	defer cancel()
