@@ -98,6 +98,12 @@ function showInference(data) {
   metric("active-attempts", data, "active_attempts");
   metric("interrupted", data, "post_response_interrupted_total");
   metric("cancelled", data, "client_canceled_total");
+  metric("duration-observations", data, "duration_observations_total");
+  const observations = data?.duration_observations_total;
+  const totalUs = data?.duration_total_us;
+  const valid = Number.isSafeInteger(observations) && observations > 0
+    && Number.isSafeInteger(totalUs) && totalUs >= 0;
+  text("duration-mean", valid ? (totalUs / observations / 1000).toFixed(1) : "—");
 }
 function showFailures(data) {
   const keys = {
