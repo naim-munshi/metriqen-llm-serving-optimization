@@ -295,7 +295,7 @@ def run_demo(base, state):
     status, _, raw = fetch(base + "/metrics/inference")
     outcomes = json.loads(raw)
     check("inference_outcome_counters_reconcile", status == 200
-          and outcomes["schema_version"] == 2
+          and outcomes["schema_version"] == 3
           and outcomes["attempts_total"] == 11
           and outcomes["active_attempts"] == 0
           and outcomes["nonstream_complete_total"] == 7
@@ -305,6 +305,18 @@ def run_demo(base, state):
           and outcomes["pre_response_failure_total"] == 2
           and outcomes["post_response_interrupted_total"] == 0
           and outcomes["client_canceled_total"] == 0
+          and b"PRIVATE_DEMO_PROMPT_7286" not in raw)
+
+    bins = outcomes["duration_bucket_counts"]
+    observations = outcomes["duration_observations_total"]
+    check("post_admission_duration_histogram_reconciles",
+          outcomes["schema_version"] == 3
+          and observations == 11
+          and len(outcomes["duration_bucket_upper_bounds_ms"]) == 8
+          and len(bins) == 9
+          and sum(bins) == observations
+          and isinstance(outcomes["duration_total_us"], int)
+          and outcomes["duration_total_us"] >= 0
           and b"PRIVATE_DEMO_PROMPT_7286" not in raw)
 
     return {
@@ -326,6 +338,7 @@ def run_demo(base, state):
             "protocol": upstream["protocol_errors_total"],
         },
         "inference_outcomes": {
+            "duration_observations": outcomes["duration_observations_total"],
             "attempts": outcomes["attempts_total"],
             "stream_done": outcomes["stream_done_total"],
             "stream_missing_done": outcomes["stream_missing_done_total"],
