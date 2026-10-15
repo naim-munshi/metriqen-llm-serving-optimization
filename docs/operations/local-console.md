@@ -74,6 +74,10 @@ dashboard routes.
   adaptive scheduling, remote admin operations or background monitoring
   persist after the browser is closed.
 
+The optional shared-secret bearer token applies only to chat POST,
+not this unauthenticated read-only console or its metrics endpoints.
+See [local bearer-token boundaries](local-bearer-token.md).
+
 This is not a production identity/authorization boundary. Production
 UI would require actual gateway authentication, project-isolated
 permissions, trusted deployment, quotas, CSRF considerations and safe
@@ -88,7 +92,7 @@ python3 -m tools.demo.offline
 ~~~
 
 This builds the *real Go gateway* with a synthetic, loopback HTTP upstream
-and checks **17 deterministic software contracts**, now including
+and checks **18 deterministic software contracts**, now including
 dashboard asset serving and security headers. It **does not validate
 visual layout in a browser** or real model inference. See the
 [offline portfolio runbook](offline-portfolio-demo.md) and
