@@ -24,19 +24,19 @@ const (
 var inferenceDurationUpperBoundsMs = [8]int{100, 250, 500, 1000, 2500, 5000, 10000, 30000}
 
 type inferenceOutcomeCounters struct {
-	mu                  sync.Mutex
-	attempts            uint64
-	active              uint64
-	nonstreamComplete   uint64
-	streamCleanEOF      uint64
-	streamDone          uint64
-	streamMissingDone   uint64
-	preResponseFailure  uint64
-	postResponseFailure uint64
-	canceled            uint64
+	mu                   sync.Mutex
+	attempts             uint64
+	active               uint64
+	nonstreamComplete    uint64
+	streamCleanEOF       uint64
+	streamDone           uint64
+	streamMissingDone    uint64
+	preResponseFailure   uint64
+	postResponseFailure  uint64
+	canceled             uint64
 	durationObservations uint64
-	durationTotalUs     uint64
-	durationBuckets     [9]uint64
+	durationTotalUs      uint64
+	durationBuckets      [9]uint64
 }
 
 // These counters are local to one process and reset on gateway restart.
@@ -48,14 +48,14 @@ type inferenceOutcomeCounters struct {
 // It includes upstream transport, model response and downstream writing.
 type inferenceOutcomeSnapshot struct {
 	SchemaVersion                int       `json:"schema_version"`
-	AttemptsTotal                   uint64 `json:"attempts_total"`
-	ActiveAttempts                  uint64 `json:"active_attempts"`
-	NonstreamCompleteTotal          uint64 `json:"nonstream_complete_total"`
-	StreamCleanEOFTotal             uint64 `json:"stream_clean_eof_total"`
-	StreamDoneTotal                 uint64 `json:"stream_done_total"`
-	StreamMissingDoneTotal          uint64 `json:"stream_missing_done_total"`
-	PreResponseFailureTotal         uint64 `json:"pre_response_failure_total"`
-	PostResponseInterruptedTotal    uint64 `json:"post_response_interrupted_total"`
+	AttemptsTotal                uint64    `json:"attempts_total"`
+	ActiveAttempts               uint64    `json:"active_attempts"`
+	NonstreamCompleteTotal       uint64    `json:"nonstream_complete_total"`
+	StreamCleanEOFTotal          uint64    `json:"stream_clean_eof_total"`
+	StreamDoneTotal              uint64    `json:"stream_done_total"`
+	StreamMissingDoneTotal       uint64    `json:"stream_missing_done_total"`
+	PreResponseFailureTotal      uint64    `json:"pre_response_failure_total"`
+	PostResponseInterruptedTotal uint64    `json:"post_response_interrupted_total"`
 	ClientCanceledTotal          uint64    `json:"client_canceled_total"`
 	DurationObservationsTotal    uint64    `json:"duration_observations_total"`
 	DurationTotalUs              uint64    `json:"duration_total_us"`
