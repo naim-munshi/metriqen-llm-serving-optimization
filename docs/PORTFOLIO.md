@@ -80,7 +80,7 @@ A synthetic CI test verifies bundled assets and restrictive CSP headers,
 | Test harness | Go race tests, deterministic mock backends, Python E2E and stand-alone reviewer demo | Synthetic upstream cannot validate actual GPU throughput |
 | Benchmark | Pinned-model experiments, workload hashes, rotating concurrency sweeps, TTFT/p50/p95 and token-use coverage | Real runs operator-attested; not independent hardware attestation |
 | Quality checks | Answer-reference exact/normalized matching with separate quality reports | Not semantic or hallucination evaluation |
-| Control plane | FastAPI identity/RBAC verification seams and optional PostgreSQL-targeted membership adapter | Not wired to Go serving auth; live PostgreSQL CI pending |
+| Control plane | FastAPI identity/RBAC verification seams and optional PostgreSQL-targeted membership adapter | Not wired to Go serving auth; actual PostgreSQL 16 CI migration tests, but not deployed or live IdP-integrated |
 
 **Design tradeoffs:** The gateway accepts a fixed local upstream origin at
 startup (no caller-supplied URLs, redirects or environment proxies);
@@ -119,6 +119,16 @@ for safe, independently testable local behavior.
 should be inferred from a fixture test or from a single successful
 health request.**
 
+## PostgreSQL tenant integration evidence
+
+An independent GitHub Actions service starts **PostgreSQL 16** and applies
+the checked-in tenant-access migration (not a SQLite substitute). Tests
+exercise real composite foreign keys, trusted JWT project access,
+cross-organization enumeration resistance, membership/grant revocation
+and role changes. All identities are synthetic, the database is
+disposable, and these tests are **not** public auth or live deployment
+evidence. See [database CI runbook](operations/postgres-ci.md).
+
 ## Engineering interview discussion prompts
 
 1. **Why does a four-request gateway limit not imply four model runners?**
@@ -149,7 +159,7 @@ health request.**
   corresponding gateway-side instrumentation without breaking streaming.
 - Implement authenticated inference only after designing actual
   control-plane → gateway identity and tenant quota enforcement.
-- Verify a real PostgreSQL database in CI, then complete deployment,
+- Review migration-backed PostgreSQL 16 integration CI, then complete deployment,
   fault recovery, and later GPU-backed serving if suitable hardware is
   available.
 
