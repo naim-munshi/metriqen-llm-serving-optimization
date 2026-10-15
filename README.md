@@ -16,7 +16,7 @@ Metriqen is an **engineering research prototype** for understanding how concurre
 | **Admission control** | Four active gateway requests; opt-in FIFO wait queue (depth 0–32), wait timeout, backpressure and versioned `GET /metrics/admission` diagnostics and independent `GET /metrics/inference` outcome counters with fixed queue-wait duration buckets; optional exact model-tag allowlist | No continuous batching, model-digest enforcement or tenant-level scheduling |
 | **Measurement** | Versioned workloads, repeated rotating-order sweeps, TTFT, latency, throughput, token-usage coverage and run-timing diagnostics | Primarily single-machine local experiments |
 | **Evaluation** | Separate exact and normalized answer-reference checks; matched-report comparison, evidence bundles and A/B/A/B drift-review tooling | String matching is **not** semantic/factual quality evaluation |
-| **Control plane** | FastAPI health routes, pinned-JWKS access-token boundary, trusted project-read RBAC seam and optional local PostgreSQL adapter | No integrated production login, tenant API keys or live-PostgreSQL CI verification |
+| **Control plane** | FastAPI health routes, pinned-JWKS access-token boundary, trusted project-read RBAC seam and optional local PostgreSQL adapter | No integrated production login, tenant API keys, PostgreSQL deployment or real IdP |
 
 **Stack:** Go · Python · FastAPI · Ollama / llama.cpp · PostgreSQL / SQLAlchemy (optional) · Docker Compose (local) · GitHub Actions.
 
@@ -50,6 +50,15 @@ Each setting had 9 runs (3 repeats at concurrency 1/2/4), **324/324 measured req
 **Interpretation:** these are sequential, operator-observed **descriptive** results. Concurrency 1 throughput regressed; the study was not randomized, raw files remain private, and CI cannot independently attest runtime slots or hardware. It establishes **neither a causal speedup nor a production performance claim**. Follow-up and newer private runs must not be conflated with the published October 13 comparison.
 
 [Full experiment and methodological limits](docs/benchmarks/experiments/2026-10-13-ollama-parallelism.md) · [Versioned performance workload](docs/benchmarks/workload.v1.jsonl) · [Versioned quality workload](docs/nlp-eval/workload.v1.jsonl) · [Benchmark protocols](docs/benchmarks/repeated-sweep.md)
+
+## Real PostgreSQL tenant-authorization CI
+
+A dedicated GitHub Actions job exercises the **checked-in PostgreSQL
+migration** on a disposable PostgreSQL 16 service and tests JWT-authorized
+project access, cross-organization constraints and grant revocation.
+This complements the existing SQLite contract fixtures; no PostgreSQL
+server is required on your Mac for the offline portfolio demo.
+[Exact CI evidence boundaries](docs/operations/postgres-ci.md).
 
 ## One-command offline portfolio demo
 
@@ -113,7 +122,7 @@ From the repository root, after installing the Python control API development de
 make test
 ```
 
-CI separately runs Python control API, Go race-enabled and vet, cross-service E2E, benchmark contract, and NLP evaluator tests. **CI uses synthetic/loopback fixtures, not the developer's private Mac inference reports.**
+CI separately runs Python control API, **an isolated PostgreSQL 16 migration-backed integration job**, Go race-enabled and vet, cross-service E2E, benchmark contract, and NLP evaluator tests. **CI uses synthetic/loopback fixtures, not the developer's private Mac inference reports.**
 
 ```text
 services/control-api/       FastAPI control plane, identity and RBAC seams
