@@ -30,10 +30,13 @@ class NoRedirect(HTTPRedirectHandler):
 OPENER = build_opener(ProxyHandler({}), NoRedirect())
 
 
-def fetch(url, *, payload=None, timeout=10):
+def fetch(url, *, payload=None, timeout=10, extra_headers=None):
+    headers = {"Content-Type": "application/json"} if payload is not None else {}
+    if extra_headers:
+        headers.update(extra_headers)
     request = Request(
         url, data=json.dumps(payload).encode() if payload is not None else None,
-        headers={"Content-Type": "application/json"} if payload is not None else {},
+        headers=headers,
         method="POST" if payload is not None else "GET",
     )
     try:
@@ -146,9 +149,12 @@ def unused_loopback_port():
 
 
 @contextmanager
-def gateway(binary, upstream_port):
+def gateway(binary, upstream_port, *, bearer_token=None):
     port = unused_loopback_port()
     env = dict(os.environ)
+    env.pop("METRIQEN_GATEWAY_BEARER_TOKEN", None)
+    if bearer_token is not None:
+        env["METRIQEN_GATEWAY_BEARER_TOKEN"] = bearer_token
     env.update({
         "METRIQEN_GATEWAY_BIND_ADDR": f"127.0.0.1:{port}",
         "METRIQEN_UPSTREAM_URL": f"http://127.0.0.1:{upstream_port}",
@@ -372,6 +378,32 @@ def main():
                 raise RuntimeError("go_build_failed")
             with gateway(binary, fixture.server_port) as base:
                 report = run_demo(base, state)
+
+            # A second isolated, temporary real Go gateway verifies opt-in
+            # shared-token protection. The token is a synthetic test fixture.
+            demo_token = "metriqen-synthetic-auth-demo-0123456789abcdef"
+            with gateway(binary, fixture.server_port, bearer_token=demo_token) as secured:
+                endpoint = secured + "/v1/chat/completions"
+                missing_code, _, _ = fetch(endpoint, payload=chat())
+                wrong_code, _, _ = fetch(
+                    endpoint, payload=chat(),
+                    extra_headers={"Authorization": "Bearer invalid-token"},
+                )
+                good_code, _, _ = fetch(
+                    endpoint, payload=chat(),
+                    extra_headers={"Authorization": "Bearer " + demo_token},
+                )
+                metric_code, _, raw = fetch(secured + "/metrics/inference")
+                secure_metrics = json.loads(raw)
+                verify(
+                    missing_code == 401 and wrong_code == 401
+                    and good_code == 200 and metric_code == 200
+                    and secure_metrics["attempts_total"] == 1
+                    and secure_metrics["nonstream_complete_total"] == 1
+                    and demo_token.encode() not in raw,
+                    "optional_local_bearer_auth_gate", report["checks"],
+                )
+                report["checks_passed"] = len(report["checks"])
         print(json.dumps(report, sort_keys=True, indent=2))
         return 0
     except (AssertionError, RuntimeError, subprocess.TimeoutExpired,

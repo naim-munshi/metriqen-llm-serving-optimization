@@ -35,14 +35,23 @@ backpressure, request wait handoff, metrics reconciliation and privacy.
 It cleans up the processes when finished.
 
 **Expected proof:** a JSON document with `passed: true`,
-`checks_passed: 17`,
+`checks_passed: 18`,
 `model_inference_executed: false`, and
 `performance_measurement: false`. These values describe synthetic
 contract testing, **not** model-quality or performance measurements.
 See the [demo specification](operations/offline-portfolio-demo.md).
 
 For the actual local Ollama route, see [operations](operations/local-inference.md);
-the gateway is unauthenticated and **must stay bound to loopback**.
+the gateway remains **loopback-only**, with optional chat-route shared-secret protection but no production identity.
+
+## Optional shared-secret inference gate
+
+Operators can enable a single static `METRIQEN_GATEWAY_BEARER_TOKEN`
+on the local Go chat POST route. The check occurs before inference
+admission and credentials are not sent upstream. It is intentionally
+**not** the control-plane JWT/RBAC identity boundary, and the local
+dashboard/aggregate diagnostics remain unauthenticated.
+See [precise setup and threat-model limits](operations/local-bearer-token.md).
 
 ## Local Operations Console
 
@@ -65,7 +74,7 @@ A synthetic CI test verifies bundled assets and restrictive CSP headers,
 
 | Layer | Implemented and verified | Important limitation |
 | --- | --- | --- |
-| Data plane | OpenAI-compatible Go chat relay, bounded JSON, incremental SSE, cancellation and deadlines | No public auth or tenant isolation at the inference edge |
+| Data plane | OpenAI-compatible Go chat relay, bounded JSON, incremental SSE, cancellation and deadlines | Optional static local bearer shared-secret, not JWT/RBAC or tenant isolation |
 | Admission | Four active requests; optional FIFO pending queue with five-second wait cap, early HTTP 429 | Not GPU batching, priority serving or per-tenant fairness |
 | Diagnostics | Process readiness, bounded Ollama API reachability, admission metrics, upstream failure reasons and admitted-attempt outcomes | In-memory, process-local; not full telemetry or persisted SLO evidence |
 | Test harness | Go race tests, deterministic mock backends, Python E2E and stand-alone reviewer demo | Synthetic upstream cannot validate actual GPU throughput |

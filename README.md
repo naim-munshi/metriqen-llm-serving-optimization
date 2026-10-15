@@ -12,7 +12,7 @@ Metriqen is an **engineering research prototype** for understanding how concurre
 
 | Area | Implemented today | Boundary |
 | --- | --- | --- |
-| **Serving** | Go `/v1/chat/completions` gateway; streaming SSE and non-streaming JSON; bounded validation, cancellation and sanitized errors | Local upstream only; inference is **unauthenticated** |
+| **Serving** | Go `/v1/chat/completions` gateway; streaming SSE and non-streaming JSON; bounded validation, cancellation and sanitized errors | Local upstream only; optional static **loopback bearer token** on chat requests, not production identity |
 | **Admission control** | Four active gateway requests; opt-in FIFO wait queue (depth 0–32), wait timeout, backpressure and versioned `GET /metrics/admission` diagnostics and independent `GET /metrics/inference` outcome counters with fixed queue-wait duration buckets; optional exact model-tag allowlist | No continuous batching, model-digest enforcement or tenant-level scheduling |
 | **Measurement** | Versioned workloads, repeated rotating-order sweeps, TTFT, latency, throughput, token-usage coverage and run-timing diagnostics | Primarily single-machine local experiments |
 | **Evaluation** | Separate exact and normalized answer-reference checks; matched-report comparison, evidence bundles and A/B/A/B drift-review tooling | String matching is **not** semantic/factual quality evaluation |
@@ -59,7 +59,7 @@ Review Metriqen's **real Go gateway** without installing Ollama, downloading a m
 python3 -m tools.demo.offline
 ```
 
-The demo builds the gateway, starts a deterministic synthetic HTTP upstream on **loopback only**, verifies non-streaming chat, SSE streaming, model filtering, upstream failure metrics, a bounded 4-active/2-waiting queue, overload HTTP 429, safe queue handoff and valid-versus-truncated SSE terminal markers, then shuts down both temporary services. It prints machine-readable JSON with **17 contract checks** and explicit `model_inference_executed: false` / `performance_measurement: false`. This is a software-behavior demo, **not** an LLM speedup or model-quality benchmark. It does not interfere with an existing Ollama instance or the main gateway.
+The demo builds the gateway, starts a deterministic synthetic HTTP upstream on **loopback only**, verifies non-streaming chat, SSE streaming, model filtering, upstream failure metrics, a bounded 4-active/2-waiting queue, overload HTTP 429, safe queue handoff and valid-versus-truncated SSE terminal markers, then shuts down both temporary services. It prints machine-readable JSON with **18 contract checks** and explicit `model_inference_executed: false` / `performance_measurement: false`. This is a software-behavior demo, **not** an LLM speedup or model-quality benchmark. It does not interfere with an existing Ollama instance or the main gateway.
 
 [Demo procedure, precise checks and limits](docs/operations/offline-portfolio-demo.md) · [Existing Go + Python synthetic E2E tests](docs/operations/e2e-contract-validation.md)
 
@@ -67,7 +67,19 @@ The demo builds the gateway, starts a deterministic synthetic HTTP upstream on *
 
 With the inference gateway running on loopback, open **http://127.0.0.1:8081/console** in a browser. The embedded, responsive dashboard displays gateway and Ollama API health, FIFO capacity, inference outcome counters, categorized upstream failures, and a clearly labeled mean post-admission handler duration from existing read-only endpoints. It uses **no Node runtime, CDN or external analytics**; it does not generate text or modify inference scheduling.
 
-It is an **unauthenticated local development console**, not a secure production deployment or an LLM-performance measurement. The dashboard is not registered in health-only deployments. [Runbook and limits](docs/operations/local-console.md).
+It is an **unauthenticated read-only local development console**, even when optional bearer protection is enabled for the chat route. This is not a secure production deployment or an LLM-performance measurement. The dashboard is not registered in health-only deployments. [Runbook and limits](docs/operations/local-console.md).
+
+## Optional local inference bearer protection
+
+For extra defense-in-depth on loopback, set `METRIQEN_GATEWAY_BEARER_TOKEN`
+to an operator-managed random secret of 32–256 printable ASCII bytes.
+Only `POST /v1/chat/completions` then requires
+`Authorization: Bearer <token>`; wrong or missing credentials fail
+before admission or prompt forwarding. The option is **off by default**,
+and the dashboard/health/metrics remain unauthenticated and local-only.
+This is **not** integrated JWT/RBAC or permission to expose the service.
+
+[Local shared-secret configuration and limits](docs/operations/local-bearer-token.md)
 
 ## Quickstart — local inference
 

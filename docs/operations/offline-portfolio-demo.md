@@ -46,6 +46,7 @@ the real Go gateway server:
 | Admission counters | Active/waiting return to zero; 2 queued, 1 full rejection |
 | Privacy | Synthetic private prompt marker is not present in exported metrics |
 | Local console assets | Gateway serves read-only embedded UI/JavaScript with no-store and restrictive CSP headers |
+| Optional local bearer gate | A second temporary, real Go gateway rejects missing/wrong-token POSTs (401) and accepts one synthetic-token completion without leaking the credential |
 | Post-admission duration accounting | Gateway schema v3 returns a fixed nine-bin histogram for 11 completed attempts, without private attributes. Not a model latency benchmark |
 | Inference outcome accounting | Eleven admitted fixture requests partition into seven validated non-stream writes, two clean-stream EOFs (one standalone DONE event, one truncated) and two pre-response failures; the admission 429 is excluded |
 
@@ -64,12 +65,12 @@ The output contains:
   "model_inference_executed": false,
   "performance_measurement": false,
   "passed": true,
-  "checks_passed": 17
+  "checks_passed": 18
 }
 ~~~
 
 This **illustrative subset** is not an execution result. The actual CLI
-prints additional fixed, aggregate counters and the 17 passed check names.
+prints additional fixed, aggregate counters and the 18 passed check names.
 A failed assertion exits nonzero without printing private fixture content.
 The output should not be reported as LLM accuracy, runtime throughput,
 token latency or GPU performance.
