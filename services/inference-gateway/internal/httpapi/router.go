@@ -30,6 +30,20 @@ func NewRouterWithInferenceAndModels(localUpstreamURL, rawAllowedModels string) 
 // This is a process-local admission control, NOT GPU batching or multi-tenant
 // resource scheduling; all inference remains restricted to loopback.
 func NewRouterWithInferenceAndScheduler(localUpstreamURL, rawAllowedModels, rawQueueDepth string) (http.Handler, error) {
+	return NewRouterWithInferenceAndSchedulerAndToken(localUpstreamURL, rawAllowedModels, rawQueueDepth, "")
+}
+
+// NewRouterWithInferenceAndSchedulerAndToken optionally requires a single
+// operator-configured bearer token on the loopback chat inference endpoint.
+// This is local shared-secret defense-in-depth, not production authentication.
+func NewRouterWithInferenceAndSchedulerAndToken(localUpstreamURL, rawAllowedModels, rawQueueDepth, rawToken string) (http.Handler, error) {
+	token, err := validateLocalBearerToken(rawToken)
+	if err != nil {
+		return nil, err
+	}
+	if token != "" && localUpstreamURL == "" {
+		return nil, errBearerRequiresInference
+	}
 	allowed, err := parseAllowedModels(rawAllowedModels)
 	if err != nil {
 		return nil, err
@@ -72,7 +86,7 @@ func NewRouterWithInferenceAndScheduler(localUpstreamURL, rawAllowedModels, rawQ
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(bridge.outcomes.snapshot())
 	})
-	mux.HandleFunc("POST /v1/chat/completions", bridge.serveChat)
+	mux.HandleFunc("POST /v1/chat/completions", protectLocalInference(token, bridge.serveChat))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
