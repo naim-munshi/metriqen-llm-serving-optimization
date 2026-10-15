@@ -45,6 +45,15 @@ Metriqen's Go gateway can relay OpenAI-compatible chat requests to a **locally o
 
 Run automated checks from `services/inference-gateway`: `go test -race ./...` and `go vet ./...`.
 
+## Optional local bearer-token gate
+
+The local chat POST route can optionally require
+`METRIQEN_GATEWAY_BEARER_TOKEN`, a single operator-managed shared
+secret checked before input parsing, model filtering and scheduler
+admission. Disabled by default; this does **not** integrate project
+identity or permit network exposure. Read
+[setup, validation and explicit limitations](local-bearer-token.md).
+
 ## Optional exact model-tag allowlist (loopback development only)
 
 Operators can opt in to an exact, case-sensitive **model-tag filter** at
@@ -107,7 +116,7 @@ go run ./cmd/server
   all serving settings were equal. Keep the default (depth 0) for the
   previously defined parallelism-only A/B/A/B study.
 
-This is still an **unauthenticated loopback-only gateway**. Queuing does
+This remains a **loopback-only development gateway**. A local bearer token can optionally gate chat POST, but does not establish production auth or tenant isolation. Queuing does
 not make it secure for public traffic, allocate GPU memory or replace
 project-level quotas and admission controls.
 
@@ -176,7 +185,7 @@ does not retroactively validate previous Ollama parallelism experiments.
 
 ## Security boundary
 
-**Never expose the inference route publicly.** It has no user authentication, tenant isolation, per-user quotas, transport security, API-key enforcement, prompt retention controls, or audit logs. The existing OIDC and RBAC libraries are not connected to this route. A local machine can run this gateway for development only. Public/Kubernetes deployment is blocked until separate security and operations milestones are completed.
+**Never expose the inference route publicly.** It has no production identity integration, tenant isolation, per-user quotas, TLS termination, rotating user API keys, prompt retention controls or audit logs. The existing OIDC and RBAC libraries are not connected to this route. A local machine can run this gateway for development only. Public/Kubernetes deployment is blocked until separate security and operations milestones are completed.
 
 ## Future: measurable benchmarks
 
