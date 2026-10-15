@@ -19,7 +19,7 @@
 | Evaluator | 36-question starter quality workload, exact and normalized match | Synthetic CI tests, separately reported local model results | Semantic/factuality/hallucination or safety grading |
 | Experiment analysis | Pairwise comparison; A/B/A and A/B/A/B summaries; consistency/evidence gates; local review reports | Python CI fixtures, human-attested local raw reports | Causal attribution or reliable population-p95 uncertainty intervals |
 | FastAPI control service | Health, fail-closed pinned JWKS access-token identity, role-scoped project-read seams | Python tests with mocked/synthetic identities | Production login, full tenant CRUD or authenticated Go inference |
-| Relational memberships | PostgreSQL-targeted schema and optional SQLAlchemy adapter | SQLite-backed tests | Live PostgreSQL-backed CI, automatic schema migration, production tenant isolation |
+| Relational memberships | PostgreSQL-targeted schema, checked-in privileged migration and optional SQLAlchemy adapter | SQLite-backed contract tests plus **separate real PostgreSQL 16 migration-backed CI** with JWT project access, composite FK rejection, cross-tenant isolation and revocation tests | Production migrations, live IdP, deployed database, production tenant isolation |
 | Docker Compose | Loopback host mappings and local health-only services | Configuration committed | Complete local Docker validation across machines |
 | Production platform | Roadmap only | — | vLLM, GPU batching, cost-aware scheduling, observability, HA, multi-tenant APIs, web console |
 
@@ -62,6 +62,6 @@ An independent [v1 aggregate upstream failure endpoint](operations/upstream-fail
 - **Now:** preserve a secure loopback development boundary, explicit opt-in settings, reproducible contracts, CI and concise architectural documentation.
 - **Next evidence milestone:** collect model quality and controlled serving sweeps under matched power/runtime/queue conditions; complete evidence manifests; investigate drift and independent repetitions.
 - **Next engineering milestone:** add measurable admission observability, controlled policy comparison and carefully specified tests; no production performance claims without representative benchmarks.
-- **Later:** authentication/authorization on inference, live PostgreSQL testing, model revision registry, vLLM GPU backend, quotas, cost/VRAM telemetry and deployment hardening.
+- **Later:** authentication/authorization on inference, deployed PostgreSQL operations, model revision registry, vLLM GPU backend, quotas, cost/VRAM telemetry and deployment hardening.
 
 For planned work, see [ROADMAP.md](../ROADMAP.md). For restrictions and disclosure, see [SECURITY.md](../SECURITY.md).
