@@ -36,7 +36,8 @@ The page displays only:
 - bounded active/waiting capacity and rejection/queue counters from
   `/metrics/admission`;
 - admitted attempt outcomes, including standalone SSE terminal marker
-  versus missing marker, from `/metrics/inference`;
+  versus missing marker, plus a mean admitted-handler duration across all
+  completed outcomes excluding queue wait, from `/metrics/inference`;
 - fixed upstream failure reason counters from `/metrics/upstream`.
 
 The three sets of counters have **different denominators and meanings**.
@@ -44,7 +45,9 @@ Process-local counters reset on gateway restart. A clean upstream SSE
 terminal marker is not verification of model answer correctness or
 full JSON event validity, and green health status is not a success-rate
 or uptime guarantee. No GPU utilization, TTFT, p95, throughput, model
-memory pressure, costs, or financial metrics are implied.
+memory pressure, costs, or financial metrics are implied. The displayed
+handler duration is not TTFT or GPU execution time and does not establish
+model performance; it includes failed and canceled admitted requests.
 
 ## Security boundary and privacy
 
@@ -85,7 +88,7 @@ python3 -m tools.demo.offline
 ~~~
 
 This builds the *real Go gateway* with a synthetic, loopback HTTP upstream
-and checks **16 deterministic software contracts**, now including
+and checks **17 deterministic software contracts**, now including
 dashboard asset serving and security headers. It **does not validate
 visual layout in a browser** or real model inference. See the
 [offline portfolio runbook](offline-portfolio-demo.md) and
