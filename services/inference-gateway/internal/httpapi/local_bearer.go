@@ -12,6 +12,8 @@ const (
 	maxLocalBearerTokenLength = 256
 )
 
+var errBearerRequiresInference = errors.New("local bearer token requires a configured inference upstream")
+
 // validateLocalBearerToken validates a single optional local-development
 // shared secret. There is no tenant identity, rotation, or external authority.
 func validateLocalBearerToken(token string) (string, error) {
