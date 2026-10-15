@@ -22,11 +22,12 @@ func main() {
 
 	upstream := os.Getenv("METRIQEN_UPSTREAM_URL")
 	if !listenerAllowed(addr, upstream) {
-		log.Fatal("unauthenticated inference must bind to loopback only")
+		log.Fatal("local inference must bind to loopback only")
 	}
 	allowedModels := os.Getenv("METRIQEN_ALLOWED_MODELS")
 	queueDepth := os.Getenv("METRIQEN_QUEUE_DEPTH")
-	router, err := httpapi.NewRouterWithInferenceAndScheduler(upstream, allowedModels, queueDepth)
+	token := os.Getenv("METRIQEN_GATEWAY_BEARER_TOKEN")
+	router, err := httpapi.NewRouterWithInferenceAndSchedulerAndToken(upstream, allowedModels, queueDepth, token)
 	if err != nil {
 		log.Fatal("invalid local inference upstream configuration")
 	}
