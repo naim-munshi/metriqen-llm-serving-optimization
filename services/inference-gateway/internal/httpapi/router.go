@@ -41,9 +41,6 @@ func NewRouterWithInferenceAndSchedulerAndToken(localUpstreamURL, rawAllowedMode
 	if err != nil {
 		return nil, err
 	}
-	if token != "" && localUpstreamURL == "" {
-		return nil, errBearerRequiresInference
-	}
 	allowed, err := parseAllowedModels(rawAllowedModels)
 	if err != nil {
 		return nil, err
@@ -55,6 +52,9 @@ func NewRouterWithInferenceAndSchedulerAndToken(localUpstreamURL, rawAllowedMode
 	bridge, err := newInferenceBridge(localUpstreamURL)
 	if err != nil {
 		return nil, err
+	}
+	if token != "" && bridge.endpoint == "" {
+		return nil, errBearerRequiresInference
 	}
 	bridge.allowedModels = allowed
 	bridge.admission = newAdmissionScheduler(maxConcurrent, queueDepth)
