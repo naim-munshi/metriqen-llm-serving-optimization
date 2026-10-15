@@ -90,7 +90,7 @@
         </section>
 
         <section id="outcomes" class="panel" aria-labelledby="outcomes-title">
-          <div class="panel-head"><div><div class="mini-label">02 / REQUEST ACCOUNTING</div><h2 id="outcomes-title">Inference outcomes</h2></div><span class="panel-tag">SCHEMA V2</span></div>
+          <div class="panel-head"><div><div class="mini-label">02 / REQUEST ACCOUNTING</div><h2 id="outcomes-title">Inference outcomes</h2></div><span class="panel-tag">SCHEMA V3</span></div>
           <div class="split-metrics">
             <div class="feature-metric"><span>Non-stream complete</span><strong id="nonstream" class="mono">—</strong></div>
             <div class="feature-metric"><span>Stream with [DONE]</span><strong id="stream-done" class="mono">—</strong></div>
@@ -98,6 +98,10 @@
             <div class="feature-metric"><span>Pre-response failures</span><strong id="pre-fail" class="mono">—</strong></div>
           </div>
           <div class="sub-stat">Active attempts <strong id="active-attempts" class="mono">—</strong> <span class="separator">·</span> Interrupted <strong id="interrupted" class="mono">—</strong> <span class="separator">·</span> Canceled <strong id="cancelled" class="mono">—</strong></div>
+          <div class="duration-summary">
+            <div><span class="duration-label">MEAN ADMITTED HANDLER DURATION</span><div class="duration-hint">Since admission · all outcomes · excludes queue wait</div></div>
+            <div class="duration-reading"><strong class="mono" id="duration-mean">—</strong><span>ms</span><div class="duration-count"><span id="duration-observations">—</span> observations</div></div>
+          </div>
           <p class="panel-note">A [DONE] marker indicates SSE framing, not model accuracy or full event validity.</p>
         </section>
       </div>
