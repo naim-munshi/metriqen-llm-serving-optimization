@@ -35,6 +35,16 @@ func assertOutcomeReconciled(t *testing.T, state inferenceOutcomeSnapshot) {
 	if state.AttemptsTotal != state.ActiveAttempts+terminal {
 		t.Fatalf("inference outcome count mismatch: %+v", state)
 	}
+	if state.DurationObservationsTotal != terminal {
+		t.Fatalf("completed attempt and duration count diverged: %+v", state)
+	}
+	var histogramCount uint64
+	for _, count := range state.DurationBucketCounts {
+		histogramCount += count
+	}
+	if histogramCount != terminal {
+		t.Fatalf("duration histogram does not reconcile: %+v", state)
+	}
 }
 
 func TestInferenceOutcomesRemainZeroForInvalidRejectedAndHealthRequests(t *testing.T) {
@@ -52,7 +62,7 @@ func TestInferenceOutcomesRemainZeroForInvalidRejectedAndHealthRequests(t *testi
 		}
 	}
 	m, raw := readInferenceMetrics(t, handler)
-	if m.SchemaVersion != 2 || m.AttemptsTotal != 0 || m.ActiveAttempts != 0 {
+	if m.SchemaVersion != 3 || m.AttemptsTotal != 0 || m.ActiveAttempts != 0 {
 		t.Fatalf("rejected requests counted as admitted inference: %+v", m)
 	}
 	for _, private := range []string{"prompt", "model", "user", "token", "PRIVATE", "address", "127.0.0.1"} {

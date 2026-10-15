@@ -35,7 +35,7 @@ backpressure, request wait handoff, metrics reconciliation and privacy.
 It cleans up the processes when finished.
 
 **Expected proof:** a JSON document with `passed: true`,
-`checks_passed: 16`,
+`checks_passed: 17`,
 `model_inference_executed: false`, and
 `performance_measurement: false`. These values describe synthetic
 contract testing, **not** model-quality or performance measurements.
@@ -51,7 +51,9 @@ local upstream and open **http://127.0.0.1:8081/console**.
 
 The embedded, read-only dashboard shows the latest gateway readiness,
 Ollama API reachability, FIFO occupancy, exclusive inference outcomes,
-and fixed upstream failure counts. It uses no external scripts or
+fixed upstream failure counts and mean duration from admission to
+terminal outcome. It does not display TTFT, GPU execution time or
+client-observed latency. It uses no external scripts or
 analytics. The console is **not** an authenticated management plane,
 does not launch generation jobs, and is not a production web service.
 
@@ -99,7 +101,7 @@ for safe, independently testable local behavior.
   It was *not* a performance improvement attributed to Metriqen.
   Raw local evidence is private and the comparison is not causal.
 - **Metric accounting:** `GET /metrics/inference` partitions each
-  admitted attempt into a single terminal outcome; schema v2 distinguishes standalone terminal SSE `stream_done_total`
+  admitted attempt into a single terminal outcome; schema v3 distinguishes standalone terminal SSE `stream_done_total`
   from clean EOF without a marker (`stream_missing_done_total`).
   This checks framing, not JSON events, in-band errors or answer quality.
   See [precise definitions](operations/inference-outcomes.md).
