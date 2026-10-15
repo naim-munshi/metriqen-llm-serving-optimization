@@ -1,4 +1,4 @@
-# Inference outcome metrics (schema v2)
+# Inference outcome metrics (schema v3)
 
 The local Go gateway exposes read-only, process-local counters at
 `GET http://127.0.0.1:8081/metrics/inference`. They describe **the
@@ -13,7 +13,7 @@ An idle, newly started gateway returns:
 
 ~~~json
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "attempts_total": 0,
   "active_attempts": 0,
   "nonstream_complete_total": 0,
@@ -22,7 +22,11 @@ An idle, newly started gateway returns:
   "stream_missing_done_total": 0,
   "pre_response_failure_total": 0,
   "post_response_interrupted_total": 0,
-  "client_canceled_total": 0
+  "client_canceled_total": 0,
+  "duration_observations_total": 0,
+  "duration_total_us": 0,
+  "duration_bucket_upper_bounds_ms": [100, 250, 500, 1000, 2500, 5000, 10000, 30000],
+  "duration_bucket_counts": [0, 0, 0, 0, 0, 0, 0, 0, 0]
 }
 ~~~
 
@@ -52,6 +56,8 @@ attempts_total = active_attempts + nonstream_complete_total
                + stream_clean_eof_total + pre_response_failure_total
                + post_response_interrupted_total + client_canceled_total
 stream_clean_eof_total = stream_done_total + stream_missing_done_total
+duration_observations_total = attempts_total - active_attempts
+duration_observations_total = sum(duration_bucket_counts)
 ~~~
 
 Invalid/malformed input, allowlist HTTP 403, full-queue HTTP 429,
@@ -59,6 +65,39 @@ queue wait timeout and cancel **before admission** do not increment
 these attempt counters; consult the independent
 [`/metrics/admission`](local-inference.md) endpoint. This endpoint
 does not change the gateway's existing HTTP status codes or scheduling.
+
+## Gateway-observed handler duration (schema v3)
+
+The additional duration metrics use Go's monotonic elapsed time
+from **successful admission immediately before the inference attempt starts**
+until its handler returns and records one terminal outcome.
+This includes upstream HTTP transport, model response production,
+non-stream response validation, streaming until EOF/interruption, and
+downstream writes; it **excludes** input validation and FIFO queue
+waiting before admission. It is *not* time to first token (TTFT),
+pure model execution time, client-observed end-to-end latency, or
+GPU kernel timing.
+
+- `duration_observations_total`: one sample for **every terminal admitted
+  attempt**, including upstream failures and client cancellation.
+  Active attempts have no duration sample until they finish.
+- `duration_total_us`: sum of completed durations in integer microseconds
+  (each sample truncated to the nearest whole microsecond).
+- `duration_bucket_upper_bounds_ms`: fixed ascending boundaries
+  `[100,250,500,1000,2500,5000,10000,30000]`.
+- `duration_bucket_counts`: nine **disjoint** buckets: eight at-or-below
+  their respective upper bounds and a ninth for durations strictly
+  **greater than 30 seconds**. Counts reset on restart.
+- Average handler duration may be computed as
+  `duration_total_us / duration_observations_total / 1000` milliseconds
+  when the denominator is nonzero, but combines all outcome types.
+  Do **not** claim exact p50/p95, successful-inference-only latency,
+  uptime, real-model speedup, or production SLO from these aggregates.
+
+The UI displays this all-outcome mean, labeled accordingly. For real
+model latency and throughput comparisons use a pinned workload,
+actual request-level benchmark measurements and separate failure
+accounting. A synthetic fixture duration is not model evidence.
 
 ## Evidence and limitations
 
