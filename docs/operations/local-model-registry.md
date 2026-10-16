@@ -13,6 +13,27 @@ web login, or production/multi-tenant model registry. Approval applies only
 to the local control API; the separate Go inference gateway does **not**
 enforce registered-model approval yet. Do not expose either service publicly.
 
+## Browser-based local model manager
+
+With both opt-in variables configured and the FastAPI control API running
+on 127.0.0.1:8000, open **http://127.0.0.1:8000/console/models**.
+
+The responsive, framework-free model manager uses the same authenticated
+localhost API for **discovery, registration, approval, preload, unload, status
+and refresh**. Paste the local operator token once after the page opens;
+the JavaScript keeps it **in memory only** and clears the password input.
+Reloading or disconnecting forgets the token. It uses no cookies, localStorage,
+CDN, external assets or analytics. All model text is inserted with
+textContent, not HTML injection, and the HTML/JS/CSS endpoints ship with a
+restrictive Content Security Policy and no-store caching.
+
+The page itself contains no secrets and is available only when the optional
+local model management feature is enabled. API calls still require the
+loopback client and operator bearer token. This is not a public dashboard,
+an authenticated production web console, or an integrated gateway identity
+provider. CI validates static assets/CSP; a **real browser visual and
+accessibility QA pass** remains required.
+
 ## Supported workflow
 
 - `GET /api/v1/local/available-models`: discover installed local Ollama tags
