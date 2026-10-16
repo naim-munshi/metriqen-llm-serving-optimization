@@ -138,6 +138,7 @@ def test_loaded_revision_mismatch_never_claims_loaded(sandbox):
     fake.running = [{"tag": TAG, "digest": "f" * 64}]
     status = client.get(f"/api/v1/local/models/{TAG}/status", headers=headers).json()
     assert status["loaded"] is False and status["digest_matches_loaded"] is False
+    assert client.post(f"/api/v1/local/models/{TAG}/unload", headers=headers).status_code == 409
     fake.available = [{"tag": TAG, "digest": "f" * 64}]
     assert client.post(f"/api/v1/local/models/{TAG}/load", headers=headers).status_code == 409
     assert fake.calls == 0
@@ -156,6 +157,7 @@ def test_unregistered_cannot_approve_or_load(sandbox):
     client, headers, fake, _ = sandbox
     assert client.post(f"/api/v1/local/models/{TAG}/approve", headers=headers).status_code == 404
     assert client.post(f"/api/v1/local/models/{TAG}/load", headers=headers).status_code == 404
+    assert client.post(f"/api/v1/local/models/{TAG}/unload", headers=headers).status_code == 404
     assert fake.calls == 0
 
 
