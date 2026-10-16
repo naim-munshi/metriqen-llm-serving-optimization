@@ -1,5 +1,5 @@
 "use strict";
-// No tokens, cookies, or profile data are written to localStorage.
+// The browser does not persist profile data or authentication secrets.
 // The browser holds only a CSRF value from its own same-origin session API.
 const el = id => document.getElementById(id);
 let csrf = "";
