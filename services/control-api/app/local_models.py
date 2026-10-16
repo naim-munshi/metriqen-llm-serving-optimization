@@ -281,14 +281,11 @@ def model_console_router() -> APIRouter:
     csp = ("default-src 'none'; script-src 'self'; style-src 'self'; "
            "connect-src 'self'; base-uri 'none'; form-action 'none'; "
            "frame-ancestors 'none'")
-    for suffix, file, media in (
-        ("", "index.html", "text/html"),
-        ("/app.css", "app.css", "text/css"),
-        ("/app.js", "app.js", "application/javascript"),
-    ):
-        def serve_asset(name: str = file, media_type: str = media) -> Response:
+    def asset_handler(filename: str, media_type: str):
+        # Closure defaults must NOT become caller-overridable query parameters.
+        def serve_asset() -> Response:
             return Response(
-                content=(assets / name).read_bytes(),
+                content=(assets / filename).read_bytes(),
                 media_type=media_type,
                 headers={
                     "Content-Security-Policy": csp,
@@ -296,7 +293,14 @@ def model_console_router() -> APIRouter:
                     "X-Frame-Options": "DENY",
                 },
             )
-        router.add_api_route("/console/models" + suffix, serve_asset,
+        return serve_asset
+
+    for suffix, filename, media in (
+        ("", "index.html", "text/html"),
+        ("/app.css", "app.css", "text/css"),
+        ("/app.js", "app.js", "application/javascript"),
+    ):
+        router.add_api_route("/console/models" + suffix, asset_handler(filename, media),
                              methods=["GET"], include_in_schema=False)
     return router
 
