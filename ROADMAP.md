@@ -56,3 +56,5 @@ NLP quality measurement is not the same as runtime inference performance and mus
 - **Next distributed-systems gate:** authenticated Redis for expiring session state and atomic per-identity quotas; protected load-balanced Go inference with SSE/health-aware routing. Neither Redis nor LB is claimed as deployed. [Security architecture](docs/architecture/identity-data-redis-load-balancing.md).
 
 **Implemented opt-in Redis increment:** Account POST/PATCH mutation quotas can use a bounded atomic Lua counter in an independently authenticated local Redis server with HMAC-obfuscated keys and fail-closed outage behavior. No Redis is deployed by default; Redis-backed BFF sessions, auth-entrance protection and distributed gateway quotas remain future milestones.
+
+**Implemented opt-in LB configuration:** HAProxy local-only least-connection routing across Go gateways on 8081/8082 with an 8090-only proxy listener, fixed-path POST admission and upstream API reachability checks. CI validates HAProxy syntax. This does not prove increased inference speed or provide production tenant-level balancing/security. [Runbook](docs/operations/local-ha-proxy.md).
