@@ -16,7 +16,7 @@ Metriqen is an **engineering research prototype** for understanding how concurre
 | **Admission control** | Four active gateway requests; opt-in FIFO wait queue (depth 0–32), wait timeout, backpressure and versioned `GET /metrics/admission` diagnostics and independent `GET /metrics/inference` outcome counters with fixed queue-wait duration buckets; optional exact model-tag allowlist | No continuous batching, model-digest enforcement or tenant-level scheduling |
 | **Measurement** | Versioned workloads, repeated rotating-order sweeps, TTFT, latency, throughput, token-usage coverage and run-timing diagnostics | Primarily single-machine local experiments |
 | **Evaluation** | Separate exact and normalized answer-reference checks; matched-report comparison, evidence bundles and A/B/A/B drift-review tooling | String matching is **not** semantic/factual quality evaluation |
-| **Control plane** | FastAPI health routes, pinned-JWKS access-token boundary, trusted project-read RBAC seam and optional local PostgreSQL adapter | No integrated production login, tenant API keys, PostgreSQL deployment or real IdP |
+| **Control plane / Accounts** | FastAPI health, pinned-JWKS access-token verification, scoped project-read RBAC and opt-in local PostgreSQL **current-user profile** create/read/update | No hosted login/signup/session, multi-tenant account administration, tenant API keys or real IdP |
 
 **Stack:** Go · Python · FastAPI · Ollama / llama.cpp · PostgreSQL / SQLAlchemy (optional) · Docker Compose (local) · GitHub Actions.
 
@@ -153,3 +153,7 @@ tests/e2e/                  Go gateway + Python client integration tests
 - **License:** no open-source license has been selected. Source visibility does not grant a general right to use, modify or redistribute this repository. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 **Maintainer:** [Md Naim](https://github.com/naim-munshi) · Tokyo Polytechnic University, Faculty of Engineering.
+
+## Identity, user data, Redis and load balancing
+
+A verified OIDC access token can now create/read/update **only its own** PostgreSQL-backed profile through `/api/v1/me` when the local IdP verifier and DB have been explicitly configured and migrated. This is **not** a browser sign-in implementation; the separate local Model Manager operator token does not authenticate user profiles. See the [account runbook](docs/operations/verified-user-profiles.md) and [target architecture and security review](docs/architecture/identity-data-redis-load-balancing.md). Redis coordination, full BFF login/logout, load-balanced serving and GPU workers are *planned*, not yet running.

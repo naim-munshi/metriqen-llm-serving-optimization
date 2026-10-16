@@ -14,12 +14,15 @@ from app.security.http_identity import (
 from app.security.project_access import ProjectAccessStore, read_authorized_project
 from app.storage.runtime import load_local_project_store
 from app.local_models import configure_local_models
+from app.accounts import profile_router
+from app.storage.profiles import ProfileStore, SQLProfileStore
 
 
 def create_app(
     identity_settings: PinnedIdentitySettings | None = None,
     *,
     project_store: ProjectAccessStore | None = None,
+    profile_store: ProfileStore | None = None,
 ) -> FastAPI:
     """Create isolated app instances; trusted stores are explicitly injected."""
     application = FastAPI(
@@ -61,6 +64,10 @@ def create_app(
             store=project_store,
         )
 
+    # All account writes require a fresh, verified access identity; no
+    # browser-provided issuer, subject or JWT role can select the DB row.
+    application.include_router(profile_router(identity_settings, profile_store))
+
     # Operator-only model lifecycle is opt-in and never substitutes for
     # project-scoped identity or inference gateway authorization.
     configure_local_models(application)
@@ -69,4 +76,10 @@ def create_app(
 
 # Load only operator-pinned local configuration at startup; no SQL connection
 # or schema migration runs here. Without a DSN, project reads still deny 503.
-app = create_app(load_identity_settings(), project_store=load_local_project_store())
+_configured_project_store = load_local_project_store()
+app = create_app(
+    load_identity_settings(),
+    project_store=_configured_project_store,
+    profile_store=(SQLProfileStore(_configured_project_store._engine)
+                   if _configured_project_store is not None else None),
+)

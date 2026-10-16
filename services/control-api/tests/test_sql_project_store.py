@@ -132,6 +132,7 @@ def test_sql_schema_has_expected_tenant_tables(engine):
     from sqlalchemy import inspect
     assert set(inspect(engine).get_table_names()) == {
         "organizations", "projects", "organization_memberships", "project_grants",
+        "user_profiles",
     }
 
 

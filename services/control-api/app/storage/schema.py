@@ -7,7 +7,7 @@ No tables are created or seeded when this module is imported.
 from __future__ import annotations
 
 from sqlalchemy import (
-    CheckConstraint, Column, ForeignKey, ForeignKeyConstraint,
+    CheckConstraint, Column, DateTime, ForeignKey, ForeignKeyConstraint,
     Index, MetaData, String, Table, UniqueConstraint, Uuid,
 )
 
@@ -63,3 +63,17 @@ project_grants = Table(
 )
 Index("ix_grants_project_organization",
       project_grants.c.project_id, project_grants.c.organization_id)
+
+
+# An OIDC issuer + its subject identifies one user; subject alone is never
+# unique across identity providers. This table grants NO tenant membership.
+user_profiles = Table(
+    "user_profiles", metadata,
+    Column("issuer", String(512), primary_key=True),
+    Column("subject", String(255), primary_key=True),
+    Column("display_name", String(120), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint("length(trim(display_name)) >= 1",
+                    name="ck_user_profiles_display_name"),
+)
