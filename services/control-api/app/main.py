@@ -85,7 +85,7 @@ def create_app(
     # No login/session routes or static account page are exposed by default.
     if browser_login is not None:
         application.include_router(browser_login_router(browser_login, profile_store,
-                                                        account_quota))
+                                                        account_quota, workspace_store))
 
     # Operator-only model lifecycle is opt-in and never substitutes for
     # project-scoped identity or inference gateway authorization.
