@@ -39,3 +39,7 @@ The security library can verify RS256 access tokens against a trusted **server-s
 ## Local-only inference bridge
 
 Enabling `METRIQEN_UPSTREAM_URL` allows `POST /v1/chat/completions` only on a loopback-bound gateway. It restricts upstream origins to local development hosts, denies arbitrary client-selected URLs and does not forward Authorization/Cookie headers. It provides process-level concurrency limiting, not tenant quotas. **This is not production-grade authentication or secure multi-tenancy.** The route must not be exposed publicly. See [Local inference guide](docs/operations/local-inference.md).
+
+## Optional browser OIDC authentication, development only
+
+When an operator explicitly configures trusted HTTPS authorization/token endpoints under the same pinned OIDC issuer, a compatible IdP, and authenticated local Redis, Metriqen now exposes a browser OIDC Code+PKCE login flow, a one-time Redis state bound to a browser cookie, nonce-verified RSA ID token matched to a dedicated at+jwt access token, and revocable 30-minute Redis sessions. Profile writes and logout require CSRF + exact Origin checks. **This is a localhost HTTP development flow** with HttpOnly SameSite=Lax cookies and deliberately Secure=False. It is NOT suitable for public exposure; converting to HTTPS/host-only Secure cookies, upstream logout/revocation, trusted proxy policy, real IdP acceptance and tenant authorization are required. Missing auth configuration leaves the browser routes unavailable. See [configuration and limitations](docs/operations/browser-oidc-login.md).

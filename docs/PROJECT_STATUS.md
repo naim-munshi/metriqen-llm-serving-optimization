@@ -78,3 +78,7 @@ The control API can enforce a shared Lua-backed 20/60-second mutation quota for 
 ## Optional local load-balancer experiment
 
 HAProxy localhost-only port 8090 can route approved single-turn local chat between two separately operated loopback Go gateway replicas with least-connection balancing and /health/upstream probes. The Model Manager target is operator-selectable as only 8081 or 8090. HAProxy syntax and port safety are CI-tested, but **no actual multi-replica user hardware test, streaming continuity proof, throughput improvement, production ingress or global quota is claimed**. [Operator runbook](operations/local-ha-proxy.md).
+
+## Optional browser OIDC login (local development)
+
+A browser-facing My Account page and OIDC Code+PKCE login/callback/logout endpoints now use operator-pinned public JWKS, one-time Redis flow state, short-lived HttpOnly same-site local cookies, JWT subject matching, CSRF-protected profile write routes and the existing PostgreSQL user profile store. There are no local passwords or stored refresh/access tokens. These endpoints remain **disabled by default**; real provider configuration, a live IdP/Redis/PostgreSQL test, production HTTPS/Secure cookie support, upstream revocation handling, organization grants and authenticated Go gateway invocation are NOT yet complete. [Runbook](operations/browser-oidc-login.md).

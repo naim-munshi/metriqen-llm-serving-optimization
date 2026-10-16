@@ -153,7 +153,7 @@ or tested by this milestone.
 
 1. **This milestone:** verified OIDC token → private PostgreSQL user profile
    create/read/update; real migration and cross-identity tests. No IdP/login UI.
-2. **Next:** configured IdP/BFF Authorization Code+PKCE session flow,
+2. **Partially implemented:** opt-in *loopback-only* BFF Code+PKCE, Redis one-time login state and revocable sessions, CSRF profile UI; still requires actual external IdP, production HTTPS+Secure cookies, IdP logout/revocation, renewal and acceptance. Next: complete and verify the configured IdP/BFF session flow,
    login/logout and actual account page; key rotation, revocation and CSRF tests.
 3. Project/organization create/read/update workflows gated by authoritative
    RBAC and PostgreSQL constraints. Add typed audit records.

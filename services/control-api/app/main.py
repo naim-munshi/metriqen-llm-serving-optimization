@@ -17,6 +17,7 @@ from app.local_models import configure_local_models
 from app.accounts import profile_router
 from app.storage.profiles import ProfileStore, SQLProfileStore
 from app.security.redis_quota import RedisAccountQuota, load_account_quota
+from app.browser_auth import BrowserLogin, browser_configured, browser_login_router
 
 
 def create_app(
@@ -25,6 +26,7 @@ def create_app(
     project_store: ProjectAccessStore | None = None,
     profile_store: ProfileStore | None = None,
     account_quota: RedisAccountQuota | None = None,
+    browser_login: BrowserLogin | None = None,
 ) -> FastAPI:
     """Create isolated app instances; trusted stores are explicitly injected."""
     application = FastAPI(
@@ -71,6 +73,12 @@ def create_app(
     application.include_router(profile_router(identity_settings, profile_store,
                                               account_quota))
 
+    # Browser authentication is an explicit localhost-only OIDC/Redis opt-in.
+    # No login/session routes or static account page are exposed by default.
+    if browser_login is not None:
+        application.include_router(browser_login_router(browser_login, profile_store,
+                                                        account_quota))
+
     # Operator-only model lifecycle is opt-in and never substitutes for
     # project-scoped identity or inference gateway authorization.
     configure_local_models(application)
@@ -80,10 +88,12 @@ def create_app(
 # Load only operator-pinned local configuration at startup; no SQL connection
 # or schema migration runs here. Without a DSN, project reads still deny 503.
 _configured_project_store = load_local_project_store()
+_configured_identity = load_identity_settings()
 app = create_app(
-    load_identity_settings(),
+    _configured_identity,
     project_store=_configured_project_store,
     profile_store=(SQLProfileStore(_configured_project_store._engine)
                    if _configured_project_store is not None else None),
     account_quota=load_account_quota(),
+    browser_login=browser_configured(None, _configured_identity),
 )
