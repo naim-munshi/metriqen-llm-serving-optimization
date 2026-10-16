@@ -112,6 +112,7 @@ class LocalModelRuntime(Protocol):
     def installed(self) -> list[dict]: ...
     def loaded(self) -> list[dict]: ...
     def preload(self, tag: str) -> None: ...
+    def unload(self, tag: str) -> None: ...
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -176,6 +177,13 @@ class OllamaRuntime:
                                timeout=120)
         if result.get("done") is not True:
             raise HTTPException(503, "Ollama did not confirm model load")
+
+    def unload(self, tag: str) -> None:
+        result = self._request("/api/generate",
+                               payload={"model": tag, "keep_alive": 0, "stream": False},
+                               timeout=30)
+        if result.get("done") is not True:
+            raise HTTPException(503, "Ollama did not confirm model unload")
 
 
 def _match_installed(runtime: LocalModelRuntime, record: dict) -> None:
@@ -245,6 +253,23 @@ def local_model_router(token: str, store: Registry, runtime: LocalModelRuntime) 
             raise HTTPException(409, "loaded model digest not verified")
         return {"tag": tag, "digest": registered["digest"], "loaded": True,
                 "note": "Ollama preload only; not a managed serving deployment"}
+
+    @router.post("/models/{tag}/unload")
+    def unload_model(tag: str) -> dict:
+        registered = store.get(_tag(tag))
+        if registered is None:
+            raise HTTPException(404, "model not registered")
+        if not registered["approved"]:
+            raise HTTPException(403, "model must be approved before unloading")
+        found = next((m for m in runtime.loaded() if m["tag"] == tag), None)
+        if found is None:
+            return {"tag": tag, "unloaded": True, "already_unloaded": True}
+        if found["digest"] != registered["digest"]:
+            raise HTTPException(409, "loaded model digest differs from registered revision")
+        runtime.unload(tag)
+        if next((m for m in runtime.loaded() if m["tag"] == tag), None) is not None:
+            raise HTTPException(503, "Ollama still reports model loaded")
+        return {"tag": tag, "unloaded": True, "already_unloaded": False}
 
     return router
 
