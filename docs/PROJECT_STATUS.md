@@ -74,3 +74,7 @@ An authenticated `/api/v1/me` create/read/update slice now uses an operator-pinn
 ## Redis distributed account quota (opt-in)
 
 The control API can enforce a shared Lua-backed 20/60-second mutation quota for verified OIDC profiles when an authenticated localhost Redis and independent HMAC secret are explicitly supplied. Offline tests cover quota exhaustion, malformed settings, identity isolation and fail-closed errors; **real Redis and multiple replicas remain untested**, and permissions are never cached in Redis. See the account runbook.
+
+## Optional local load-balancer experiment
+
+HAProxy localhost-only port 8090 can route approved single-turn local chat between two separately operated loopback Go gateway replicas with least-connection balancing and /health/upstream probes. The Model Manager target is operator-selectable as only 8081 or 8090. HAProxy syntax and port safety are CI-tested, but **no actual multi-replica user hardware test, streaming continuity proof, throughput improvement, production ingress or global quota is claimed**. [Operator runbook](operations/local-ha-proxy.md).
