@@ -217,6 +217,23 @@ def local_model_router(token: str, store: Registry, runtime: LocalModelRuntime,
     def models() -> dict:
         return {"models": store.list()}
 
+    @router.get("/model-statuses")
+    def model_statuses() -> dict:
+        """One bounded Ollama /api/ps snapshot for the whole local registry."""
+        registered = store.list()
+        running = runtime.loaded()
+        models = []
+        for record in registered:
+            loaded = next((item for item in running if item["tag"] == record["tag"]), None)
+            matches = loaded is None or loaded["digest"] == record["digest"]
+            models.append({
+                "tag": record["tag"],
+                "approved": record["approved"],
+                "loaded": loaded is not None and matches,
+                "digest_matches_loaded": matches,
+            })
+        return {"models": models}
+
     @router.post("/models", status_code=201)
     def register_model(payload: ModelInput) -> dict:
         tag = _tag(payload.tag)

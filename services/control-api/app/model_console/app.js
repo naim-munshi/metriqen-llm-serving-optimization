@@ -5,6 +5,7 @@ const api = "/api/v1/local";
 const $ = id => document.getElementById(id);
 let operatorToken = "";
 let busy = false;
+const promptDrafts = new Map(); // transient only; no browser storage
 
 function notify(message, isError = false) {
   $("notice").textContent = String(message);
@@ -106,7 +107,8 @@ function modelCard(model, actions, subtitle) {
   return card;
 }
 
-function render(available, registered) {
+function render(available, registered, statuses) {
+  const readiness = new Map(statuses.map(m => [m.tag, m]));
   const registry = new Set(registered.map(m => m.tag));
   $("available-count").textContent = available.length.toString();
   $("registry-count").textContent = registered.length.toString();
@@ -140,21 +142,34 @@ function render(available, registered) {
         controls.push(action("Load", async () => {
           notify("Loading model into local Ollama memory…");
           await call("/models/" + encodeURIComponent(model.tag) + "/load", "POST");
-          notify("Model loaded and digest verified: " + model.tag);
+          await refresh();
+          notify("Model loaded and digest verified: " + model.tag + ". You can now run inference.");
         }, "primary"));
         controls.push(action("Unload", async () => {
           const result = await call("/models/" + encodeURIComponent(model.tag) + "/unload", "POST");
+          await refresh();
           notify(result.already_unloaded ? "Model was already unloaded." : "Model unloaded: " + model.tag);
         }));
       }
       controls.push(action("Status", async () => {
         const s = await call("/models/" + encodeURIComponent(model.tag) + "/status");
+        await refresh();
         notify(model.tag + ": " + (s.loaded ? "loaded in Ollama memory" : "not loaded") +
           (s.digest_matches_loaded ? "" : " (digest mismatch)"));
       }));
       const card = modelCard(model, controls,
         model.approved ? "Approved revision" : "Pending operator approval");
       if (model.approved) {
+        const status = readiness.get(model.tag);
+        const loaded = Boolean(status && status.loaded && status.digest_matches_loaded);
+        const stateLine = document.createElement("p");
+        stateLine.className = "load-state " + (loaded ? "ready" : "waiting");
+        stateLine.textContent = loaded
+          ? "● Loaded and ready for inference"
+          : status && !status.digest_matches_loaded
+            ? "● Loaded model revision mismatch — inference blocked"
+            : "● Not loaded — click Load before running inference";
+        card.append(stateLine);
         const playground = document.createElement("div");
         playground.className = "playground";
         const label = document.createElement("label");
@@ -164,21 +179,44 @@ function render(available, registered) {
         input.maxLength = 4096;
         input.placeholder = "Enter a short local prompt…";
         input.setAttribute("aria-label", "Prompt for " + model.tag);
+        input.value = promptDrafts.get(model.tag) || "";
+        input.addEventListener("input", () => { promptDrafts.set(model.tag, input.value); });
         const output = document.createElement("pre");
         output.className = "inference-output";
         output.hidden = true;
         const runButton = action("Run inference", async () => {
           const prompt = input.value.trim();
           if (!prompt) throw new Error("Enter a nonempty prompt first.");
+          // Status may expire since the last UI refresh; never rely on stale readiness.
+          const current = await call("/models/" + encodeURIComponent(model.tag) + "/status");
+          if (!current.loaded) {
+            await refresh();
+            notify(model.tag + " is not loaded. Click Load, wait for confirmation, then run inference.", true);
+            return;
+          }
           output.hidden = true;
           notify("Sending an approved single-turn inference request to the local gateway…");
-          const result = await call("/models/" + encodeURIComponent(model.tag) + "/chat",
-                                    "POST", {prompt: prompt, max_tokens: 128});
+          let result;
+          try {
+            result = await call("/models/" + encodeURIComponent(model.tag) + "/chat",
+                                "POST", {prompt: prompt, max_tokens: 128});
+          } catch (error) {
+            if (error instanceof Error && error.message.includes("approved model revision is not loaded")) {
+              await refresh();
+              throw new Error(model.tag + " was unloaded before inference. Click Load and try again.");
+            }
+            throw error;
+          }
           if (typeof result.content !== "string") throw new Error("Invalid local inference response.");
           output.textContent = result.content;
           output.hidden = false;
           notify("Received local inference response from " + model.tag + ".");
         }, "primary");
+        if (!loaded) {
+          runButton.dataset.locked = "true";
+          runButton.disabled = true;
+          runButton.textContent = "Load model first";
+        }
         playground.append(label, input, runButton, output);
         card.append(playground);
       }
@@ -188,13 +226,14 @@ function render(available, registered) {
 }
 
 async function refresh() {
-  const [available, registered] = await Promise.all([
-    call("/available-models"), call("/models")
+  const [available, registered, readiness] = await Promise.all([
+    call("/available-models"), call("/models"), call("/model-statuses")
   ]);
-  if (!Array.isArray(available.models) || !Array.isArray(registered.models)) {
+  if (!Array.isArray(available.models) || !Array.isArray(registered.models) ||
+      !Array.isArray(readiness.models)) {
     throw new Error("Unexpected registry API response");
   }
-  render(available.models, registered.models);
+  render(available.models, registered.models, readiness.models);
 }
 
 $("connect-form").addEventListener("submit", event => {
@@ -225,6 +264,7 @@ $("refresh").addEventListener("click", () => perform(async () => {
 $("disconnect").addEventListener("click", () => {
   if (busy) return;
   operatorToken = "";
+  promptDrafts.clear();
   $("refresh").disabled = true;
   $("disconnect").disabled = true;
   $("available-count").textContent = "—";

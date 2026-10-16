@@ -227,3 +227,25 @@ def test_real_control_app_opt_in_registers_routes(monkeypatch, tmp_path):
     assert response.status_code == 200
     assert response.json() == {"models": []}
     assert client.get("/health/live").json()["status"] == "ok"
+
+
+def test_model_statuses_are_live_and_one_snapshot(sandbox):
+    client, headers, fake, _ = sandbox
+    url = "/api/v1/local/model-statuses"
+    assert client.get(url).status_code == 401
+    assert client.get(url, headers=headers).json() == {"models": []}
+    assert client.post("/api/v1/local/models", json={"tag": TAG}, headers=headers).status_code == 201
+    first = client.get(url, headers=headers).json()["models"]
+    assert first == [{
+        "tag": TAG, "approved": False, "loaded": False, "digest_matches_loaded": True
+    }]
+    assert client.post(f"/api/v1/local/models/{TAG}/approve", headers=headers).status_code == 200
+    fake.running = [{"tag": TAG, "digest": DIGEST}]
+    ready = client.get(url, headers=headers).json()["models"]
+    assert ready[0]["approved"] is True and ready[0]["loaded"] is True
+    fake.running = [{"tag": TAG, "digest": "f" * 64}]
+    stale = client.get(url, headers=headers).json()["models"]
+    assert stale[0]["loaded"] is False and stale[0]["digest_matches_loaded"] is False
+    fake.running = []
+    expired = client.get(url, headers=headers).json()["models"]
+    assert expired[0]["loaded"] is False and expired[0]["digest_matches_loaded"] is True
