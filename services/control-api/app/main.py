@@ -16,6 +16,7 @@ from app.storage.runtime import load_local_project_store
 from app.local_models import configure_local_models
 from app.accounts import profile_router
 from app.storage.profiles import ProfileStore, SQLProfileStore
+from app.security.redis_quota import RedisAccountQuota, load_account_quota
 
 
 def create_app(
@@ -23,6 +24,7 @@ def create_app(
     *,
     project_store: ProjectAccessStore | None = None,
     profile_store: ProfileStore | None = None,
+    account_quota: RedisAccountQuota | None = None,
 ) -> FastAPI:
     """Create isolated app instances; trusted stores are explicitly injected."""
     application = FastAPI(
@@ -66,7 +68,8 @@ def create_app(
 
     # All account writes require a fresh, verified access identity; no
     # browser-provided issuer, subject or JWT role can select the DB row.
-    application.include_router(profile_router(identity_settings, profile_store))
+    application.include_router(profile_router(identity_settings, profile_store,
+                                              account_quota))
 
     # Operator-only model lifecycle is opt-in and never substitutes for
     # project-scoped identity or inference gateway authorization.
@@ -82,4 +85,5 @@ app = create_app(
     project_store=_configured_project_store,
     profile_store=(SQLProfileStore(_configured_project_store._engine)
                    if _configured_project_store is not None else None),
+    account_quota=load_account_quota(),
 )
