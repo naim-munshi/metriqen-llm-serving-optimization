@@ -24,6 +24,7 @@ from app.security.http_identity import PinnedIdentitySettings
 from app.security.policy import Role
 from app.storage.runtime import load_local_project_store
 from app.storage.profiles import SQLProfileStore
+from app.storage.workspaces import SQLWorkspaceStore
 from app.storage.schema import (
     organizations, projects, organization_memberships, project_grants, user_profiles,
 )
@@ -316,3 +317,44 @@ def test_postgres_profile_identity_scope_and_database_constraints(postgres_engin
     with postgres_engine.connect() as conn:
         assert len(conn.execute(select(user_profiles)).all()) == 2
         assert conn.execute(select(organization_memberships)).all() == []
+
+
+
+def test_real_postgres_new_org_is_atomic_and_project_writes_are_tenant_scoped(seeded, signing_config):
+    engine, _, _, signing = seeded
+    _, settings = signing_config
+    client = TestClient(create_app(
+        settings,
+        workspace_store=SQLWorkspaceStore(engine),
+    ))
+    alice = {"Authorization": f"Bearer {issue(signing, subject='user-a')}"}
+    bob = {"Authorization": f"Bearer {issue(signing, subject='user-b', role='owner')}"}
+    new_org = client.post("/api/v1/organizations", json={"name": "New organization"},
+                          headers=alice)
+    assert new_org.status_code == 201
+    org_id = new_org.json()["id"]
+    # New org is self-provisioned only to the verified creator.
+    assert new_org.json()["role"] == "owner"
+    assert all(x["id"] != org_id for x in client.get(
+        "/api/v1/organizations", headers=bob).json()["organizations"])
+    assert client.post(f"/api/v1/organizations/{org_id}/projects",
+                       json={"name": "Cross tenant"}, headers=bob).status_code == 404
+    created = client.post(f"/api/v1/organizations/{org_id}/projects",
+                          json={"name": "Inference"}, headers=alice)
+    assert created.status_code == 201
+    projects_list = client.get(f"/api/v1/organizations/{org_id}/projects",
+                               headers=alice)
+    assert projects_list.status_code == 200
+    assert projects_list.json()["projects"] == [created.json()]
+    assert client.get(f"/api/v1/organizations/{org_id}/projects",
+                      headers=bob).status_code == 404
+    with engine.connect() as conn:
+        membership = conn.execute(
+            select(organization_memberships).where(
+                organization_memberships.c.organization_id == UUID(org_id)
+            )
+        ).all()
+    assert len(membership) == 1
+    assert membership[0].issuer == ISSUER
+    assert membership[0].subject == "user-a"
+    assert membership[0].role == "owner"

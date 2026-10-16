@@ -31,6 +31,8 @@ from app.security.jwks import verify_access_token_from_jwks
 from app.security.oidc import IdentityRejected, VerifiedIdentity
 from app.storage.profiles import ProfileAlreadyExists, ProfileStore
 from app.accounts import ProfileInput, canonical_name
+from app.workspaces import WorkspaceInput, clean_workspace_name, canonical_org_id
+from app.storage.workspaces import SQLWorkspaceStore, WorkspaceNotFound, WorkspaceLimitReached
 from app.security.redis_quota import RedisAccountQuota
 
 FLOW_COOKIE = "metriqen_oidc_flow"
@@ -247,7 +249,8 @@ class BrowserLogin:
 
 
 def browser_login_router(login: BrowserLogin, profiles: ProfileStore | None,
-                         quota: RedisAccountQuota | None = None) -> APIRouter:
+                         quota: RedisAccountQuota | None = None,
+                         workspaces: SQLWorkspaceStore | None = None) -> APIRouter:
     router = APIRouter(tags=["browser-auth"], include_in_schema=False)
 
     def local(request: Request) -> None:
@@ -400,6 +403,61 @@ def browser_login_router(login: BrowserLogin, profiles: ProfileStore | None,
         if value is None:
             raise HTTPException(404, "profile not yet created")
         return value
+
+    def workspace_store() -> SQLWorkspaceStore:
+        if workspaces is None:
+            raise HTTPException(503, "workspace database unavailable")
+        return workspaces
+
+    def safely_workspace(fn):
+        try:
+            return fn()
+        except WorkspaceNotFound:
+            raise HTTPException(404, "organization not found") from None
+        except WorkspaceLimitReached:
+            raise HTTPException(409, "workspace resource limit reached") from None
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(503, "workspace database unavailable") from None
+
+    @router.get("/auth/organizations")
+    def browser_organizations(request: Request):
+        record, _ = session(request)
+        store = workspace_store()
+        return {"organizations": safely_workspace(lambda:
+            store.list_organizations(identity(record)))}
+
+    @router.post("/auth/organizations", status_code=201)
+    def browser_create_organization(request: Request, payload: WorkspaceInput):
+        record, _ = session(request)
+        same_origin_csrf(request, record)
+        store = workspace_store()
+        name = clean_workspace_name(payload.name)
+        if quota is not None:
+            quota.enforce(identity(record))
+        return safely_workspace(lambda:
+            store.create_organization(identity(record), name))
+
+    @router.get("/auth/organizations/{org_id}/projects")
+    def browser_projects(request: Request, org_id: str):
+        record, _ = session(request)
+        store = workspace_store()
+        parsed = canonical_org_id(org_id)
+        return {"projects": safely_workspace(lambda:
+            store.list_projects(identity(record), parsed))}
+
+    @router.post("/auth/organizations/{org_id}/projects", status_code=201)
+    def browser_create_project(request: Request, org_id: str, payload: WorkspaceInput):
+        record, _ = session(request)
+        same_origin_csrf(request, record)
+        store = workspace_store()
+        parsed = canonical_org_id(org_id)
+        name = clean_workspace_name(payload.name)
+        if quota is not None:
+            quota.enforce(identity(record))
+        return safely_workspace(lambda:
+            store.create_project(identity(record), parsed, name))
 
     assets = Path(__file__).resolve().parent / "account_console"
     csp = ("default-src 'none'; script-src 'self'; style-src 'self'; "

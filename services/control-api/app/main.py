@@ -18,6 +18,8 @@ from app.accounts import profile_router
 from app.storage.profiles import ProfileStore, SQLProfileStore
 from app.security.redis_quota import RedisAccountQuota, load_account_quota
 from app.browser_auth import BrowserLogin, browser_configured, browser_login_router
+from app.workspaces import organization_router
+from app.storage.workspaces import SQLWorkspaceStore
 
 
 def create_app(
@@ -27,6 +29,7 @@ def create_app(
     profile_store: ProfileStore | None = None,
     account_quota: RedisAccountQuota | None = None,
     browser_login: BrowserLogin | None = None,
+    workspace_store: SQLWorkspaceStore | None = None,
 ) -> FastAPI:
     """Create isolated app instances; trusted stores are explicitly injected."""
     application = FastAPI(
@@ -73,11 +76,16 @@ def create_app(
     application.include_router(profile_router(identity_settings, profile_store,
                                               account_quota))
 
+    # JWT authorizes the principal, PostgreSQL membership authorizes the
+    # tenant resource. No JWT-supplied role or organization creates a grant.
+    application.include_router(organization_router(identity_settings, workspace_store,
+                                                  account_quota))
+
     # Browser authentication is an explicit localhost-only OIDC/Redis opt-in.
     # No login/session routes or static account page are exposed by default.
     if browser_login is not None:
         application.include_router(browser_login_router(browser_login, profile_store,
-                                                        account_quota))
+                                                        account_quota, workspace_store))
 
     # Operator-only model lifecycle is opt-in and never substitutes for
     # project-scoped identity or inference gateway authorization.
@@ -96,4 +104,6 @@ app = create_app(
                    if _configured_project_store is not None else None),
     account_quota=load_account_quota(),
     browser_login=browser_configured(None, _configured_identity),
+    workspace_store=(SQLWorkspaceStore(_configured_project_store._engine)
+                     if _configured_project_store is not None else None),
 )

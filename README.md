@@ -161,3 +161,7 @@ A verified OIDC access token can now create/read/update **only its own** Postgre
 ## Optional loopback HAProxy gateway replicas
 
 A **local-only** HAProxy configuration now demonstrates least-connection routing across two Go inference gateway processes (ports 8081 and 8082), exposing only `POST /v1/chat/completions` on 127.0.0.1:8090. The Model Manager may select this **fixed, operator-configured** local listener with `METRIQEN_LOCAL_CHAT_GATEWAY_PORT=8090`; no client-chosen upstream URL is accepted. [Operator setup and security limitations](docs/operations/local-ha-proxy.md). This is **not** a production load balancer, verified SSE performance gain, multi-tenant gateway authorization or increased Ollama GPU capacity.
+
+## Organization and project data management (OIDC + PostgreSQL)
+
+Verified JWT users and signed-in browser sessions can now **create organizations, list only their own memberships, create projects under authorized organizations and list only projects visible through PostgreSQL grants**. New organization and creator-owner membership insert in one transaction. The My Account portal offers organization/project creation and project browsing; browser writes require CSRF. No self-assigned roles, caller-selected organization IDs or JWT permission claims are trusted. This is **local opt-in data CRUD**, not tenant administration, invites or authorized gateway access. [Data management runbook](docs/operations/workspace-data-management.md).

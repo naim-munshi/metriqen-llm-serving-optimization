@@ -15,6 +15,9 @@ function setBusy(value) {
   busy = value;
   el("save").disabled = value;
   el("logout").disabled = value;
+  el("create-organization").disabled = value;
+  el("refresh-workspaces").disabled = value;
+  document.querySelectorAll(".workspace-action").forEach(b => { b.disabled = value; });
 }
 
 async function jsonRequest(path, method = "GET", payload = null, csrfRequired = false) {
@@ -61,6 +64,10 @@ async function boot() {
     el("guest").hidden = true;
     el("member").hidden = false;
     status("Signed in with a verified identity.");
+    await refreshWorkspaces().catch(error => {
+      el("workspace-note").textContent =
+        error instanceof Error ? error.message : "Workspace API unavailable";
+    });
     try {
       const profile = await jsonRequest("/auth/profile");
       hasProfile = true;
@@ -81,6 +88,122 @@ async function boot() {
     status(error instanceof Error ? error.message : "Session unavailable", true);
   }
 }
+
+
+function makeNode(tag, className = "", content = "") {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  node.textContent = content;
+  return node;
+}
+
+async function refreshWorkspaces() {
+  const result = await jsonRequest("/auth/organizations");
+  if (!Array.isArray(result.organizations)) throw new Error("Invalid workspace API response");
+  const list = el("workspace-list");
+  list.replaceChildren();
+  if (!result.organizations.length) {
+    list.append(makeNode("p", "description", "No organizations yet. Create your first workspace."));
+  }
+  for (const org of result.organizations) {
+    const card = makeNode("section", "workspace-card");
+    const heading = makeNode("div", "workspace-heading");
+    const meta = makeNode("div");
+    meta.append(makeNode("strong", "", org.name),
+                makeNode("p", "description", "Role: " + org.role));
+    const view = makeNode("button", "button secondary workspace-action", "View projects");
+    view.type = "button";
+    const detail = makeNode("div", "workspace-projects");
+    heading.append(meta, view);
+    card.append(heading, detail);
+    view.addEventListener("click", async () => {
+      if (busy) return;
+      setBusy(true);
+      try {
+        const data = await jsonRequest("/auth/organizations/" +
+          encodeURIComponent(org.id) + "/projects");
+        if (!Array.isArray(data.projects)) throw new Error("Invalid project list response");
+        detail.replaceChildren();
+        const items = makeNode("ul", "project-items");
+        for (const project of data.projects) {
+          items.append(makeNode("li", "", project.name));
+        }
+        detail.append(items);
+        const form = makeNode("form", "project-form");
+        const label = makeNode("label", "", "Create project in " + org.name);
+        const input = document.createElement("input");
+        input.setAttribute("aria-label", "Project name in " + org.name);
+        input.maxLength = 200;
+        input.required = true;
+        input.placeholder = "Project name";
+        const create = makeNode("button", "button primary workspace-action", "Create project");
+        create.type = "submit";
+        form.append(label, input, create);
+        form.addEventListener("submit", async event => {
+          event.preventDefault();
+          if (busy) return;
+          const name = input.value.trim();
+          if (!name) return;
+          setBusy(true);
+          try {
+            await jsonRequest("/auth/organizations/" +
+              encodeURIComponent(org.id) + "/projects", "POST", {name}, true);
+            input.value = "";
+            status("Project created in " + org.name + ".");
+            const fresh = await jsonRequest("/auth/organizations/" +
+              encodeURIComponent(org.id) + "/projects");
+            items.replaceChildren();
+            for (const project of fresh.projects) {
+              items.append(makeNode("li", "", project.name));
+            }
+          } catch (error) {
+            status(error instanceof Error ? error.message : "Project creation failed", true);
+          } finally {
+            setBusy(false);
+          }
+        });
+        detail.append(form);
+      } catch (error) {
+        status(error instanceof Error ? error.message : "Project list unavailable", true);
+      } finally {
+        setBusy(false);
+      }
+    });
+    list.append(card);
+  }
+  el("workspace-note").textContent = result.organizations.length +
+    " organization(s) available to your verified identity.";
+}
+
+el("refresh-workspaces").addEventListener("click", async () => {
+  if (busy || !csrf) return;
+  setBusy(true);
+  try {
+    await refreshWorkspaces();
+  } catch (error) {
+    status(error instanceof Error ? error.message : "Cannot refresh workspaces", true);
+  } finally {
+    setBusy(false);
+  }
+});
+
+el("organization-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  if (busy || !csrf) return;
+  const name = el("organization-name").value.trim();
+  if (!name) return;
+  setBusy(true);
+  try {
+    await jsonRequest("/auth/organizations", "POST", {name}, true);
+    el("organization-name").value = "";
+    await refreshWorkspaces();
+    status("Organization created. You are its owner.");
+  } catch (error) {
+    status(error instanceof Error ? error.message : "Organization creation failed", true);
+  } finally {
+    setBusy(false);
+  }
+});
 
 el("profile-form").addEventListener("submit", async event => {
   event.preventDefault();
