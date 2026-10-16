@@ -191,3 +191,17 @@ def test_native_ollama_http_adapter_uses_only_fixed_local_api():
         server.shutdown()
         server.server_close()
         thread.join()
+
+
+def test_real_control_app_opt_in_registers_routes(monkeypatch, tmp_path):
+    from app.main import create_app
+    monkeypatch.setenv("METRIQEN_LOCAL_MODEL_TOKEN", TOKEN)
+    monkeypatch.setenv("METRIQEN_LOCAL_MODEL_DB", str(tmp_path / "models.sqlite3"))
+    app = create_app()
+    client = TestClient(app, client=("127.0.0.1", 51111))
+    assert client.get("/api/v1/local/models").status_code == 401
+    response = client.get("/api/v1/local/models",
+                          headers={"Authorization": f"Bearer {TOKEN}"})
+    assert response.status_code == 200
+    assert response.json() == {"models": []}
+    assert client.get("/health/live").json()["status"] == "ok"
