@@ -33,6 +33,10 @@ class FakeRuntime:
         self.calls += 1
         self.running = [item for item in self.available if item["tag"] == tag]
 
+    def unload(self, tag):
+        self.calls += 1
+        self.running = [item for item in self.running if item["tag"] != tag]
+
 
 @pytest.fixture
 def sandbox(tmp_path):
@@ -104,6 +108,14 @@ def test_register_approve_load_and_persist(sandbox):
     assert "not a managed" in loaded.json()["note"]
     assert fake.calls == 1
     assert client.get(f"/api/v1/local/models/{TAG}/status", headers=headers).json()["loaded"] is True
+    unloaded = client.post(f"/api/v1/local/models/{TAG}/unload", headers=headers)
+    assert unloaded.status_code == 200
+    assert unloaded.json() == {"tag": TAG, "unloaded": True, "already_unloaded": False}
+    assert client.get(f"/api/v1/local/models/{TAG}/status", headers=headers).json()["loaded"] is False
+    assert fake.calls == 2
+    repeated = client.post(f"/api/v1/local/models/{TAG}/unload", headers=headers)
+    assert repeated.status_code == 200 and repeated.json()["already_unloaded"] is True
+    assert fake.calls == 2
     assert path.exists()
     assert Registry(path).get(TAG)["approved"] is True
     assert "Bearer" not in str(Registry(path).list())
@@ -173,8 +185,12 @@ def test_native_ollama_http_adapter_uses_only_fixed_local_api():
             type(self).path_history.append(self.path)
             assert self.path == "/api/generate"
             data = json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0"))))
-            assert data == {"model": TAG, "keep_alive": "5m", "stream": False}
-            type(self).loaded = [{"name": TAG, "digest": DIGEST}]
+            assert data in (
+                {"model": TAG, "keep_alive": "5m", "stream": False},
+                {"model": TAG, "keep_alive": 0, "stream": False},
+            )
+            type(self).loaded = ([{"name": TAG, "digest": DIGEST}]
+                                 if data["keep_alive"] != 0 else [])
             self.respond({"done": True, "response": ""})
 
     server = ThreadingHTTPServer(("127.0.0.1", 0), NativeFake)
@@ -186,7 +202,11 @@ def test_native_ollama_http_adapter_uses_only_fixed_local_api():
         assert runtime.installed() == [{"tag": TAG, "digest": DIGEST}]
         runtime.preload(TAG)
         assert runtime.loaded() == [{"tag": TAG, "digest": DIGEST}]
-        assert NativeFake.path_history == ["/api/tags", "/api/generate", "/api/ps"]
+        runtime.unload(TAG)
+        assert runtime.loaded() == []
+        assert NativeFake.path_history == [
+            "/api/tags", "/api/generate", "/api/ps", "/api/generate", "/api/ps"
+        ]
     finally:
         server.shutdown()
         server.server_close()
