@@ -25,6 +25,7 @@ from app.browser_auth import (
 from app.main import create_app
 from app.security.http_identity import PinnedIdentitySettings
 from app.storage.profiles import SQLProfileStore
+from app.storage.workspaces import SQLWorkspaceStore
 from app.storage.schema import metadata
 
 ISSUER = "https://idp.example.test/realms/metriqen"
@@ -137,6 +138,7 @@ def fixture(monkeypatch):
     metadata.create_all(engine)
     client = TestClient(create_app(
         identity, profile_store=SQLProfileStore(engine), browser_login=login,
+        workspace_store=SQLWorkspaceStore(engine),
     ), client=("127.0.0.1", 50505))
     try:
         yield client, store, exchanger, engine, identity
@@ -345,3 +347,45 @@ def test_redis_setup_requires_local_acl_and_complete_config(fixture, monkeypatch
     ]:
         with pytest.raises(ValueError):
             browser_configured(bad, identity)
+
+
+
+def test_signed_in_browser_workspace_create_and_projects_enforce_csrf(fixture):
+    client, cache, _, engine, _ = fixture
+    complete_login(fixture)
+    csrf = client.get("/auth/session").json()["csrf"]
+    headers = browser_headers(csrf)
+    assert client.get("/auth/organizations").json() == {"organizations": []}
+    assert client.post("/auth/organizations", json={"name": "Rejected"}).status_code == 403
+    response = client.post("/auth/organizations", json={"name": "Research"},
+                           headers=headers)
+    assert response.status_code == 201
+    org = response.json()
+    assert org["name"] == "Research" and org["role"] == "owner"
+    assert client.get("/auth/organizations").json()["organizations"] == [org]
+    uri = f"/auth/organizations/{org['id']}/projects"
+    assert client.post(uri, json={"name": "No CSRF"}).status_code == 403
+    assert client.get(uri).json() == {"projects": []}
+    made = client.post(uri, json={"name": "Model serving"}, headers=headers)
+    assert made.status_code == 201
+    assert client.get(uri).json()["projects"] == [made.json()]
+    assert client.get("/auth/organizations/00000000-0000-4000-8000-000000000001/projects"
+                      ).status_code == 404
+    assert client.post(uri, json={"name": "P", "role": "owner"},
+                       headers=headers).status_code == 422
+    assert client.post("/auth/logout", headers=headers).status_code == 204
+    assert client.get("/auth/organizations").status_code == 401
+    assert client.post("/auth/organizations", json={"name": "Bad"},
+                       headers=headers).status_code == 401
+
+
+def test_account_ui_exposes_workspace_controls_as_safe_dom_text(fixture):
+    client, _, _, _, _ = fixture
+    page = client.get("/console/account").text
+    script = client.get("/console/account/app.js").text
+    assert 'id="organization-form"' in page
+    assert 'id="workspace-list"' in page
+    assert '"/auth/organizations"' in script
+    assert 'document.createElement(tag)' in script
+    assert "innerHTML" not in script
+    assert "localStorage" not in script
