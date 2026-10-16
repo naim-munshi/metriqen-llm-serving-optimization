@@ -24,6 +24,7 @@ enforce registered-model approval yet. Do not expose either service publicly.
   only when the installed digest still matches.
 - `POST /api/v1/local/models/{tag}/load`: request a five-minute Ollama preload
   of an approved revision and check the returned loaded-model digest.
+- `POST /api/v1/local/models/{tag}/unload`: unload an approved, exact-digest-matched model from Ollama memory; idempotent when already unloaded.
 - `GET /api/v1/local/models/{tag}/status`: inspect whether the exact
   registered model revision is reported loaded by Ollama.
 
