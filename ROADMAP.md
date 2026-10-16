@@ -48,3 +48,9 @@ The existing A1/B parallelism observations are documented, and the developer now
 - Gate: do not claim quantization or batching improves performance at equivalent quality until benchmark and NLP evaluation evidence is paired.
 
 NLP quality measurement is not the same as runtime inference performance and must be reported separately.
+
+## Account authentication and scalable data platform
+
+- **Implemented (opt-in):** verified OIDC user-profile create/read/update through PostgreSQL; issuer-scoped identity and negative authorization tests. No user signup, login/logout or session issuance yet.
+- **Next functional gate:** an operator-selected OIDC provider with Authorization Code+PKCE, session cookie/CSRF controls, proper account UI and PostgreSQL-backed tenant CRUD.
+- **Next distributed-systems gate:** authenticated Redis for expiring session state and atomic per-identity quotas; protected load-balanced Go inference with SSE/health-aware routing. Neither Redis nor LB is claimed as deployed. [Security architecture](docs/architecture/identity-data-redis-load-balancing.md).
