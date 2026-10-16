@@ -101,6 +101,7 @@ or tested by this milestone.
 - Use memory-limited instances, ACL users with least privilege, authentication,
   TLS in any networked topology, no public port, key prefix isolation and
   bounded TTL for every ephemeral key.
+- **Implemented opt-in control API slice:** `METRIQEN_REDIS_URL` and a private HMAC secret enable one atomic Redis Lua quota for POST/PATCH `/api/v1/me` (20 mutations per 60-second first-hit window). Redis key uses HMAC(issuer,subject); no raw personal identifiers or access tokens in Redis. It fails closed (503) on Redis errors and rejects over-quota requests (429). This is NOT a browser session store, gateway quota, login rate limiter or real-Redis benchmark. The Redis endpoint is restricted to authenticated 127.0.0.1:6379/0 with an ACL username/password; no hosted Redis service exists by default.
 - Use atomic Lua or Redis transactions for per-identity quotas/rate limiting;
   do not approximate a distributed quota by per-replica in-memory counters.
   Choose fail-closed on admission and privilege-sensitive mutations when
@@ -156,7 +157,7 @@ or tested by this milestone.
    login/logout and actual account page; key rotation, revocation and CSRF tests.
 3. Project/organization create/read/update workflows gated by authoritative
    RBAC and PostgreSQL constraints. Add typed audit records.
-4. Redis-backed distributed rate limiting/session storage with atomic tests
+4. Extend the new Redis-backed account-mutation limiter into full BFF sessions and per-tenant inference quotas; add real Redis integration/outage tests
    and outage-mode verification; separate cache and durable stores.
 5. One-loopback-to-multi-replica routing proof with SSE support, protected
    ingress/load balancing, configuration and readiness checks.
