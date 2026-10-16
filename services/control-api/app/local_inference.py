@@ -7,12 +7,14 @@ from __future__ import annotations
 
 import json
 from urllib.error import HTTPError, URLError
-from urllib.request import ProxyHandler, Request, build_opener
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.local_models import NoRedirect
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
 
 class ChatInput(BaseModel):
