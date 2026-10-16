@@ -16,7 +16,7 @@ Do not post credentials, exploit details, or private data in public issues. Use 
 
 ## Opt-in local model management
 
-The development-only FastAPI model registry endpoints are disabled unless both a local operator bearer token and an absolute SQLite path are configured. The routes verify loopback caller address and the token before consulting private local data or native Ollama. They do not extend the OIDC project identity boundary, enforce admission in the Go gateway, lock mutable Ollama tags at runtime, provision remote models or provide production deployment authorization. Never enable them beyond loopback or expose the local token.
+The local model manager's static UI is enabled alongside the operator model routes; it ships restrictive CSP and never persists the entered operator token in browser storage. Its API operations still require the loopback caller and bearer token. The development-only FastAPI model registry endpoints are disabled unless both a local operator bearer token and an absolute SQLite path are configured. The routes verify loopback caller address and the token before consulting private local data or native Ollama. They do not extend the OIDC project identity boundary, enforce admission in the Go gateway, lock mutable Ollama tags at runtime, provision remote models or provide production deployment authorization. Never enable them beyond loopback or expose the local token.
 
 ## Required before production use
 
