@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Metriqen local model registry operator console">
+  <title>Metriqen | Local Model Manager</title>
+  <link rel="stylesheet" href="/console/models/app.css">
+  <script src="/console/models/app.js" defer></script>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <a class="wordmark" href="/console/models" aria-label="Metriqen Model Manager">
+        <span class="mark">M<span>.</span></span>
+        <span class="brand">METRIQEN<small>AI Inference Infrastructure</small></span>
+      </a>
+      <div class="nav-section">WORKSPACE</div>
+      <nav aria-label="Model manager sections">
+        <a class="nav-active" href="#inventory">Model inventory</a>
+        <a href="#registry">Registry and approval</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <span class="local-pill"><span class="status-dot"></span>LOCAL OPERATOR MODE</span>
+        <p>Development only. The separate Go gateway does not enforce these approvals.</p>
+      </div>
+    </aside>
+    <main class="content">
+      <header class="topbar"><span>METRIQEN / CONTROL PLANE / MODELS</span><span>localhost · read/write</span></header>
+      <div class="heading">
+        <div>
+          <div class="eyebrow">MODEL MANAGEMENT</div>
+          <h1>Model Registry</h1>
+          <p>Discover installed Ollama models, pin revisions, approve, preload and unload. All operations run on your machine.</p>
+        </div>
+        <button class="secondary" id="refresh" type="button" disabled>Refresh models</button>
+      </div>
+      <section class="connect-panel" aria-labelledby="connect-title">
+        <div>
+          <h2 id="connect-title">Local operator access</h2>
+          <p>The bearer token is used only for same-origin API requests and is never stored in the browser.</p>
+        </div>
+        <form id="connect-form" autocomplete="off">
+          <label for="token">Operator token</label>
+          <div class="connect-row">
+            <input type="password" id="token" placeholder="Enter your local operator token" required autocomplete="off" spellcheck="false">
+            <button class="primary" type="submit" id="connect-button">Connect</button>
+            <button class="secondary" type="button" id="disconnect" disabled>Disconnect</button>
+          </div>
+        </form>
+      </section>
+      <div class="notice" id="notice" role="status" aria-live="polite">Connect using your local operator token to view models.</div>
+      <div class="columns">
+        <section class="panel" id="inventory" aria-labelledby="installed-title">
+          <div class="section-head"><div><div class="eyebrow">01 / LOCAL RUNTIME</div><h2 id="installed-title">Installed Ollama models</h2></div><span class="count" id="available-count">—</span></div>
+          <p class="section-note">Models already installed on 127.0.0.1:11434. Registration does not download model weights.</p>
+          <div class="model-list" id="available-list"><p class="empty">Connect to inspect installed models.</p></div>
+        </section>
+        <section class="panel" id="registry" aria-labelledby="registered-title">
+          <div class="section-head"><div><div class="eyebrow">02 / OPERATOR APPROVAL</div><h2 id="registered-title">Registered revisions</h2></div><span class="count" id="registry-count">—</span></div>
+          <p class="section-note">A pinned digest is required for approval and model memory operations.</p>
+          <div class="model-list" id="registry-list"><p class="empty">Registered models appear here.</p></div>
+        </section>
+      </div>
+      <footer>METRIQEN LOCAL MODEL CONTROL · Not a public deployment service</footer>
+    </main>
+  </div>
+</body>
+</html>
