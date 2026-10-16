@@ -31,6 +31,7 @@ from app.security.jwks import verify_access_token_from_jwks
 from app.security.oidc import IdentityRejected, VerifiedIdentity
 from app.storage.profiles import ProfileAlreadyExists, ProfileStore
 from app.accounts import ProfileInput, canonical_name
+from app.security.redis_quota import RedisAccountQuota
 
 FLOW_COOKIE = "metriqen_oidc_flow"
 SESSION_COOKIE = "metriqen_dev_session"
@@ -245,7 +246,8 @@ class BrowserLogin:
             raise HTTPException(401, "trusted OIDC login verification failed") from None
 
 
-def browser_login_router(login: BrowserLogin, profiles: ProfileStore | None) -> APIRouter:
+def browser_login_router(login: BrowserLogin, profiles: ProfileStore | None,
+                         quota: RedisAccountQuota | None = None) -> APIRouter:
     router = APIRouter(tags=["browser-auth"], include_in_schema=False)
 
     def local(request: Request) -> None:
@@ -375,6 +377,8 @@ def browser_login_router(login: BrowserLogin, profiles: ProfileStore | None) -> 
         if profiles is None:
             raise HTTPException(503, "browser profile database unavailable")
         try:
+            if quota is not None:
+                quota.enforce(identity(record))
             return profiles.create(identity(record), canonical_name(payload.display_name))
         except ProfileAlreadyExists:
             raise HTTPException(409, "profile already exists") from None
@@ -388,6 +392,8 @@ def browser_login_router(login: BrowserLogin, profiles: ProfileStore | None) -> 
         if profiles is None:
             raise HTTPException(503, "browser profile database unavailable")
         try:
+            if quota is not None:
+                quota.enforce(identity(record))
             value = profiles.change_name(identity(record), canonical_name(payload.display_name))
         except Exception:
             raise HTTPException(503, "browser profile database unavailable") from None
