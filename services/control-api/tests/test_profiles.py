@@ -156,16 +156,21 @@ def test_default_unconfigured_account_routes_fail_closed():
     assert client.get("/health/live").status_code == 200
 
 
-def test_identity_present_but_database_missing_is_not_fake_profile(sandbox):
+def test_verified_identity_without_database_returns_503(sandbox):
     _, key, _ = sandbox
-    from app.security.http_identity import PinnedIdentitySettings
-    from app.main import create_app
-    settings = sandbox[0].app  # use same registered verified identity settings via fixture helper
-    # A valid signed token cannot turn an unconfigured store into an in-memory account.
-    token = headers(key)
-    # A matching settings instance is recovered from the fixture's verified route by
-    # passing a lightweight wrapper that returns the same app config below.
-    assert token["Authorization"].startswith("Bearer ")
+    pub = key.public_key().public_numbers()
+    settings = PinnedIdentitySettings(
+        issuer=ISSUER_A, audience=AUDIENCE, authorized_party=AZP,
+        trusted_jwks={"keys": [{
+            "kty": "RSA", "kid": "account-tests", "alg": "RS256", "use": "sig",
+            "n": to_b64(pub.n), "e": to_b64(pub.e),
+        }]},
+    )
+    client = TestClient(create_app(settings))
+    auth = headers(key)
+    assert client.get("/api/v1/me", headers=auth).status_code == 503
+    assert client.post("/api/v1/me", json={"display_name": "Alice"},
+                       headers=auth).status_code == 503
 
 
 def test_store_unavailable_does_not_echo_sensitive_diagnostics(sandbox):
