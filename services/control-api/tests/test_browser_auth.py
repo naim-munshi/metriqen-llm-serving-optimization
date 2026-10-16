@@ -204,8 +204,8 @@ def test_full_bff_flow_profile_crud_csrf_logout_and_replay(fixture):
     assert client.get("/auth/session").json() == {"authenticated": False}
     params = start_login(client)
     payload = json.loads(cache.values[BrowserSessionStore.key("flow", params["state"][0])])
-    assert "refresh_token" not in json.dumps(cache.values)
-    assert "password" not in json.dumps(cache.values)
+    assert "refresh_token" not in str(cache.values)
+    assert "password" not in str(cache.values)
     expected_challenge = base64.urlsafe_b64encode(
         hashlib.sha256(payload["verifier"].encode()).digest()
     ).decode().rstrip("=")
@@ -221,7 +221,7 @@ def test_full_bff_flow_profile_crud_csrf_logout_and_replay(fixture):
     assert active["issuer"] == ISSUER
     csrf = active["csrf"]
     assert len(csrf) > 32
-    assert "refresh_token" not in json.dumps(cache.values)
+    assert "refresh_token" not in str(cache.values)
 
     assert client.get("/auth/profile").status_code == 404
     assert client.post("/auth/profile", json={"display_name": "Alice"}).status_code == 403
