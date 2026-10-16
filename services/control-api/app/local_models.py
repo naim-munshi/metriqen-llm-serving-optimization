@@ -19,8 +19,8 @@ from urllib.request import HTTPRedirectHandler, ProxyHandler, Request as HTTPReq
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel, ConfigDict
 
-MODEL_TAG = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,62}:[A-Za-z0-9][A-Za-z0-9._-]{0,62}\\Z")
-DIGEST = re.compile(r"[0-9a-f]{64}\\Z")
+MODEL_TAG = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,62}:[A-Za-z0-9][A-Za-z0-9._-]{0,62}\Z")
+DIGEST = re.compile(r"[0-9a-f]{64}\Z")
 LOOPBACK_CLIENTS = frozenset(("127.0.0.1", "::1"))
 MAX_REGISTRY = 100
 
