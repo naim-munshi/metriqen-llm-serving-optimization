@@ -76,7 +76,8 @@ def create_app(
     # Browser authentication is an explicit localhost-only OIDC/Redis opt-in.
     # No login/session routes or static account page are exposed by default.
     if browser_login is not None:
-        application.include_router(browser_login_router(browser_login, profile_store))
+        application.include_router(browser_login_router(browser_login, profile_store,
+                                                        account_quota))
 
     # Operator-only model lifecycle is opt-in and never substitutes for
     # project-scoped identity or inference gateway authorization.
