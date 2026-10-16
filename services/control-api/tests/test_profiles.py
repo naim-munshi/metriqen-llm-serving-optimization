@@ -181,3 +181,40 @@ def test_store_unavailable_does_not_echo_sensitive_diagnostics(sandbox):
                            headers=headers(key))
     assert response.status_code == 503
     assert "database" not in response.text.lower()
+
+
+def test_optional_quota_applies_to_writes_only_after_verified_identity(sandbox):
+    _, key, engine = sandbox
+    pub = key.public_key().public_numbers()
+    settings = PinnedIdentitySettings(
+        issuer=ISSUER_A, audience=AUDIENCE, authorized_party=AZP,
+        trusted_jwks={"keys": [{
+            "kty": "RSA", "kid": "account-tests", "alg": "RS256", "use": "sig",
+            "n": to_b64(pub.n), "e": to_b64(pub.e),
+        }]},
+    )
+
+    class OneWriteQuota:
+        def __init__(self):
+            self.calls = []
+        def enforce(self, verified):
+            self.calls.append((verified.issuer, verified.subject))
+            if len(self.calls) > 1:
+                from fastapi import HTTPException
+                raise HTTPException(429, "account mutation rate limit exceeded")
+
+    limiter = OneWriteQuota()
+    client = TestClient(create_app(
+        settings, profile_store=SQLProfileStore(engine), account_quota=limiter,
+    ))
+    assert client.post("/api/v1/me", json={"display_name": "Denied"},
+                       headers={"Authorization": "Bearer invalid"}).status_code == 401
+    assert limiter.calls == []
+    auth = headers(key)
+    assert client.post("/api/v1/me", json={"display_name": "Allowed"},
+                       headers=auth).status_code == 201
+    assert client.get("/api/v1/me", headers=auth).status_code == 200
+    assert client.patch("/api/v1/me", json={"display_name": "Limited"},
+                        headers=auth).status_code == 429
+    assert client.get("/api/v1/me", headers=auth).json()["display_name"] == "Allowed"
+    assert limiter.calls == [(ISSUER_A, "alice"), (ISSUER_A, "alice")]
