@@ -70,3 +70,7 @@ For planned work, see [ROADMAP.md](../ROADMAP.md). For restrictions and disclosu
 ## Verified user profile milestone (local, opt-in)
 
 An authenticated `/api/v1/me` create/read/update slice now uses an operator-pinned, verified OIDC access token to choose the `(issuer, subject)` key and persists only a bounded display name and UTC timestamps to separately migrated PostgreSQL. No profile read/write is enabled without a configured verifier and trusted database. Offline and ephemeral PostgreSQL CI test identity isolation, strict inputs and fail-closed errors. No IdP-hosted login, browser session, Redis coordination, load balancer or multi-user dashboard is deployed. See [target architecture](architecture/identity-data-redis-load-balancing.md).
+
+## Redis distributed account quota (opt-in)
+
+The control API can enforce a shared Lua-backed 20/60-second mutation quota for verified OIDC profiles when an authenticated localhost Redis and independent HMAC secret are explicitly supplied. Offline tests cover quota exhaustion, malformed settings, identity isolation and fail-closed errors; **real Redis and multiple replicas remain untested**, and permissions are never cached in Redis. See the account runbook.
