@@ -11,7 +11,7 @@ from sqlalchemy import Engine, func, insert, select
 from sqlalchemy.engine import Connection
 
 from app.security.oidc import VerifiedIdentity
-from app.security.policy import Permission, Role, Resource, Membership, is_allowed
+from app.security.policy import Permission, Role, Resource, Membership, is_allowed, ROLE_PERMISSIONS
 from app.storage.schema import organizations, projects, organization_memberships, project_grants
 
 
@@ -102,8 +102,8 @@ class SQLWorkspaceStore:
                       organization_id: UUID) -> list[dict]:
         with self.engine.connect() as conn:
             membership = self._membership(conn, identity, organization_id)
-            if not is_allowed(membership, Permission.ORG_READ,
-                              Resource(organization_id=organization_id)):
+            if (membership is None or
+                    Permission.PROJECT_READ not in ROLE_PERMISSIONS.get(membership.role, frozenset())):
                 raise WorkspaceNotFound
             stmt = select(
                 projects.c.id, projects.c.name
