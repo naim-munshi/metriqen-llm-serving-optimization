@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.security.http_identity import PinnedIdentitySettings, authenticated_identity
 from app.storage.profiles import ProfileAlreadyExists, ProfileStore
+from app.security.redis_quota import RedisAccountQuota
 
 
 class ProfileInput(BaseModel):
@@ -25,7 +26,8 @@ def canonical_name(name: str) -> str:
 
 
 def profile_router(identity_settings: PinnedIdentitySettings | None,
-                   store: ProfileStore | None) -> APIRouter:
+                   store: ProfileStore | None,
+                   quota: RedisAccountQuota | None = None) -> APIRouter:
     router = APIRouter(prefix="/api/v1/me", tags=["accounts"])
 
     def verified(request: Request):
@@ -49,6 +51,8 @@ def profile_router(identity_settings: PinnedIdentitySettings | None,
     def create_me(request: Request, payload: ProfileInput) -> dict:
         identity = verified(request)
         name = canonical_name(payload.display_name)
+        if quota is not None:
+            quota.enforce(identity)
         try:
             return store.create(identity, name)
         except ProfileAlreadyExists:
@@ -60,6 +64,8 @@ def profile_router(identity_settings: PinnedIdentitySettings | None,
     def update_me(request: Request, payload: ProfileInput) -> dict:
         identity = verified(request)
         name = canonical_name(payload.display_name)
+        if quota is not None:
+            quota.enforce(identity)
         try:
             record = store.change_name(identity, name)
         except Exception:
