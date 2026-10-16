@@ -34,6 +34,21 @@ an authenticated production web console, or an integrated gateway identity
 provider. CI validates static assets/CSP; a **real browser visual and
 accessibility QA pass** remains required.
 
+## Loaded model readiness in the browser
+
+The local Model Manager reads a **single current snapshot** from
+`GET /api/v1/local/model-statuses` and displays **Loaded and ready**
+or **Not loaded — click Load before running inference** for each approved
+revision. The inference button is disabled until the verified digest is
+reported in Ollama memory. Clicking **Load** refreshes readiness without
+discarding the user's in-progress prompt (held in memory only). Even after
+the button becomes available, the UI checks current status again before
+chat, because Ollama can unload an idle model. A stale/unloaded revision
+is reported with an actionable Load instruction rather than an unexplained
+409 error. The control API independently rechecks both installed and
+loaded digests on every chat invocation; UI checks are only usability
+improvements, not security enforcement.
+
 ## Approved single-turn inference playground
 
 The browser now includes a small prompt editor for each approved registry
