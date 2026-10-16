@@ -320,19 +320,11 @@ def test_postgres_profile_identity_scope_and_database_constraints(postgres_engin
 
 
 
-def test_real_postgres_new_org_is_atomic_and_project_writes_are_tenant_scoped(seeded):
+def test_real_postgres_new_org_is_atomic_and_project_writes_are_tenant_scoped(seeded, signing_config):
     engine, _, _, signing = seeded
+    _, settings = signing_config
     client = TestClient(create_app(
-        PinnedIdentitySettings(
-            issuer=ISSUER, audience=AUDIENCE, authorized_party=CLIENT,
-            trusted_jwks={
-                "keys": [{
-                    "kty": "RSA", "kid": "trusted", "alg": "RS256", "use": "sig",
-                    "n": b64(signing.public_key().public_numbers().n),
-                    "e": b64(signing.public_key().public_numbers().e),
-                }]
-            },
-        ),
+        settings,
         workspace_store=SQLWorkspaceStore(engine),
     ))
     alice = {"Authorization": f"Bearer {issue(signing, subject='user-a')}"}
