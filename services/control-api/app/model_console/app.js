@@ -152,7 +152,37 @@ function render(available, registered) {
         notify(model.tag + ": " + (s.loaded ? "loaded in Ollama memory" : "not loaded") +
           (s.digest_matches_loaded ? "" : " (digest mismatch)"));
       }));
-      list.append(modelCard(model, controls, model.approved ? "Approved revision" : "Pending operator approval"));
+      const card = modelCard(model, controls,
+        model.approved ? "Approved revision" : "Pending operator approval");
+      if (model.approved) {
+        const playground = document.createElement("div");
+        playground.className = "playground";
+        const label = document.createElement("label");
+        label.textContent = "Single-turn inference test · local Go gateway";
+        const input = document.createElement("textarea");
+        input.rows = 2;
+        input.maxLength = 4096;
+        input.placeholder = "Enter a short local prompt…";
+        input.setAttribute("aria-label", "Prompt for " + model.tag);
+        const output = document.createElement("pre");
+        output.className = "inference-output";
+        output.hidden = true;
+        const runButton = action("Run inference", async () => {
+          const prompt = input.value.trim();
+          if (!prompt) throw new Error("Enter a nonempty prompt first.");
+          output.hidden = true;
+          notify("Sending an approved single-turn inference request to the local gateway…");
+          const result = await call("/models/" + encodeURIComponent(model.tag) + "/chat",
+                                    "POST", {prompt: prompt, max_tokens: 128});
+          if (typeof result.content !== "string") throw new Error("Invalid local inference response.");
+          output.textContent = result.content;
+          output.hidden = false;
+          notify("Received local inference response from " + model.tag + ".");
+        }, "primary");
+        playground.append(label, input, runButton, output);
+        card.append(playground);
+      }
+      list.append(card);
     }
   }
 }
