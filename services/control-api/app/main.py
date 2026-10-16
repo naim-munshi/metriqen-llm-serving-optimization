@@ -13,6 +13,7 @@ from app.security.http_identity import (
 )
 from app.security.project_access import ProjectAccessStore, read_authorized_project
 from app.storage.runtime import load_local_project_store
+from app.local_models import configure_local_models
 
 
 def create_app(
@@ -60,6 +61,9 @@ def create_app(
             store=project_store,
         )
 
+    # Operator-only model lifecycle is opt-in and never substitutes for
+    # project-scoped identity or inference gateway authorization.
+    configure_local_models(application)
     return application
 
 

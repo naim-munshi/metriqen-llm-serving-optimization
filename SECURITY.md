@@ -12,7 +12,11 @@ Do not post credentials, exploit details, or private data in public issues. Use 
 - Docker Compose publishes service ports to the host loopback interface only.
 - Do not expose these services publicly or route production traffic to them.
 - The readiness routes currently check process availability only; they do not validate external dependencies.
-- Full identity-provider login, deployed PostgreSQL tenant persistence, production business-route RBAC, TLS termination, project rate limits and audit logging are NOT implemented. A narrow identity route and project-read RBAC seam exist; the latter is **disabled by default**, with an explicit loopback-only PostgreSQL opt-in for trusted storage. CI still has no live PostgreSQL verification. The inference gateway remains unauthenticated; do not expose these services to a network.
+- Full identity-provider login, deployed PostgreSQL tenant persistence, production business-route RBAC, TLS termination, project rate limits and audit logging are NOT implemented. A narrow identity route and project-read RBAC seam exist; the latter is **disabled by default**, with an explicit loopback-only PostgreSQL opt-in for trusted storage. An isolated PostgreSQL 16 migration-backed CI job now exists; it is not a deployed database or IdP integration. The inference gateway remains unauthenticated; do not expose these services to a network.
+
+## Opt-in local model management
+
+The development-only FastAPI model registry endpoints are disabled unless both a local operator bearer token and an absolute SQLite path are configured. The routes verify loopback caller address and the token before consulting private local data or native Ollama. They do not extend the OIDC project identity boundary, enforce admission in the Go gateway, lock mutable Ollama tags at runtime, provision remote models or provide production deployment authorization. Never enable them beyond loopback or expose the local token.
 
 ## Required before production use
 
@@ -26,7 +30,7 @@ A deny-by-default authorization policy and role/scope tests are available in ser
 
 ## In-memory signing-key verification (Phase 03)
 
-The security library can verify RS256 access tokens against a trusted **server-supplied** JWKS snapshot, requiring a unique key ID and expected calling client. It rejects token-supplied key URLs and enforces issuer/audience/time claims. There is no live JWKS retrieval, identity-provider login or session handling. The new project-read route does enforce PROJECT_READ through a trusted lookup seam in tests, but the optional PostgreSQL adapter has not been exercised against a live PostgreSQL server in CI. See ADR-0007, [ADR-0008](docs/architecture/adr/0008-project-rbac-http-boundary.md) and the [local identity runbook](docs/operations/pinned-oidc-identity.md).
+The security library can verify RS256 access tokens against a trusted **server-supplied** JWKS snapshot, requiring a unique key ID and expected calling client. It rejects token-supplied key URLs and enforces issuer/audience/time claims. There is no live JWKS retrieval, identity-provider login or session handling. The new project-read route does enforce PROJECT_READ through a trusted lookup seam in tests, but the optional PostgreSQL adapter has been exercised against a disposable PostgreSQL 16 service in CI, but not deployed. See ADR-0007, [ADR-0008](docs/architecture/adr/0008-project-rbac-http-boundary.md) and the [local identity runbook](docs/operations/pinned-oidc-identity.md).
 
 ## Local-only inference bridge
 

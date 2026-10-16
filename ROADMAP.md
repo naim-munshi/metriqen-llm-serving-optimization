@@ -16,6 +16,10 @@ Each item is a milestone; planned work must not appear in the README as implemen
 | 10 | Secure web console and deployment lifecycle | End-to-end role-aware tests |
 | 11 | Operational hardening and portfolio release | Security, recovery, performance and demo evidence |
 
+## Opt-in local model workflow (functional development slice)
+
+A local-only control API can list installed Ollama models, persist canonical tags with verified SHA-256 digests in a private SQLite registry, approve revisions and issue model **preload/unload** through native Ollama APIs. This is not a managed deployment: no new model download, no long-running worker lifecycle, no per-project model authorization and no Go gateway enforcement. It is disabled by default and guarded by a distinct loopback operator token. See [local model registry](docs/operations/local-model-registry.md). The remaining model registry, secure multi-user deployment and optimization phases are unchanged.
+
 ## Local tooling and operator-reported performance evidence
 
 A dependency-free Python benchmark CLI with offline tests now records warm-up-excluded TTFT, p50/p95 latency, successes, failures, request throughput and optional token usage for a loopback inference endpoint. A developer has now executed pinned-model runs and locally validated their report consistency; see the [public aggregate experiment](docs/benchmarks/experiments/2026-10-13-ollama-parallelism.md). GitHub CI still checks synthetic fixtures only; there is no independent hardware attestation or vLLM/GPU measurement.
