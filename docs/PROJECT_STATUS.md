@@ -82,3 +82,7 @@ HAProxy localhost-only port 8090 can route approved single-turn local chat betwe
 ## Optional browser OIDC login (local development)
 
 A browser-facing My Account page and OIDC Code+PKCE login/callback/logout endpoints now use operator-pinned public JWKS, one-time Redis flow state, short-lived HttpOnly same-site local cookies, JWT subject matching, CSRF-protected profile write routes and the existing PostgreSQL user profile store. There are no local passwords or stored refresh/access tokens. These endpoints remain **disabled by default**; real provider configuration, a live IdP/Redis/PostgreSQL test, production HTTPS/Secure cookie support, upstream revocation handling, organization grants and authenticated Go gateway invocation are NOT yet complete. [Runbook](operations/browser-oidc-login.md).
+
+## Workspace CRUD (verified OIDC and PostgreSQL)
+
+New organization creation atomically inserts the verified creator as owner; project creation requires a current authorized owner/admin membership. Browser account and JWT APIs provide self-service creation/listing with per-tenant project visibility. Cross-tenant tests and actual PostgreSQL 16 CI are included, but real Mac/provider/browser acceptance and administrative invitations/audit are pending. [Scope and tests](operations/workspace-data-management.md).
