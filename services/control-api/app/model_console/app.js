@@ -16,7 +16,7 @@ function setBusy(value) {
   $("refresh").disabled = value || !operatorToken;
   $("connect-button").disabled = value;
   $("disconnect").disabled = value || !operatorToken;
-  document.querySelectorAll(".model-action").forEach(node => { node.disabled = value; });
+  document.querySelectorAll(".model-action").forEach(node => { node.disabled = value || node.dataset.locked === "true"; });
 }
 
 async function call(path, method = "GET", payload = null) {
@@ -120,7 +120,7 @@ function render(available, registered) {
         notify("Registered " + model.tag + ". Review and approve its digest.");
         await refresh();
       }, registry.has(model.tag) ? "secondary" : "primary");
-      if (registry.has(model.tag)) button.disabled = true;
+      if (registry.has(model.tag)) { button.dataset.locked = "true"; button.disabled = true; }
       list.append(modelCard(model, [button], "Installed locally"));
     }
   }
