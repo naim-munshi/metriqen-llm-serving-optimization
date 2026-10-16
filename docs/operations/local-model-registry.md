@@ -19,7 +19,7 @@ With both opt-in variables configured and the FastAPI control API running
 on 127.0.0.1:8000, open **http://127.0.0.1:8000/console/models**.
 
 The responsive, framework-free model manager uses the same authenticated
-localhost API for **discovery, registration, approval, preload, unload, status
+localhost API for **discovery, registration, approval, preload, unload, **single-turn inference**, status
 and refresh**. Paste the local operator token once after the page opens;
 the JavaScript keeps it **in memory only** and clears the password input.
 Reloading or disconnecting forgets the token. It uses no cookies, localStorage,
@@ -33,6 +33,29 @@ loopback client and operator bearer token. This is not a public dashboard,
 an authenticated production web console, or an integrated gateway identity
 provider. CI validates static assets/CSP; a **real browser visual and
 accessibility QA pass** remains required.
+
+## Approved single-turn inference playground
+
+The browser now includes a small prompt editor for each approved registry
+entry. Once its exact revision is loaded, it calls
+`POST /api/v1/local/models/{tag}/chat` with
+`{"prompt":"...","max_tokens":128}`. The control API verifies the
+registry approval, installed digest and loaded digest **before** forwarding
+a non-streaming chat request to the fixed local Go gateway at
+`http://127.0.0.1:8081/v1/chat/completions`. The response is displayed
+in the browser via safe text rendering, without persistence in the
+database, benchmark history or browser storage.
+
+Limits: 4096 prompt characters and 1–256 requested output tokens, one user
+message, temperature 0, nonstreaming JSON, bounded upstream response, no
+external origin/redirect/proxy, sanitized upstream errors. A request will
+fail if the gateway is down, the registered revision is not loaded, or
+the Go gateway has separately enabled an incompatible bearer-token
+requirement. Never reuse the control-plane operator token as a Go
+gateway token. This path provides local operator approval enforcement,
+**not** an authorization boundary for the separate directly reachable
+Go gateway. Streaming, multi-turn sessions, per-project usage, deployed
+model routing and production identity remain future work.
 
 ## Supported workflow
 
