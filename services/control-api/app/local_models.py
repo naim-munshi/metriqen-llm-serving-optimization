@@ -19,7 +19,7 @@ from urllib.request import HTTPRedirectHandler, ProxyHandler, Request as HTTPReq
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict
 
-from app.local_inference import ChatInput, LocalGatewayChat
+from app.local_inference import ChatInput, LocalGatewayChat, selected_local_gateway_port
 
 MODEL_TAG = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,62}:[A-Za-z0-9][A-Za-z0-9._-]{0,62}\Z")
 DIGEST = re.compile(r"[0-9a-f]{64}\Z")
@@ -360,6 +360,8 @@ def configure_local_models(app: FastAPI, *, token: str | None = None,
         raise ValueError("METRIQEN_LOCAL_MODEL_DB is required with local operator token")
     store = Registry(path)
     store.initialize()
+    if gateway_chat is None:
+        gateway_chat = LocalGatewayChat(port=selected_local_gateway_port())
     app.include_router(local_model_router(token, store, runtime or OllamaRuntime(),
                                           gateway_chat=gateway_chat))
     app.include_router(model_console_router())

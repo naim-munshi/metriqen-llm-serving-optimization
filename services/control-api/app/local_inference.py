@@ -6,6 +6,7 @@ endpoint does not constitute a public inference authorization service.
 from __future__ import annotations
 
 import json
+import os
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
@@ -23,10 +24,22 @@ class ChatInput(BaseModel):
     max_tokens: int = Field(default=128, ge=1, le=256)
 
 
+def selected_local_gateway_port(environ=None) -> int:
+    """Only the direct local Go gateway or the fixed loopback HAProxy listener."""
+    environment = os.environ if environ is None else environ
+    raw = environment.get("METRIQEN_LOCAL_CHAT_GATEWAY_PORT", "8081")
+    if raw not in ("8081", "8090"):
+        raise ValueError("local chat gateway port must be 8081 or 8090")
+    return int(raw)
+
+
 class LocalGatewayChat:
     ORIGIN = "http://127.0.0.1:8081"
 
-    def __init__(self):
+    def __init__(self, *, port: int = 8081):
+        if type(port) is not int or port not in (8081, 8090):
+            raise ValueError("only known loopback inference listener ports are allowed")
+        self.ORIGIN = f"http://127.0.0.1:{port}"
         self.opener = build_opener(ProxyHandler({}), NoRedirect())
 
     def complete(self, tag: str, prompt: str, max_tokens: int) -> dict:
