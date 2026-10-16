@@ -19,6 +19,8 @@ from urllib.request import HTTPRedirectHandler, ProxyHandler, Request as HTTPReq
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict
 
+from app.local_inference import ChatInput, LocalGatewayChat
+
 MODEL_TAG = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,62}:[A-Za-z0-9][A-Za-z0-9._-]{0,62}\Z")
 DIGEST = re.compile(r"[0-9a-f]{64}\Z")
 LOOPBACK_CLIENTS = frozenset(("127.0.0.1", "::1"))
@@ -195,7 +197,9 @@ def _match_installed(runtime: LocalModelRuntime, record: dict) -> None:
     raise HTTPException(409, "registered model is no longer installed")
 
 
-def local_model_router(token: str, store: Registry, runtime: LocalModelRuntime) -> APIRouter:
+def local_model_router(token: str, store: Registry, runtime: LocalModelRuntime,
+                       gateway_chat: LocalGatewayChat | None = None) -> APIRouter:
+    chat_client = gateway_chat or LocalGatewayChat()
     def operator(request: Request) -> None:
         if request.client is None or request.client.host not in LOOPBACK_CLIENTS:
             raise HTTPException(403, "local operator routes require loopback")
@@ -254,6 +258,21 @@ def local_model_router(token: str, store: Registry, runtime: LocalModelRuntime) 
         return {"tag": tag, "digest": registered["digest"], "loaded": True,
                 "note": "Ollama preload only; not a managed serving deployment"}
 
+    @router.post("/models/{tag}/chat")
+    def approved_model_chat(tag: str, payload: ChatInput) -> dict:
+        record = store.get(_tag(tag))
+        if record is None:
+            raise HTTPException(404, "model not registered")
+        if not record["approved"]:
+            raise HTTPException(403, "model not approved for local inference")
+        if not payload.prompt.strip():
+            raise HTTPException(422, "nonempty prompt required")
+        _match_installed(runtime, record)
+        loaded = next((m for m in runtime.loaded() if m["tag"] == tag), None)
+        if loaded is None or loaded["digest"] != record["digest"]:
+            raise HTTPException(409, "approved model revision is not loaded")
+        return chat_client.complete(tag, payload.prompt, payload.max_tokens)
+
     @router.post("/models/{tag}/unload")
     def unload_model(tag: str) -> dict:
         registered = store.get(_tag(tag))
@@ -307,7 +326,8 @@ def model_console_router() -> APIRouter:
 
 def configure_local_models(app: FastAPI, *, token: str | None = None,
                            path: Path | None = None,
-                           runtime: LocalModelRuntime | None = None) -> None:
+                           runtime: LocalModelRuntime | None = None,
+                           gateway_chat: LocalGatewayChat | None = None) -> None:
     """Explicit local opt-in; default control API remains unchanged."""
     if token is None:
         token = os.getenv("METRIQEN_LOCAL_MODEL_TOKEN", "")
@@ -323,5 +343,6 @@ def configure_local_models(app: FastAPI, *, token: str | None = None,
         raise ValueError("METRIQEN_LOCAL_MODEL_DB is required with local operator token")
     store = Registry(path)
     store.initialize()
-    app.include_router(local_model_router(token, store, runtime or OllamaRuntime()))
+    app.include_router(local_model_router(token, store, runtime or OllamaRuntime(),
+                                          gateway_chat=gateway_chat))
     app.include_router(model_console_router())
