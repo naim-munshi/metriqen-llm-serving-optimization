@@ -51,6 +51,8 @@ Each setting had 9 runs (3 repeats at concurrency 1/2/4), **324/324 measured req
 
 [Full experiment and methodological limits](docs/benchmarks/experiments/2026-10-13-ollama-parallelism.md) · [Versioned performance workload](docs/benchmarks/workload.v1.jsonl) · [Versioned quality workload](docs/nlp-eval/workload.v1.jsonl) · [Benchmark protocols](docs/benchmarks/repeated-sweep.md)
 
+**Next experimental protocol (not performance evidence):** the [FIFO admission overload comparison](docs/benchmarks/admission-overload.md) uses an independent local-only runner to record all successful and rejected requests at offered concurrency 4/6/8/12, plus process-local admission counter deltas, for queue depth 0 versus 2. This has **no published real-model scheduler benefit**; it does not modify the October 13 Ollama parallelism results or their historical private evidence.
+
 ## Real PostgreSQL tenant-authorization CI
 
 A dedicated GitHub Actions job exercises the **checked-in PostgreSQL
