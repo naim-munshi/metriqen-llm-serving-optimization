@@ -67,7 +67,7 @@ def test_console_assets_and_local_auth_contract(tmp_path):
     assert '"/chat"' in javascript
     assert '"/model-statuses"' in javascript
     assert '"Load model first"' in javascript
-    assert '"Not loaded — click Load before running inference"' in javascript
+    assert 'Not loaded — click Load before running inference' in javascript
     assert 'const current = await call("/models/"' in javascript
     assert "promptDrafts.clear()" in javascript
     assert "promptDrafts.get(model.tag)" in javascript
