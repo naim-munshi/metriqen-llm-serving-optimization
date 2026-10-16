@@ -23,8 +23,9 @@ from app.main import create_app
 from app.security.http_identity import PinnedIdentitySettings
 from app.security.policy import Role
 from app.storage.runtime import load_local_project_store
+from app.storage.profiles import SQLProfileStore
 from app.storage.schema import (
-    organizations, projects, organization_memberships, project_grants,
+    organizations, projects, organization_memberships, project_grants, user_profiles,
 )
 
 ORG_A = UUID("11111111-1111-4111-8111-111111111111")
@@ -36,7 +37,9 @@ UNKNOWN = UUID("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee")
 ISSUER = "https://login.example.test/realms/metriqen"
 AUDIENCE = "metriqen-control-api"
 CLIENT = "metriqen-web"
-MIGRATION = Path(__file__).resolve().parents[1] / "migrations" / "0001_tenant_access.sql"
+MIGRATIONS = tuple(Path(__file__).resolve().parents[1] / "migrations" / name for name in (
+    "0001_tenant_access.sql", "0002_verified_user_profiles.sql",
+))
 
 
 @pytest.fixture(scope="module")
@@ -68,7 +71,8 @@ def postgres_engine():
             user=url.username, password=url.password,
             connect_timeout=3, autocommit=True,
         ) as connection:
-            connection.execute(MIGRATION.read_text(encoding="utf-8"))
+            for migration in MIGRATIONS:
+                connection.execute(migration.read_text(encoding="utf-8"))
         yield engine
     finally:
         engine.dispose()
@@ -79,10 +83,10 @@ def clean_ephemeral_postgres(postgres_engine):
     # Fixed test IDs and no persistent data. Only permitted on the
     # exact ephemeral database from postgres_engine.
     with postgres_engine.begin() as connection:
-        connection.exec_driver_sql("TRUNCATE TABLE organizations CASCADE")
+        connection.exec_driver_sql("TRUNCATE TABLE organizations, user_profiles CASCADE")
     yield
     with postgres_engine.begin() as connection:
-        connection.exec_driver_sql("TRUNCATE TABLE organizations CASCADE")
+        connection.exec_driver_sql("TRUNCATE TABLE organizations, user_profiles CASCADE")
 
 
 @pytest.fixture(scope="module")
@@ -165,6 +169,7 @@ def test_checked_in_migration_creates_real_postgresql_constraints(postgres_engin
     inspector = inspect(postgres_engine)
     assert set(inspector.get_table_names()) == {
         "organizations", "projects", "organization_memberships", "project_grants",
+        "user_profiles",
     }
     grants_fk = inspector.get_foreign_keys("project_grants")
     assert any(
@@ -285,3 +290,29 @@ def test_invalid_or_missing_jwt_does_not_query_postgres(seeded):
     assert missing.status_code == 401
     assert malformed.status_code == 401
     assert "metriqen_test" not in missing.text + malformed.text
+
+
+def test_postgres_profile_identity_scope_and_database_constraints(postgres_engine, signing_config):
+    signing, settings = signing_config
+    client = TestClient(create_app(settings, profile_store=SQLProfileStore(postgres_engine)))
+    alice_headers = {"Authorization": f"Bearer {issue(signing, subject='user-a')}"}
+    bob_headers = {"Authorization": f"Bearer {issue(signing, subject='user-b')}"}
+    assert client.get("/api/v1/me", headers=alice_headers).status_code == 404
+    assert client.post("/api/v1/me", json={"display_name": "Alice"}, headers=alice_headers).status_code == 201
+    assert client.get("/api/v1/me", headers=bob_headers).status_code == 404
+    assert client.patch("/api/v1/me", json={"display_name": "Stolen"}, headers=bob_headers).status_code == 404
+    assert client.post("/api/v1/me", json={"display_name": "Bob"}, headers=bob_headers).status_code == 201
+    assert client.patch("/api/v1/me", json={"display_name": "Alice 2"}, headers=alice_headers).status_code == 200
+    assert client.get("/api/v1/me", headers=alice_headers).json()["display_name"] == "Alice 2"
+    assert client.get("/api/v1/me", headers=bob_headers).json()["display_name"] == "Bob"
+    assert client.post("/api/v1/me", json={"display_name": "duplicate"}, headers=alice_headers).status_code == 409
+
+    inspector = inspect(postgres_engine)
+    assert inspector.has_table("user_profiles")
+    assert any(item["name"] == "ck_user_profiles_display_name"
+               for item in inspector.get_check_constraints("user_profiles"))
+    assert inspector.get_pk_constraint("user_profiles")["constrained_columns"] == ["issuer", "subject"]
+    # Account creation never creates an organization membership or grant.
+    with postgres_engine.connect() as conn:
+        assert len(conn.execute(select(user_profiles)).all()) == 2
+        assert conn.execute(select(organization_memberships)).all() == []
