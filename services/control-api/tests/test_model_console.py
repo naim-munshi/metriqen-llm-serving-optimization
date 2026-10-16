@@ -64,6 +64,10 @@ def test_console_assets_and_local_auth_contract(tmp_path):
     assert "sessionStorage" not in javascript
     assert 'credentials: "omit"' in javascript
     assert 'Authorization": "Bearer " + operatorToken' in javascript
+    assert '"/chat"' in javascript
+    assert 'document.createElement("textarea")' in javascript
+    assert 'output.textContent = result.content' in javascript
+    assert 'id="registry-list"' in html
     assert client.get("/api/v1/local/models").status_code == 401
 
 
