@@ -376,9 +376,9 @@ def browser_login_router(login: BrowserLogin, profiles: ProfileStore | None,
         same_origin_csrf(request, record)
         if profiles is None:
             raise HTTPException(503, "browser profile database unavailable")
+        if quota is not None:
+            quota.enforce(identity(record))
         try:
-            if quota is not None:
-                quota.enforce(identity(record))
             return profiles.create(identity(record), canonical_name(payload.display_name))
         except ProfileAlreadyExists:
             raise HTTPException(409, "profile already exists") from None
@@ -391,9 +391,9 @@ def browser_login_router(login: BrowserLogin, profiles: ProfileStore | None,
         same_origin_csrf(request, record)
         if profiles is None:
             raise HTTPException(503, "browser profile database unavailable")
+        if quota is not None:
+            quota.enforce(identity(record))
         try:
-            if quota is not None:
-                quota.enforce(identity(record))
             value = profiles.change_name(identity(record), canonical_name(payload.display_name))
         except Exception:
             raise HTTPException(503, "browser profile database unavailable") from None
