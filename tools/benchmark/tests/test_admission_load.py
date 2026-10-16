@@ -151,5 +151,50 @@ class AdmissionLoadTests(unittest.TestCase):
         self.assertFalse(self.output.exists())
 
 
+    def test_real_local_metrics_contract_and_depth(self):
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+        import threading
+
+        class Metrics(BaseHTTPRequestHandler):
+            max_waiting = 2
+
+            def log_message(self, *_):
+                pass
+
+            def do_GET(self):
+                self.assert_path()
+                response = {
+                    "schema_version": 2, "max_active_requests": 4,
+                    "max_waiting_requests": type(self).max_waiting,
+                    "active_requests": 0, "waiting_requests": 0,
+                    **{key: 3 for key in admission_load.COUNTERS},
+                }
+                raw = json.dumps(response).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+
+            def assert_path(self):
+                if self.path != "/metrics/admission":
+                    self.send_error(404)
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Metrics)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            endpoint = f"http://127.0.0.1:{server.server_port}/v1/chat/completions"
+            snap = admission_load.admission_snapshot(endpoint, 2)
+            self.assertEqual(snap["rejected_full_total"], 3)
+            Metrics.max_waiting = 0
+            with self.assertRaisesRegex(ValueError, "configuration"):
+                admission_load.admission_snapshot(endpoint, 2)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
+
+
 if __name__ == "__main__":
     unittest.main()
