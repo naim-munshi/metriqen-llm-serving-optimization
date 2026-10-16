@@ -67,3 +67,37 @@ Redis session/quota storage, an external identity provider, BFF login
 callbacks and multiple serving replicas are **planned**, not activated.
 PostgreSQL remains the authoritative user/tenant store. No Redis key may
 grant a membership or substitute a verified access token.
+
+
+## Optional Redis-backed account-write quota
+
+A first distributed Redis integration now exists. It is **disabled by
+default**. When both env vars are present, the control API enforces one
+atomic, per-verified-identity limit of **20 POST/PATCH /api/v1/me mutations
+per 60-second first-hit window**. Reads remain unaffected. Redis counters
+are shared between replicas using a Lua INCR + first-hit EXPIRE operation.
+Requests over the limit return HTTP 429 and Retry-After: 60; if Redis is
+unreachable/returns invalid data, mutation fails closed with HTTP 503.
+Profile permissions still come ONLY from verified tokens and PostgreSQL.
+
+Configuration (private env; **never commit the actual secrets**):
+
+    METRIQEN_REDIS_URL=redis://YOUR_ACL_USER:LONG_SECRET@127.0.0.1:6379/0
+    METRIQEN_RATE_LIMIT_HMAC_SECRET=<independent-random-secret-at-least-32-bytes>
+
+Both settings must be set together or application startup fails. Only
+127.0.0.1:6379, Redis DB 0, an ACL username and password (minimum 16
+characters) are accepted. Remote and unauthenticated Redis endpoints
+are rejected. The Redis instance is **not** provisioned by this
+configuration; operators must set it up securely and separately. Never
+paste credentials in chat, logs or screenshots. Store secrets outside
+the repository, use restrictive permissions, rotate deliberately, and
+disable Redis TCP access beyond loopback.
+
+The HMAC secret deliberately prevents reversible low-entropy account IDs
+in Redis key names. All quotas reset when the secret rotates. Disabling
+Redis removes the shared quota (suitable for isolated local development,
+**not** for a public or distributed deployment). Live Redis execution
+and multi-instance correctness still require operator acceptance tests.
+This is not a login-brute-force defense for unauthenticated traffic;
+an authenticated, trusted ingress must enforce that separately.
