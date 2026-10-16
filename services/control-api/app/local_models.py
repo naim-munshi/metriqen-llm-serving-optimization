@@ -16,7 +16,7 @@ from typing import Protocol
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request as HTTPRequest, build_opener
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict
 
 MODEL_TAG = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,62}:[A-Za-z0-9][A-Za-z0-9._-]{0,62}\Z")
@@ -274,6 +274,33 @@ def local_model_router(token: str, store: Registry, runtime: LocalModelRuntime) 
     return router
 
 
+def model_console_router() -> APIRouter:
+    """Serve static same-origin development UI only when model ops are enabled."""
+    assets = Path(__file__).resolve().parent / "model_console"
+    router = APIRouter(include_in_schema=False)
+    csp = ("default-src 'none'; script-src 'self'; style-src 'self'; "
+           "connect-src 'self'; base-uri 'none'; form-action 'none'; "
+           "frame-ancestors 'none'")
+    for suffix, file, media in (
+        ("", "index.html", "text/html"),
+        ("/app.css", "app.css", "text/css"),
+        ("/app.js", "app.js", "application/javascript"),
+    ):
+        def serve_asset(name: str = file, media_type: str = media) -> Response:
+            return Response(
+                content=(assets / name).read_bytes(),
+                media_type=media_type,
+                headers={
+                    "Content-Security-Policy": csp,
+                    "Cache-Control": "no-store",
+                    "X-Frame-Options": "DENY",
+                },
+            )
+        router.add_api_route("/console/models" + suffix, serve_asset,
+                             methods=["GET"], include_in_schema=False)
+    return router
+
+
 def configure_local_models(app: FastAPI, *, token: str | None = None,
                            path: Path | None = None,
                            runtime: LocalModelRuntime | None = None) -> None:
@@ -293,3 +320,4 @@ def configure_local_models(app: FastAPI, *, token: str | None = None,
     store = Registry(path)
     store.initialize()
     app.include_router(local_model_router(token, store, runtime or OllamaRuntime()))
+    app.include_router(model_console_router())
