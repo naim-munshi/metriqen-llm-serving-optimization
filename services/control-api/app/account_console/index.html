@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Metriqen signed-in account profile, local development">
+  <title>Metriqen | My Account</title>
+  <link rel="stylesheet" href="/console/account/app.css">
+  <script src="/console/account/app.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <div class="logo"><span class="mark">M.</span><div><strong>METRIQEN</strong><small>Inference Infrastructure</small></div></div>
+      <div class="nav-label">WORKSPACE</div>
+      <nav aria-label="Account menu">
+        <a class="active" href="/console/account">My account</a>
+        <a href="/console/models">Local model manager</a>
+      </nav>
+      <p class="rail-note">OIDC identity · Local session · PostgreSQL profile</p>
+    </aside>
+    <main>
+      <header class="topline">METRIQEN / ACCESS / ACCOUNT <span>LOCAL DEVELOPMENT</span></header>
+      <div class="intro">
+        <p class="eyebrow">IDENTITY &amp; USER DATA</p>
+        <h1>My Account</h1>
+        <p>Sign in through your trusted identity provider. Metriqen does not store passwords or expose tokens to the browser.</p>
+      </div>
+      <div id="status" class="notice" role="status" aria-live="polite">Checking local session…</div>
+      <section id="guest" class="panel" hidden>
+        <h2>Secure account access</h2>
+        <p>Authentication uses your configured OpenID Connect provider and Authorization Code + PKCE. Available only when local authentication is enabled.</p>
+        <a class="button primary" href="/auth/login">Sign in with identity provider</a>
+      </section>
+      <section id="member" class="panel" hidden>
+        <div class="memberbar">
+          <div><p class="eyebrow">SIGNED IN</p><h2>Account settings</h2></div>
+          <button id="logout" class="button secondary" type="button">Sign out</button>
+        </div>
+        <dl class="identity">
+          <dt>Verified subject</dt><dd id="subject">—</dd>
+          <dt>Issuer</dt><dd id="issuer">—</dd>
+        </dl>
+        <div class="rule"></div>
+        <h3>Profile</h3>
+        <p class="description">Your profile is stored in PostgreSQL. Creating an account profile does not grant organization or model-deployment permissions.</p>
+        <form id="profile-form">
+          <label for="display-name">Display name</label>
+          <div class="formrow">
+            <input id="display-name" name="display_name" type="text" required minlength="1" maxlength="120" autocomplete="name" placeholder="Enter your display name">
+            <button class="button primary" id="save" type="submit">Save profile</button>
+          </div>
+        </form>
+        <p id="profile-note" class="description"></p>
+      </section>
+      <footer>METRIQEN · DEVELOPMENT-ONLY OIDC SESSIONS · DO NOT EXPOSE PUBLICLY</footer>
+    </main>
+  </div>
+</body>
+</html>
