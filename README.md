@@ -55,7 +55,7 @@ Each setting had 9 runs (3 repeats at concurrency 1/2/4), **324/324 measured req
 
 ## Local model registration and preload (opt-in)
 
-An operator-only control API slice now discovers **installed** Ollama models, persistently registers their actual SHA-256 digests in private local SQLite, approves revisions, requests a five-minute **preload** and checks the loaded-model identity. It is **disabled by default** and requires a separate local bearer secret; the Go inference route does **not** enforce registry approval yet. This is a functional *local model management* step, not a GPU deployment orchestrator or serving optimization. [Instructions and limits](docs/operations/local-model-registry.md).
+An operator-only control API slice now discovers **installed** Ollama models, persistently registers their actual SHA-256 digests in private local SQLite, approves revisions, requests a five-minute **preload**, verifies the loaded-model identity, and can unload the matching approved model. It is **disabled by default** and requires a separate local bearer secret; the Go inference route does **not** enforce registry approval yet. This is a functional *local model management* step, not a GPU deployment orchestrator or serving optimization. [Instructions and limits](docs/operations/local-model-registry.md).
 
 ## Real PostgreSQL tenant-authorization CI
 
