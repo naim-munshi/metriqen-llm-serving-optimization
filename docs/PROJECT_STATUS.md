@@ -66,3 +66,7 @@ An independent [v1 aggregate upstream failure endpoint](operations/upstream-fail
 - **Later:** authentication/authorization on inference, deployed PostgreSQL operations, model revision registry, vLLM GPU backend, quotas, cost/VRAM telemetry and deployment hardening.
 
 For planned work, see [ROADMAP.md](../ROADMAP.md). For restrictions and disclosure, see [SECURITY.md](../SECURITY.md).
+
+## Verified user profile milestone (local, opt-in)
+
+An authenticated `/api/v1/me` create/read/update slice now uses an operator-pinned, verified OIDC access token to choose the `(issuer, subject)` key and persists only a bounded display name and UTC timestamps to separately migrated PostgreSQL. No profile read/write is enabled without a configured verifier and trusted database. Offline and ephemeral PostgreSQL CI test identity isolation, strict inputs and fail-closed errors. No IdP-hosted login, browser session, Redis coordination, load balancer or multi-user dashboard is deployed. See [target architecture](architecture/identity-data-redis-load-balancing.md).
