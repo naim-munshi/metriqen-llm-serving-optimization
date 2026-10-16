@@ -50,7 +50,7 @@ Go inference still has no enforcement of control-plane tenant membership.
        - short-lived, revocable access/session cache entries
        - optional job queue *notifications* (durable job state stays in PG)
 
-Arrows above are a **proposed system topology**. A load balancer, Redis
+Arrows above are a **proposed system topology**. A documented **opt-in loopback HAProxy configuration** now exists for two local Go gateway processes and is syntax-tested in CI; this is not a deployed/protected multi-host ingress. Redis shared account-mutation quota code also exists opt-in; a live Redis
 coordinator, external IdP and GPU worker pool have NOT been provisioned
 or tested by this milestone.
 
@@ -159,7 +159,7 @@ or tested by this milestone.
    RBAC and PostgreSQL constraints. Add typed audit records.
 4. Extend the new Redis-backed account-mutation limiter into full BFF sessions and per-tenant inference quotas; add real Redis integration/outage tests
    and outage-mode verification; separate cache and durable stores.
-5. One-loopback-to-multi-replica routing proof with SSE support, protected
+5. Real traffic proof for the new loopback HAProxy two-replica config with SSE support, then protected
    ingress/load balancing, configuration and readiness checks.
 6. Scoped gateway invocation, model deployment lifecycle, reliable jobs,
    benchmark history, adaptive optimization and validated GPU serving.
