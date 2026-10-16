@@ -18,7 +18,7 @@ Each item is a milestone; planned work must not appear in the README as implemen
 
 ## Opt-in local model workflow (functional development slice)
 
-A local-only control API can list installed Ollama models, persist canonical tags with verified SHA-256 digests in a private SQLite registry, approve revisions and issue model **preload** through native Ollama APIs. This is not a managed deployment: no new model download, no long-running worker lifecycle, no per-project model authorization and no Go gateway enforcement. It is disabled by default and guarded by a distinct loopback operator token. See [local model registry](docs/operations/local-model-registry.md). The remaining model registry, secure multi-user deployment and optimization phases are unchanged.
+A local-only control API can list installed Ollama models, persist canonical tags with verified SHA-256 digests in a private SQLite registry, approve revisions and issue model **preload/unload** through native Ollama APIs. This is not a managed deployment: no new model download, no long-running worker lifecycle, no per-project model authorization and no Go gateway enforcement. It is disabled by default and guarded by a distinct loopback operator token. See [local model registry](docs/operations/local-model-registry.md). The remaining model registry, secure multi-user deployment and optimization phases are unchanged.
 
 ## Local tooling and operator-reported performance evidence
 
