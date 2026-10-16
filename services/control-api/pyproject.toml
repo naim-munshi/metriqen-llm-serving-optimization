@@ -29,4 +29,4 @@ include = ["app*"]
 testpaths = ["tests"]
 
 [tool.setuptools.package-data]
-app = ["model_console/*.html", "model_console/*.css", "model_console/*.js"]
+app = ["model_console/*.html", "model_console/*.css", "model_console/*.js", "account_console/*.html", "account_console/*.css", "account_console/*.js"]
