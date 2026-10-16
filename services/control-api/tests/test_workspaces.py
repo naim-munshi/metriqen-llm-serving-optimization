@@ -141,9 +141,7 @@ def test_membership_permissions_and_project_grant_visibility(setup):
     assert client.get(f"/api/v1/organizations/{org['id']}/projects",
                       headers=viewer).status_code == 404
     assert client.get(f"/api/v1/organizations/{org['id']}/projects",
-                      headers=owner).json()["projects"] == [project_b, project_a] or (
-        len(client.get(f"/api/v1/organizations/{org['id']}/projects",
-                       headers=owner).json()["projects"]) == 2)
+                      headers=owner).json()["projects"] == [project_b, project_a]
 
 
 def test_auth_precedes_db_and_bad_input_rejected(setup):
