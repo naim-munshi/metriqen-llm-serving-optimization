@@ -24,6 +24,17 @@ reference quality evaluation and a strictly verified
 [evidence bundle](real-model-evidence-bundle.md) before changing phases.
 Do not exclude unusual repeats or overwrite old report directories.
 
+**New mandatory prospective consistency check:** Collect a separate successful,
+timestamped `preflight.json` no more than **15 minutes before the first run
+of each phase**, and ensure the next phase's preflight occurs *after* the
+previous phase completes. Use the
+[A/B/A/B phase preflight binding gate](phase-preflight-binding.md) to
+revalidate all 36 raw timed runs and their four independent preflight
+snapshots after data collection. It rejects legacy untimed sweeps, wrong
+Ollama version/digest, wrong configured parallelism, battery/blocked
+preflights, and inconsistent ordering. **This still does not attest live
+`n_slots`, genuine model execution or hardware.**
+
 **October 14 A1 caveat:** The initial A1 sweep was collected before the
 new UTC per-run timing fields became available. The four-phase tools
 accept that legacy evidence but cannot invent the missing timestamps.
