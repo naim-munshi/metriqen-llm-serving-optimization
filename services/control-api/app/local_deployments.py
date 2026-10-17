@@ -110,7 +110,7 @@ class LocalDeploymentStore:
                 WHERE name = ?""", (tag, digest, now, name))
         return self.get(name)
 
-    def rollback(self, name: str) -> dict:
+    def rollback(self, name: str, *, expected_previous_tag: str, expected_previous_digest: str) -> dict:
         now = datetime.now(timezone.utc).isoformat()
         with self._connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
@@ -119,6 +119,9 @@ class LocalDeploymentStore:
                 raise HTTPException(404, "local deployment not found")
             if row["previous_tag"] is None:
                 raise HTTPException(409, "deployment has no previous revision")
+            if (row["previous_tag"] != expected_previous_tag or
+                    row["previous_digest"] != expected_previous_digest):
+                raise HTTPException(409, "deployment rollback target changed; refresh first")
             conn.execute("""UPDATE local_deployments
                 SET active_tag = previous_tag, active_digest = previous_digest,
                     previous_tag = ?, previous_digest = ?,
