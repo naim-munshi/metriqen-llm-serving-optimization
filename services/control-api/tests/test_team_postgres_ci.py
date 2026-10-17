@@ -21,11 +21,14 @@ def test_team_migration_and_audited_acceptance_on_real_postgres():
             and url.port == 5432 and url.database == "metriqen_ci"
             and url.username == "metriqen_test" and not url.query):
         pytest.fail("refusing non-CI PostgreSQL database")
-    migration = Path(__file__).resolve().parents[1] / "migrations" / "0003_team_invitations_audit.sql"
+    migrations = Path(__file__).resolve().parents[1] / "migrations"
+    files = ("0001_tenant_access.sql", "0002_verified_user_profiles.sql",
+             "0003_team_invitations_audit.sql")
     with psycopg.connect(host=url.host, port=url.port, dbname=url.database,
                          user=url.username, password=url.password,
                          connect_timeout=3, autocommit=True) as conn:
-        conn.execute(migration.read_text(encoding="utf-8"))
+        for name in files:
+            conn.execute((migrations / name).read_text(encoding="utf-8"))
     engine = load_local_project_store({"METRIQEN_DATABASE_URL": raw})._engine
     try:
         assert {"organization_invitations", "team_audit_events"} <= set(inspect(engine).get_table_names())
