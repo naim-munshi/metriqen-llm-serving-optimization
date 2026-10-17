@@ -28,8 +28,8 @@ func inspectUsageSSE(payload string, step, cap int) (providerUsageObservation, b
 func TestSSEProviderUsageBoundedParsingAtEveryChunkBoundary(t *testing.T) {
 	for _, tc := range []struct {
 		name, body string
-		expected    providerUsageKind
-		done        bool
+		expected   providerUsageKind
+		done       bool
 	}{
 		{"valid", "data: " + reportedStreamUsage + "\n\ndata: [DONE]\n\n", providerUsagePlausible, true},
 		{"CRLF", ": heartbeat\r\n\r\ndata: " + reportedStreamUsage + "\r\n\r\n: ok\r\n\r\ndata:[DONE]\r\n\r\n", providerUsagePlausible, true},
@@ -136,15 +136,25 @@ func TestStreamingReportedUsageHTTPMetricsAndLegacyUnmeasuredSemantics(t *testin
 				}
 				switch tc.kind {
 				case providerUsageMissing:
-					if s.StreamProviderMissingTotal != 1 { t.Fatalf("no missing stream usage: %+v", s) }
+					if s.StreamProviderMissingTotal != 1 {
+						t.Fatalf("no missing stream usage: %+v", s)
+					}
 				case providerUsageMalformed:
-					if s.StreamProviderMalformedTotal != 1 { t.Fatalf("no malformed stream usage: %+v", s) }
+					if s.StreamProviderMalformedTotal != 1 {
+						t.Fatalf("no malformed stream usage: %+v", s)
+					}
 				case providerUsageInconsistent:
-					if s.StreamProviderInconsistentTotal != 1 { t.Fatalf("no inconsistent stream usage: %+v", s) }
+					if s.StreamProviderInconsistentTotal != 1 {
+						t.Fatalf("no inconsistent stream usage: %+v", s)
+					}
 				case providerUsageExceedsCap:
-					if s.StreamProviderAboveCapTotal != 1 { t.Fatalf("no above-cap stream usage: %+v", s) }
+					if s.StreamProviderAboveCapTotal != 1 {
+						t.Fatalf("no above-cap stream usage: %+v", s)
+					}
 				case providerUsageUnavailable:
-					if s.StreamIncompleteTotal != 1 { t.Fatalf("uncertified stream falsely measured: %+v", s) }
+					if s.StreamIncompleteTotal != 1 {
+						t.Fatalf("uncertified stream falsely measured: %+v", s)
+					}
 				}
 			}
 			for _, secret := range []string{"PRIVATE_USER_TEXT", "test-model", "project_id", "PRIVATE_MODEL_OUTPUT"} {
@@ -157,7 +167,9 @@ func TestStreamingReportedUsageHTTPMetricsAndLegacyUnmeasuredSemantics(t *testin
 }
 
 func boolToInt(v bool) int {
-	if v { return 1 }
+	if v {
+		return 1
+	}
 	return 0
 }
 
