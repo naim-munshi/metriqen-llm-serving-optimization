@@ -34,6 +34,9 @@ from app.accounts import ProfileInput, canonical_name
 from app.workspaces import WorkspaceInput, clean_workspace_name, canonical_org_id
 from app.storage.workspaces import SQLWorkspaceStore, WorkspaceNotFound, WorkspaceLimitReached
 from app.security.redis_quota import RedisAccountQuota
+from app.storage.team import SQLTeamStore
+from app.security.policy import Role
+from app.team_api import InviteInput, RevokeMemberInput, invitation_id, subject_value, team_safely, require_team
 
 FLOW_COOKIE = "metriqen_oidc_flow"
 SESSION_COOKIE = "metriqen_dev_session"
@@ -250,7 +253,8 @@ class BrowserLogin:
 
 def browser_login_router(login: BrowserLogin, profiles: ProfileStore | None,
                          quota: RedisAccountQuota | None = None,
-                         workspaces: SQLWorkspaceStore | None = None) -> APIRouter:
+                         workspaces: SQLWorkspaceStore | None = None,
+                         teams: SQLTeamStore | None = None) -> APIRouter:
     router = APIRouter(tags=["browser-auth"], include_in_schema=False)
 
     def local(request: Request) -> None:
@@ -458,6 +462,64 @@ def browser_login_router(login: BrowserLogin, profiles: ProfileStore | None,
             quota.enforce(identity(record))
         return safely_workspace(lambda:
             store.create_project(identity(record), parsed, name))
+
+    # Browser session identity is verified at login; every mutation additionally
+    # requires origin+CSRF and fresh database-backed authorization in SQLTeamStore.
+    @router.get("/auth/invitations")
+    def browser_invitations(request: Request):
+        record, _ = session(request)
+        team = require_team(teams)
+        return {"invitations": team_safely(lambda: team.pending(identity(record)))}
+
+    @router.post("/auth/invitations/{invite_id}/accept")
+    def browser_accept_invitation(request: Request, invite_id: str):
+        record, _ = session(request)
+        same_origin_csrf(request, record)
+        team = require_team(teams)
+        parsed = invitation_id(invite_id)
+        principal = identity(record)
+        if quota is not None:
+            quota.enforce(principal)
+        return team_safely(lambda: team.accept(principal, parsed))
+
+    @router.post("/auth/organizations/{org_id}/invitations", status_code=201)
+    def browser_invite(request: Request, org_id: str, payload: InviteInput):
+        record, _ = session(request)
+        same_origin_csrf(request, record)
+        team = require_team(teams)
+        parsed = canonical_org_id(org_id)
+        target = subject_value(payload.target_subject)
+        principal = identity(record)
+        if quota is not None:
+            quota.enforce(principal)
+        return team_safely(lambda: team.invite(principal, parsed, target, Role(payload.role)))
+
+    @router.get("/auth/organizations/{org_id}/members")
+    def browser_members(request: Request, org_id: str):
+        record, _ = session(request)
+        team = require_team(teams)
+        parsed = canonical_org_id(org_id)
+        return {"members": team_safely(lambda: team.members(identity(record), parsed))}
+
+    @router.post("/auth/organizations/{org_id}/members/revoke")
+    def browser_revoke_member(request: Request, org_id: str, payload: RevokeMemberInput):
+        record, _ = session(request)
+        same_origin_csrf(request, record)
+        team = require_team(teams)
+        parsed = canonical_org_id(org_id)
+        target = subject_value(payload.target_subject)
+        principal = identity(record)
+        if quota is not None:
+            quota.enforce(principal)
+        team_safely(lambda: team.revoke(principal, parsed, target))
+        return {"revoked": True}
+
+    @router.get("/auth/organizations/{org_id}/audit")
+    def browser_team_audit(request: Request, org_id: str):
+        record, _ = session(request)
+        team = require_team(teams)
+        parsed = canonical_org_id(org_id)
+        return {"events": team_safely(lambda: team.audit(identity(record), parsed))}
 
     assets = Path(__file__).resolve().parent / "account_console"
     csp = ("default-src 'none'; script-src 'self'; style-src 'self'; "
