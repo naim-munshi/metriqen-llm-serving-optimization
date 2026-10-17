@@ -45,6 +45,57 @@ URLs are disallowed. A 2.5-second check timeout prevents stalled inference
 admission. This is not mTLS; a compromised local process remains in threat
 scope. No model-to-project binding, shared quotas or production auth exists.
 
+## Optional distributed fixed-window project request quota
+
+An operator can enable a **single shared Redis 7 authorization budget** in the
+control API after PostgreSQL RBAC has verified `inference.invoke`. Without
+this explicit configuration there is **no distributed inference quota**, even
+when project-scoped gateway authorization is enabled. Set on *every* control
+API replica, using identical values and the **same Redis datastore**:
+
+- `METRIQEN_PROJECT_QUOTA_REDIS_URL`: authenticated ACL URL
+  `redis://quota_user:<private-password>@127.0.0.1:6379/0` (local host only).
+  Use an ACL identity restricted to the `metriqen:project-inference:v1:*`
+  namespace with `EVAL`, `GET`, `INCR`, `EXPIRE` permissions. Do not use
+  the default unauthenticated Redis user for a deployed system.
+- `METRIQEN_PROJECT_QUOTA_HMAC_SECRET`: independent high-entropy random
+  secret, 32–512 bytes, stored privately and **identical across replicas**.
+  It is **not** the gateway internal token or account quota hashing secret.
+- `METRIQEN_PROJECT_QUOTA_REQUESTS_PER_MINUTE`: optional strict positive
+  integer 1–1000, default **60**. Configure the same value everywhere.
+
+A Redis Lua script atomically checks the current counter, admits at most the
+configured number of verified requests, and sets a 60-second TTL on the
+first admitted attempt. This is a *first-hit anchored fixed window* (not
+sliding window); denied requests do not extend TTL or increment counters.
+Each organization+project key is a keyed HMAC; Redis sees no raw project,
+subject, issuer, organization ID, prompt or model. The quota is per **project
+across all users and gateway replicas**, not per JWT identity. Disabled
+or incomplete quota settings cannot silently create a local-only counter:
+partial settings fail startup, Redis errors return generic HTTP 503, and
+unauthorized JWTs/permissions never consume a unit.
+
+When the project quota is reached, Control API returns HTTP **429** and
+`Retry-After: 60`. The Go gateway preserves a **bounded** 429 with this fixed
+retry hint and does not read the prompt, enter its local scheduler, or
+forward to Ollama. A successfully authorized attempt is charged even if
+its chat JSON is later invalid, the gateway local queue rejects it, or
+Ollama fails; there is **no retry reimbursement**. This is an *attempt-rate*
+budget, **not** distributed in-flight concurrency, token metering, model
+memory allocation, monetary billing, GPU scheduling or a production SLA.
+Users may send a burst up to the configured limit at a window boundary.
+
+**Critical deployment condition:** All protected Go replicas must use the
+guarded project authorization mode, and all control API replicas must point
+to the same Redis, key derivation secret and limit. If any replica remains
+in legacy unguarded mode, inference can bypass the quota entirely. Do not
+assume load-balancer affinity prevents bypass. Separate local account
+mutation quotas remain independent and use their own environment settings.
+
+CI includes race/concurrent synthetic gateway checks and real Redis 7 Lua
+tests with a synthetic ephemeral ACL identity and expiry test; neither is a
+production IdP/Redis/Mac validation nor a real GPU load benchmark.
+
 ## Local operator setup (explicit opt-in)
 
 1. Keep both services **strictly on loopback**. Back up a user-owned
@@ -91,7 +142,7 @@ scope. No model-to-project binding, shared quotas or production auth exists.
 The earlier legacy loopback mode is still available and must not be treated
 as tenant isolation. Real IdP acceptance, TLS/`__Host-` Secure cookies,
 local process and secret isolation, protection against compromised localhost
-peers, an audited API-key lifecycle, distributed per-project quotas, model
+peers, an audited API-key lifecycle, production-grade cross-replica admission and token quotas, model
 deployment permissions, full component integration/load testing, audit
 retention, backup/restore and incident response remain unfinished. The
 local model manager may continue using the **legacy** gateway; it does not
