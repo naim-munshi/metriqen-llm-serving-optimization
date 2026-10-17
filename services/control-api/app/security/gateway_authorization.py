@@ -27,7 +27,7 @@ SECRET_ENV = "METRIQEN_GATEWAY_INTERNAL_TOKEN"
 SECRET_HEADER = "x-metriqen-gateway-secret"
 LOCAL_PEERS = frozenset({"127.0.0.1", "::1"})
 ROUTING_ENV = "METRIQEN_ENFORCE_DEPLOYMENT_ROUTING"
-_DEPLOYMENT_NAME = re.compile(r"[a-z][a-z0-9_-]{0,31}\\Z")
+_DEPLOYMENT_NAME = re.compile(r"[a-z][a-z0-9_-]{0,31}\Z")
 
 
 def load_deployment_routing_mode(environ: Mapping[str, str] | None = None) -> bool:
