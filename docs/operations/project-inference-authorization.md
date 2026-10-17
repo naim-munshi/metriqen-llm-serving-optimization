@@ -96,6 +96,81 @@ CI includes race/concurrent synthetic gateway checks and real Redis 7 Lua
 tests with a synthetic ephemeral ACL identity and expiry test; neither is a
 production IdP/Redis/Mac validation nor a real GPU load benchmark.
 
+## Strict project-deployment model routing (explicit operator opt-in)
+
+**This is a separately enabled local development mode**, extending the
+per-project authorization and Redis request budget. It is not on by default.
+**Both** the Go inference gateway and Python control API must have the
+following exact flag in their own process environments:
+
+`METRIQEN_ENFORCE_DEPLOYMENT_ROUTING=1`
+
+This flag refuses startup if the required project-auth secret, trusted OIDC
+identity, or SQL deployment routing store is absent. Both processes still
+require the project service credential and pinned localhost control API
+URL from above. A deployment must exist in PostgreSQL after migrations
+`0001` through `0006`; the desired state must be `running` and an
+operator-invoked reconciler must have observed `ready` for the *same*
+generation, digest and revision within the last **120 seconds**. The
+reconciler may refresh previously ready observations at most once every
+60 seconds when the operator runs repeated passes. A single manual
+reconciliation pass is not an always-on health monitor.
+
+**Trusted local client request example**, using actual OIDC bearer JWTs
+and real operator-owned IDs (placeholders shown):
+
+```sh
+curl -fsS http://127.0.0.1:8081/v1/chat/completions \\
+  -H "Authorization: Bearer ${REAL_OIDC_ACCESS_TOKEN}" \\
+  -H "X-Metriqen-Project-ID: ${AUTHORIZED_PROJECT_UUID}" \\
+  -H "X-Metriqen-Deployment: stable" \\
+  -H "Content-Type: application/json" \\
+  -d '{"model":"llama3.2:1b","messages":[{"role":"user","content":"Hello"}],"stream":false}'
+```
+
+The gateway first sends *only* project UUID, deployment name and user JWT
+to the pinned local control API. PostgreSQL resolves current issuer/subject
+membership, `inference.invoke` project grants, deployment name,
+desired/observed state, generation, model tag/digest and observation age
+under shared row locks. Unknown/cross-tenant grants/deployments are denied
+without leaking their existence. Stopped, failed, stale or unreconciled
+deployments are denied HTTP **409**. The service response binds a specific
+project+deployment+model tag+digest+generation. The Go gateway rejects
+a missing/duplicate/invalid deployment header, a forged JSON body model,
+inconsistent control replies or any other attempted legacy fallback.
+
+After the signed control decision, Go validates the chat JSON model
+matches the SQL-authorized tag. It then performs a bounded **GET
+/api/ps** on the same operator-pinned Ollama origin used for chat, requiring
+a *loaded* model whose digest matches the trusted SQL revision. A missing
+or changed loaded revision is HTTP **409**, and a malformed, unavailable,
+duplicate or oversized local model status fails closed with **503**.
+Only after these checks does the prompt enter the local scheduler or travel
+to Ollama. No JWT, project or deployment header is forwarded to Ollama.
+This intentionally costs one bounded local model-status call per request.
+Project quota counts previously authorized attempts, including downstream
+model-status failures; it does not refund attempts.
+
+**Deployment operator requirements:** do not mix strict and nonstrict
+replicas behind HAProxy. All Go replicas must enable the strict flag; all
+control API replicas must do the same and use the same PostgreSQL/Redis,
+JWKS configuration, service token and state migrations. Even with strict
+routing this is **not immutable model artifact attestation**: an operator
+with control of local Ollama can retag a model between /api/ps and inference
+(TOCTOU). SQL row locking blocks concurrent desired-state updates during
+the authorization transaction, but a new stop/revoke after that decision
+cannot retroactively cancel already-authorized or in-flight inference.
+Only an isolated runtime, immutable signed digests, short-lived execution
+capabilities and periodic state reconciliation can address these remaining
+production risks. Neither Mac Ollama nor real IdP/TLS/GPU testing is
+claimed by synthetic Go/SQLite and disposable PostgreSQL CI.
+
+**Legacy compatibility:** when this flag is disabled, the old loopback-only
+project permission mode remains unchanged, and does **not** claim
+deployment-level isolation. To enforce deployment isolation across your
+environment, enable the flag on every replica and prevent bypass through
+legacy gateways.
+
 ## Local operator setup (explicit opt-in)
 
 1. Keep both services **strictly on loopback**. Back up a user-owned
