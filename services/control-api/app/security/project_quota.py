@@ -68,8 +68,8 @@ class RedisProjectQuota:
         # Project IDs are globally unique, but include the authoritative DB
         # organization ID to bind the budget to its resolved tenant.
         digest = hmac.new(
-            self._secret, ("project-inference\\x00" + str(organization_id) +
-                           "\\x00" + str(project_id)).encode("ascii"), hashlib.sha256,
+            self._secret, ("project-inference\x00" + str(organization_id) +
+                           "\x00" + str(project_id)).encode("ascii"), hashlib.sha256,
         ).hexdigest()
         key = KEY_PREFIX + digest
         try:
