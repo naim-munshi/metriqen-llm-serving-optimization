@@ -10,7 +10,8 @@ import (
 // token generation, persist model text, or ever produce billable usage.
 //
 // Only a bounded, single-line final usage event of the form
-//   data: {"choices":[],"usage":{"prompt_tokens":...,...}}
+//
+//	data: {"choices":[],"usage":{"prompt_tokens":...,...}}
 //
 // followed by a standalone data: [DONE] event and clean EOF is considered
 // internally plausible provider-reported usage. The provider can still lie.
