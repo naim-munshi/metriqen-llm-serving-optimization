@@ -116,7 +116,9 @@ def test_missing_expired_released_or_wrong_scope_permit_never_spends():
     b = lease_store.acquire(org, project)
     for candidate in [
         {"scope": "b" * 64, "permit": a["permit"]},
-        {"scope": a["scope"], "permit": b["permit"][:-1] + "f"},
+        {"scope": a["scope"], "permit": b["permit"][:-1] + (
+                "0" if b["permit"][-1] != "0" else "1"
+            )},
     ]:
         with pytest.raises(HTTPException) as err:
             budget.reserve(**candidate, requested_max_tokens=256)
