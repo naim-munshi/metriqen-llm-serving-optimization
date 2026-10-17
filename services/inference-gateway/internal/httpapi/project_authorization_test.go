@@ -17,7 +17,7 @@ func projectRequest(token, project string) *http.Request {
 	r := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(validChat))
 	r.Header.Set("Content-Type", "application/json")
 	if token != "" {
-		r.Header.Set("Authorization", "Bearer "+token)
+		r.Header.Set("Authorization", "Bearer " + token)
 	}
 	if project != "" {
 		r.Header.Set("X-Metriqen-Project-ID", project)
@@ -41,12 +41,12 @@ func TestProjectGuardAuthorizesBeforeInferenceAndRevocationIsImmediate(t *testin
 			t.Error("missing or mismatched trusted control headers")
 		}
 		body, err := io.ReadAll(r.Body)
-		if err != nil || string(body) != `{"project_id":"`+projectA+`"}` {
+		if err != nil || string(body) != `{"project_id":"` + projectA + `"}` {
 			t.Error("project auth payload malformed or prompt leaked")
 		}
 		w.Header().Set("Content-Type", "application/json")
 		if permitted.Load() {
-			_, _ = io.WriteString(w, `{"authorized":true,"project_id":"`+projectA+`"}`)
+			_, _ = io.WriteString(w, `{"authorized":true,"project_id":"` + projectA + `"}`)
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = io.WriteString(w, `{"detail":"project not found"}`)
@@ -65,7 +65,7 @@ func TestProjectGuardAuthorizesBeforeInferenceAndRevocationIsImmediate(t *testin
 	}))
 	defer upstream.Close()
 	h, err := NewRouterWithInferenceAndSchedulerAndAuth(
-		upstream.URL, "", "", "", control.URL+gatewayAuthPath, projectTestSecret)
+		upstream.URL, "", "", "", control.URL + gatewayAuthPath, projectTestSecret)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +120,7 @@ func TestProjectGuardAuthorizesBeforeInferenceAndRevocationIsImmediate(t *testin
 	}
 	admission, _ := readAdmissionMetrics(t, h)
 	if admission.AdmittedImmediateTotal != 1 {
-		t.Fatalf("unauthorized requests consumed scheduler admission: %+v", admission)
+		t.Fatalf("unauthorized requests consumed scheduler admission: % + v", admission)
 	}
 }
 
@@ -141,19 +141,19 @@ func TestProjectGuardFailsClosedForUntrustedDecisionAndOutage(t *testing.T) {
 	}))
 	defer upstream.Close()
 	h, err := NewRouterWithInferenceAndSchedulerAndAuth(
-		upstream.URL, "", "", "", control.URL+gatewayAuthPath, projectTestSecret)
+		upstream.URL, "", "", "", control.URL + gatewayAuthPath, projectTestSecret)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct {
 		name, payload string
-		code int
-		want int
+		code          int
+		want          int
 	}{
-		{"malicious true for another project", `{"authorized":true,"project_id":"`+projectB+`"}`, 200, 503},
-		{"false verdict", `{"authorized":false,"project_id":"`+projectA+`"}`, 200, 503},
-		{"unknown field", `{"authorized":true,"project_id":"`+projectA+`","fake":true}`, 200, 503},
-		{"trailing data", `{"authorized":true,"project_id":"`+projectA+`"}{}`, 200, 503},
+		{"malicious true for another project", `{"authorized":true,"project_id":"` + projectB + `"}`, 200, 503},
+		{"false verdict", `{"authorized":false,"project_id":"` + projectA + `"}`, 200, 503},
+		{"unknown field", `{"authorized":true,"project_id":"` + projectA + `","fake":true}`, 200, 503},
+		{"trailing data", `{"authorized":true,"project_id":"` + projectA + `"}{}`, 200, 503},
 		{"malformed", `{`, 200, 503},
 		{"denied", `{"detail":"unknown"}`, 404, 403},
 		{"invalid access", `{"detail":"invalid"}`, 401, 401},
@@ -197,7 +197,7 @@ func TestProjectAuthorizationStrictConfiguration(t *testing.T) {
 			t.Fatalf("accepted unsafe authority: %s", value)
 		}
 	}
-	if _, err := newProjectAuthorizer("http://127.0.0.1:8000"+gatewayAuthPath, "short"); err == nil {
+	if _, err := newProjectAuthorizer("http://127.0.0.1:8000" + gatewayAuthPath, "short"); err == nil {
 		t.Fatal("accepted weak service credential")
 	}
 	for _, tc := range []struct{ localToken, url, secret string }{
