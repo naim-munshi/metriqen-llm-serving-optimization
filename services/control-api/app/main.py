@@ -22,9 +22,10 @@ from app.workspaces import organization_router
 from app.storage.workspaces import SQLWorkspaceStore
 from app.storage.team import SQLTeamStore
 from app.storage.durable_deployments import SQLDurableDeploymentStore
+from app.storage.deployment_routing import SQLDeploymentRoutingStore
 from app.durable_deployments import durable_deployments_router
 from app.team_api import team_router
-from app.security.gateway_authorization import gateway_authorization_router, load_gateway_internal_token
+from app.security.gateway_authorization import (gateway_authorization_router, load_gateway_internal_token, load_deployment_routing_mode)
 from app.security.project_quota import RedisProjectQuota, load_project_quota
 
 
@@ -40,6 +41,8 @@ def create_app(
     durable_deployment_store: SQLDurableDeploymentStore | None = None,
     gateway_internal_token: str | None = None,
     project_quota: RedisProjectQuota | None = None,
+    deployment_routing_store: SQLDeploymentRoutingStore | None = None,
+    require_deployment_routing: bool = False,
 ) -> FastAPI:
     """Create isolated app instances; trusted stores are explicitly injected."""
     if project_quota is not None and (
@@ -47,6 +50,11 @@ def create_app(
         gateway_internal_token is None
     ):
         raise ValueError("project quota requires trusted gateway authorization")
+    if require_deployment_routing and (
+        identity_settings is None or project_store is None or
+        gateway_internal_token is None or deployment_routing_store is None
+    ):
+        raise ValueError("strict deployment routing requires verified identity and SQL store")
     application = FastAPI(
         title="Metriqen Control API",
         version="0.1.0",
@@ -99,7 +107,9 @@ def create_app(
     application.include_router(durable_deployments_router(
         identity_settings, durable_deployment_store, account_quota))
     application.include_router(gateway_authorization_router(
-        identity_settings, project_store, gateway_internal_token, project_quota))
+        identity_settings, project_store, gateway_internal_token, project_quota,
+        deployment_routing_store=deployment_routing_store,
+        require_deployment_routing=require_deployment_routing))
 
     # Browser authentication is an explicit localhost-only OIDC/Redis opt-in.
     # No login/session routes or static account page are exposed by default.
@@ -134,4 +144,7 @@ app = create_app(
     gateway_internal_token=load_gateway_internal_token(
         _configured_identity, _configured_project_store),
     project_quota=_configured_project_quota,
+    deployment_routing_store=(SQLDeploymentRoutingStore(_configured_project_store._engine)
+                              if _configured_project_store is not None else None),
+    require_deployment_routing=load_deployment_routing_mode(),
 )

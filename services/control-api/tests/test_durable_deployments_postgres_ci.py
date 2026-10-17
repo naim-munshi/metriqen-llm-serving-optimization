@@ -191,5 +191,41 @@ def test_real_postgres_deployment_retries_role_revocation_and_cas_races():
         assert fresh["observed_generation"] == 0
         assert fresh["observed_at"] is None
         assert fresh["reconcile_attempts"] == 0
+
+        from app.storage.deployment_routing import (
+            SQLDeploymentRoutingStore, RouteNotFound, RouteNotReady,
+        )
+        route_store = SQLDeploymentRoutingStore(engine)
+        with pytest.raises(RouteNotReady):
+            route_store.resolve(principal("owner"), project, "assistant")
+        with pytest.raises(RouteNotFound):
+            route_store.resolve(principal("owner"), outside_project, "assistant")
+        with pytest.raises(RouteNotFound):
+            route_store.resolve(principal("operator"), project, "assistant")
+        if fresh["desired_state"] == "stopped":
+            fresh = SQLDurableDeploymentStore(engine).change(
+                principal("owner"), project, "assistant", "start",
+                "activate-for-routing-0001", fresh["desired_generation"],
+            )
+        # Real PostgreSQL: a trusted worker lease is completed at the latest
+        # desired generation, and only that exact persisted digest is served.
+        lease = SQLReconciliationStore(engine).claim_one()
+        assert lease is not None and lease.generation == fresh["desired_generation"]
+        assert SQLReconciliationStore(engine).finish(lease, "ready")
+        bound = route_store.resolve(principal("owner"), project, "assistant")
+        assert bound.project_id == project
+        assert bound.model_tag == fresh["model_tag"]
+        assert bound.model_digest == fresh["model_digest"]
+        assert bound.generation == fresh["desired_generation"]
+        assert route_store.resolve(principal("owner"), project, "assistant") == bound
+        # A new stopped generation denies inference regardless of the same
+        # bearer subject, prior 'ready' observation, or idempotent commands.
+        stopped = SQLDurableDeploymentStore(engine).change(
+            principal("owner"), project, "assistant", "stop",
+            "stop-after-ready-for-serve", fresh["desired_generation"],
+        )
+        assert stopped["observed_state"] == "unreconciled"
+        with pytest.raises(RouteNotReady):
+            route_store.resolve(principal("owner"), project, "assistant")
     finally:
         engine.dispose()

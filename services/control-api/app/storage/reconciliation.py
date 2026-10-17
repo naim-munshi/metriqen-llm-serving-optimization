@@ -17,6 +17,7 @@ from app.storage.schema import project_deployments
 LEASE_SECONDS = 180
 MAX_ATTEMPTS = 3
 RETRY_SECONDS = 10
+REFRESH_SECONDS = 60  # Operator must run periodic passes; no background daemon.
 OBSERVED = frozenset({"ready", "disabled", "blocked", "failed"})
 REASONS = frozenset({
     "not_allowlisted", "model_missing", "digest_mismatch",
@@ -61,6 +62,14 @@ class SQLReconciliationStore:
                     project_deployments.c.observed_generation <
                     project_deployments.c.desired_generation,
                     project_deployments.c.observed_state.in_(("failed", "blocked")),
+                    # Refresh a ready snapshot before route freshness expires.
+                    # This never bypasses the mandatory operator allowlist
+                    # or real digest verification in the worker.
+                    (
+                        (project_deployments.c.observed_state == "ready") &
+                        (project_deployments.c.observed_at <=
+                         now - timedelta(seconds=REFRESH_SECONDS))
+                    ),
                 ),
             )
             if excluded:
@@ -71,7 +80,10 @@ class SQLReconciliationStore:
             if row is None:
                 return None
             lease = uuid4()
-            attempt = row.reconcile_attempts + 1
+            # A previously successful ready observation starts a fresh
+            # retry episode. Transient consecutive failures still cap at 3.
+            attempt = (1 if row.observed_state == "ready" else
+                       row.reconcile_attempts + 1)
             conn.execute(update(project_deployments).where(
                 project_deployments.c.id == row.id,
             ).values(

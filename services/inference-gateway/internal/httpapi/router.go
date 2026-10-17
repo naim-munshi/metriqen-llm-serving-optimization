@@ -44,6 +44,14 @@ func NewRouterWithInferenceAndSchedulerAndToken(localUpstreamURL, rawAllowedMode
 // database-authoritative project grants via a pinned loopback control API.
 // It is mutually exclusive with the legacy local shared-bearer mode.
 func NewRouterWithInferenceAndSchedulerAndAuth(localUpstreamURL, rawAllowedModels, rawQueueDepth, rawToken, rawProjectAuthURL, rawProjectAuthSecret string) (http.Handler, error) {
+	return NewRouterWithInferenceAndSchedulerAndDeploymentAuth(
+		localUpstreamURL, rawAllowedModels, rawQueueDepth, rawToken,
+		rawProjectAuthURL, rawProjectAuthSecret, "")
+}
+
+// The strict deployment mode is opt-in, requires the project authorization
+// seam, and verifies the SQL-authorized model digest before forwarding.
+func NewRouterWithInferenceAndSchedulerAndDeploymentAuth(localUpstreamURL, rawAllowedModels, rawQueueDepth, rawToken, rawProjectAuthURL, rawProjectAuthSecret, rawDeploymentMode string) (http.Handler, error) {
 	token, err := validateLocalBearerToken(rawToken)
 	if err != nil {
 		return nil, err
@@ -63,7 +71,7 @@ func NewRouterWithInferenceAndSchedulerAndAuth(localUpstreamURL, rawAllowedModel
 	if token != "" && bridge.endpoint == "" {
 		return nil, errBearerRequiresInference
 	}
-	projectAuth, err := newProjectAuthorizer(rawProjectAuthURL, rawProjectAuthSecret)
+	projectAuth, err := newStrictProjectAuthorizer(rawProjectAuthURL, rawProjectAuthSecret, rawDeploymentMode)
 	if err != nil {
 		return nil, err
 	}

@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 import hmac
 import os
+import re
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
@@ -18,10 +19,22 @@ from app.security.http_identity import PinnedIdentitySettings, authenticated_ide
 from app.security.policy import Membership, Permission, Resource, is_allowed
 from app.security.project_access import ProjectAccessStore, ProjectRecord
 from app.security.project_quota import RedisProjectQuota
+from app.storage.deployment_routing import (
+    DeploymentRoute, SQLDeploymentRoutingStore, RouteNotFound, RouteNotReady,
+)
 
 SECRET_ENV = "METRIQEN_GATEWAY_INTERNAL_TOKEN"
 SECRET_HEADER = "x-metriqen-gateway-secret"
 LOCAL_PEERS = frozenset({"127.0.0.1", "::1"})
+ROUTING_ENV = "METRIQEN_ENFORCE_DEPLOYMENT_ROUTING"
+_DEPLOYMENT_NAME = re.compile(r"[a-z][a-z0-9_-]{0,31}\Z")
+
+
+def load_deployment_routing_mode(environ: Mapping[str, str] | None = None) -> bool:
+    raw = (os.environ if environ is None else environ).get(ROUTING_ENV, "")
+    if raw not in ("", "0", "1"):
+        raise ValueError("deployment routing requires an explicit 0 or 1")
+    return raw == "1"
 
 
 def load_gateway_internal_token(
@@ -44,6 +57,7 @@ def load_gateway_internal_token(
 class ProjectAuthorizationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     project_id: str = Field(min_length=36, max_length=36)
+    deployment: str | None = Field(default=None, min_length=1, max_length=32)
 
 
 def gateway_authorization_router(
@@ -51,6 +65,9 @@ def gateway_authorization_router(
     store: ProjectAccessStore | None,
     service_secret: str | None,
     project_quota: RedisProjectQuota | None = None,
+    *,
+    deployment_routing_store: SQLDeploymentRoutingStore | None = None,
+    require_deployment_routing: bool = False,
 ) -> APIRouter:
     router = APIRouter(include_in_schema=False)
 
@@ -74,6 +91,37 @@ def gateway_authorization_router(
         except (ValueError, TypeError, AttributeError):
             raise HTTPException(404, "project not found") from None
         try:
+            if require_deployment_routing:
+                if (payload.deployment is None or
+                        _DEPLOYMENT_NAME.fullmatch(payload.deployment) is None):
+                    raise HTTPException(422, "valid deployment name required")
+                if deployment_routing_store is None:
+                    raise HTTPException(503, "deployment routing not configured")
+                try:
+                    route = deployment_routing_store.resolve(
+                        principal, project_id, payload.deployment,
+                    )
+                except RouteNotFound:
+                    raise HTTPException(404, "project not found") from None
+                except RouteNotReady:
+                    raise HTTPException(409, "deployment not ready") from None
+                if (not isinstance(route, DeploymentRoute) or
+                        route.project_id != project_id or
+                        route.deployment != payload.deployment):
+                    raise HTTPException(503, "deployment authorization unavailable")
+                if project_quota is not None:
+                    project_quota.enforce(route.organization_id, project_id)
+                return {
+                    "authorized": True, "project_id": str(project_id),
+                    "deployment": route.deployment,
+                    "model_tag": route.model_tag,
+                    "model_digest": route.model_digest,
+                    "generation": route.generation,
+                }
+            if payload.deployment is not None:
+                # The old project-only guard must never silently accept a
+                # caller's deployment header as a routing or readiness proof.
+                raise HTTPException(409, "deployment routing not enabled")
             project = store.get_project(project_id)
             if not isinstance(project, ProjectRecord) or project.project_id != project_id:
                 raise HTTPException(404, "project not found")

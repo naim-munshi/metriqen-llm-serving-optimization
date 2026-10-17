@@ -95,6 +95,33 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
+	// For strict project/deployment routing, compare the *validated JSON
+	// model* to the SQL-authorized model bound to this request context. A
+	// forged header cannot authorize a different model in the prompt body.
+	if binding, present := r.Context().Value(deploymentBindingKey{}).(deploymentBinding); present {
+		var fields map[string]json.RawMessage
+		var model string
+		if err := json.Unmarshal(validated, &fields); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid_request", "Invalid model selection")
+			return
+		}
+		if err := json.Unmarshal(fields["model"], &model); err != nil || model != binding.modelTag {
+			writeError(w, http.StatusForbidden, "deployment_model_mismatch",
+				"Requested model does not match authorized deployment")
+			return
+		}
+		matched, err := bridge.deploymentModelLoaded(r.Context(), binding)
+		if err != nil {
+			writeError(w, http.StatusServiceUnavailable, "model_attestation_unavailable",
+				"Local model identity verification unavailable")
+			return
+		}
+		if !matched {
+			writeError(w, http.StatusConflict, "deployment_model_unavailable",
+				"Authorized model digest is not currently loaded")
+			return
+		}
+	}
 	if len(bridge.allowedModels) > 0 {
 		// The request has already passed bounded JSON/model validation. Read
 		// only its model field and reject disallowed tags before taking capacity
