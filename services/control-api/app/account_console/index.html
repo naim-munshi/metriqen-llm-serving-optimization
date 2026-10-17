@@ -55,6 +55,13 @@
         <p id="profile-note" class="description"></p>
         <div class="rule workspace-divider"></div>
         <div class="memberbar">
+          <div><p class="eyebrow">TEAM ACCESS</p><h3>Invitations for you</h3></div>
+          <button class="button secondary" id="refresh-invitations" type="button">Refresh invitations</button>
+        </div>
+        <p class="description">Invitations are addressed to your exact verified OIDC subject. Accepting adds only the server-approved role. No email invitations are sent.</p>
+        <div id="pending-invitations" class="workspace-list" aria-live="polite"></div>
+        <div class="rule workspace-divider"></div>
+        <div class="memberbar">
           <div><p class="eyebrow">WORKSPACES</p><h3>Organizations &amp; Projects</h3></div>
           <button class="button secondary" id="refresh-workspaces" type="button">Refresh</button>
         </div>
