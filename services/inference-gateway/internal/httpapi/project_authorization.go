@@ -44,7 +44,7 @@ type projectAuthorizer struct {
 	secret            string
 	client            *http.Client
 	requireDeployment bool
-	leaseEnabled       bool
+	leaseEnabled      bool
 }
 
 func newLeasedProjectAuthorizer(rawURL, secret, deploymentMode, leaseMode string) (*projectAuthorizer, error) {
@@ -220,12 +220,12 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 		var lease *projectLeaseGrant
 		if a.requireDeployment {
 			var decision struct {
-				Authorized  bool   `json:"authorized"`
-				ProjectID   string `json:"project_id"`
-				Deployment  string `json:"deployment"`
-				ModelTag    string `json:"model_tag"`
-				ModelDigest string `json:"model_digest"`
-				Generation  int    `json:"generation"`
+				Authorized  bool               `json:"authorized"`
+				ProjectID   string             `json:"project_id"`
+				Deployment  string             `json:"deployment"`
+				ModelTag    string             `json:"model_tag"`
+				ModelDigest string             `json:"model_digest"`
+				Generation  int                `json:"generation"`
 				Lease       *projectLeaseGrant `json:"lease,omitempty"`
 			}
 			if err := decoder.Decode(&decision); err != nil ||
@@ -243,8 +243,8 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 				}))
 		} else {
 			var decision struct {
-				Authorized bool   `json:"authorized"`
-				ProjectID  string `json:"project_id"`
+				Authorized bool               `json:"authorized"`
+				ProjectID  string             `json:"project_id"`
 				Lease      *projectLeaseGrant `json:"lease,omitempty"`
 			}
 			if err := decoder.Decode(&decision); err != nil ||
