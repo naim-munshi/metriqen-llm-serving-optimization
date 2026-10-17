@@ -90,7 +90,7 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusRequestEntityTooLarge, "request_too_large", "Request exceeds 1 MiB")
 		return
 	}
-	validated, streaming, requestedModel, err := validateChatRequestWithModel(body)
+	validated, streaming, requestedModel, requestedOutputCap, err := validateChatRequestWithBudget(body)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
@@ -150,6 +150,30 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	defer bridge.admission.release()
+
+	// Reserve the full validated output max_tokens cap, not an untrusted
+	// model's self-reported usage. No refunds: an upstream error, rejected
+	// prompt or disconnected client conservatively spends the entire cap.
+	// This happens after local admission, before any prompt reaches Ollama.
+	if budget, ok := r.Context().Value(projectOutputReservationKey{}).(projectOutputReservation); ok {
+		switch budget.reserveOutput(r.Context(), requestedOutputCap) {
+		case 0:
+			// Atomically budgeted by one live authenticated inference lease.
+		case http.StatusTooManyRequests:
+			w.Header().Set("Retry-After", "60")
+			writeError(w, http.StatusTooManyRequests, "project_output_budget_exceeded",
+				"Project requested output token budget exceeded")
+			return
+		case http.StatusConflict:
+			writeError(w, http.StatusConflict, "project_reservation_invalid",
+				"Inference permit is expired or already reserved")
+			return
+		default:
+			writeError(w, http.StatusServiceUnavailable, "output_reservation_unavailable",
+				"Project output token reservation unavailable")
+			return
+		}
+	}
 
 	// Exactly one terminal outcome per successfully admitted inference attempt.
 	// Invalid inputs, model allowlist failures and admission 429s are excluded.
@@ -308,47 +332,57 @@ func validateChatRequest(body []byte) ([]byte, bool, error) {
 // JSON parse that produces the sanitized forwarded payload. Model selection
 // is never trusted from a client header, authorization claim, or cached value.
 func validateChatRequestWithModel(body []byte) ([]byte, bool, string, error) {
+	validated, streaming, model, _, err := validateChatRequestWithBudget(body)
+	return validated, streaming, model, err
+}
+
+// One JSON parse provides the canonical forwarded model and max_tokens cap,
+// including the server-inserted default of 256 for missing max_tokens.
+// Both strings and numbers always refer to exactly the sanitized JSON.
+func validateChatRequestWithBudget(body []byte) ([]byte, bool, string, int, error) {
 	var payload map[string]json.RawMessage
 	if err := json.Unmarshal(body, &payload); err != nil || payload == nil {
-		return nil, false, "", errors.New("Request must be a JSON object")
+		return nil, false, "", 0, errors.New("Request must be a JSON object")
 	}
 	var model string
 	if err := json.Unmarshal(payload["model"], &model); err != nil || strings.TrimSpace(model) == "" || len(model) > maxModelNameSize {
-		return nil, false, "", errors.New("A non-empty model name is required")
+		return nil, false, "", 0, errors.New("A non-empty model name is required")
 	}
 	var messages []json.RawMessage
 	if err := json.Unmarshal(payload["messages"], &messages); err != nil || len(messages) == 0 || len(messages) > maxMessages {
-		return nil, false, "", fmt.Errorf("messages must contain between 1 and %d entries", maxMessages)
+		return nil, false, "", 0, fmt.Errorf("messages must contain between 1 and %d entries", maxMessages)
 	}
 	for _, message := range messages {
 		var m map[string]json.RawMessage
 		if err := json.Unmarshal(message, &m); err != nil || m == nil {
-			return nil, false, "", errors.New("Each message must be an object")
+			return nil, false, "", 0, errors.New("Each message must be an object")
 		}
 		var role string
 		if err := json.Unmarshal(m["role"], &role); err != nil || strings.TrimSpace(role) == "" {
-			return nil, false, "", errors.New("Each message requires a role")
+			return nil, false, "", 0, errors.New("Each message requires a role")
 		}
 		if _, ok := m["content"]; !ok {
-			return nil, false, "", errors.New("Each message requires content")
+			return nil, false, "", 0, errors.New("Each message requires content")
 		}
 	}
 	var streaming bool
 	if raw, ok := payload["stream"]; ok {
 		if err := json.Unmarshal(raw, &streaming); err != nil {
-			return nil, false, "", errors.New("stream must be a boolean")
+			return nil, false, "", 0, errors.New("stream must be a boolean")
 		}
 	}
+	requestedOutputCap := defaultMaxTokens
 	if raw, ok := payload["max_tokens"]; ok {
 		var tokens int
 		if err := json.Unmarshal(raw, &tokens); err != nil || tokens < 1 || tokens > maxOutputTokens {
-			return nil, false, "", fmt.Errorf("max_tokens must be between 1 and %d", maxOutputTokens)
+			return nil, false, "", 0, fmt.Errorf("max_tokens must be between 1 and %d", maxOutputTokens)
 		}
+		requestedOutputCap = tokens
 	} else {
 		payload["max_tokens"] = json.RawMessage(strconv.Itoa(defaultMaxTokens))
 	}
 	serialized, err := json.Marshal(payload)
-	return serialized, streaming, model, err
+	return serialized, streaming, model, requestedOutputCap, err
 }
 
 func writeError(w http.ResponseWriter, status int, code, message string) {

@@ -28,6 +28,9 @@ from app.team_api import team_router
 from app.security.gateway_authorization import (gateway_authorization_router, load_gateway_internal_token, load_deployment_routing_mode)
 from app.security.project_quota import RedisProjectQuota, load_project_quota
 from app.security.project_inflight import RedisProjectInflight, load_project_inflight
+from app.security.project_output_reservations import (
+    RedisProjectOutputReservations, load_project_output_reservations,
+)
 
 
 def create_app(
@@ -43,6 +46,7 @@ def create_app(
     gateway_internal_token: str | None = None,
     project_quota: RedisProjectQuota | None = None,
     project_inflight: RedisProjectInflight | None = None,
+    project_output_reservations: RedisProjectOutputReservations | None = None,
     deployment_routing_store: SQLDeploymentRoutingStore | None = None,
     require_deployment_routing: bool = False,
 ) -> FastAPI:
@@ -57,6 +61,11 @@ def create_app(
         gateway_internal_token is None
     ):
         raise ValueError("distributed project concurrency requires guarded authorization")
+    if project_output_reservations is not None and (
+        project_inflight is None or identity_settings is None
+        or project_store is None or gateway_internal_token is None
+    ):
+        raise ValueError("project output cap reservations require guarded Redis leases")
     if require_deployment_routing and (
         identity_settings is None or project_store is None or
         gateway_internal_token is None or deployment_routing_store is None
@@ -117,7 +126,8 @@ def create_app(
         identity_settings, project_store, gateway_internal_token, project_quota,
         deployment_routing_store=deployment_routing_store,
         require_deployment_routing=require_deployment_routing,
-        project_inflight=project_inflight))
+        project_inflight=project_inflight,
+        project_output_reservations=project_output_reservations))
 
     # Browser authentication is an explicit localhost-only OIDC/Redis opt-in.
     # No login/session routes or static account page are exposed by default.
@@ -137,6 +147,7 @@ _configured_project_store = load_local_project_store()
 _configured_identity = load_identity_settings()
 _configured_project_quota = load_project_quota()
 _configured_project_inflight = load_project_inflight()
+_configured_project_output = load_project_output_reservations(_configured_project_inflight)
 app = create_app(
     _configured_identity,
     project_store=_configured_project_store,
@@ -154,6 +165,7 @@ app = create_app(
         _configured_identity, _configured_project_store),
     project_quota=_configured_project_quota,
     project_inflight=_configured_project_inflight,
+    project_output_reservations=_configured_project_output,
     deployment_routing_store=(SQLDeploymentRoutingStore(_configured_project_store._engine)
                               if _configured_project_store is not None else None),
     require_deployment_routing=load_deployment_routing_mode(),

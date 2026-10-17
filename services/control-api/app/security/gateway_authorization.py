@@ -20,6 +20,7 @@ from app.security.policy import Membership, Permission, Resource, is_allowed
 from app.security.project_access import ProjectAccessStore, ProjectRecord
 from app.security.project_quota import RedisProjectQuota
 from app.security.project_inflight import RedisProjectInflight
+from app.security.project_output_reservations import RedisProjectOutputReservations, MAX_REQUEST_TOKENS
 from app.storage.deployment_routing import (
     DeploymentRoute, SQLDeploymentRoutingStore, RouteNotFound, RouteNotReady,
 )
@@ -61,6 +62,13 @@ class ProjectInflightRelease(BaseModel):
     permit: str = Field(min_length=32, max_length=32)
 
 
+class ProjectOutputReservationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    scope: str = Field(min_length=64, max_length=64)
+    permit: str = Field(min_length=32, max_length=32)
+    max_tokens: int = Field(ge=1, le=MAX_REQUEST_TOKENS)
+
+
 class ProjectAuthorizationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     project_id: str = Field(min_length=36, max_length=36)
@@ -76,6 +84,7 @@ def gateway_authorization_router(
     deployment_routing_store: SQLDeploymentRoutingStore | None = None,
     require_deployment_routing: bool = False,
     project_inflight: RedisProjectInflight | None = None,
+    project_output_reservations: RedisProjectOutputReservations | None = None,
 ) -> APIRouter:
     router = APIRouter(include_in_schema=False)
 
@@ -96,6 +105,16 @@ def gateway_authorization_router(
         if project_inflight is None:
             raise HTTPException(503, "project active inference limit not configured")
         project_inflight.release(payload.scope, payload.permit)
+        return Response(status_code=204)
+
+    @router.post("/internal/gateway/reserve-output", status_code=204)
+    def reserve_output(request: Request, payload: ProjectOutputReservationRequest):
+        service_auth(request)
+        if project_output_reservations is None:
+            raise HTTPException(503, "project output reservations not configured")
+        project_output_reservations.reserve(
+            payload.scope, payload.permit, payload.max_tokens,
+        )
         return Response(status_code=204)
 
     @router.post("/internal/gateway/authorize")
@@ -140,6 +159,8 @@ def gateway_authorization_router(
                 if project_inflight is not None:
                     result["lease"] = project_inflight.acquire(
                         route.organization_id, project_id)
+                if project_output_reservations is not None:
+                    result["output_reservation_required"] = True
                 return result
             if payload.deployment is not None:
                 # The old project-only guard must never silently accept a
@@ -167,6 +188,8 @@ def gateway_authorization_router(
             if project_inflight is not None:
                 result["lease"] = project_inflight.acquire(
                     project.organization_id, project_id)
+            if project_output_reservations is not None:
+                result["output_reservation_required"] = True
             return result
         except HTTPException:
             raise
