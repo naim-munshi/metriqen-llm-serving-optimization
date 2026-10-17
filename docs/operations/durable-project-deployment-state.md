@@ -18,12 +18,17 @@ Migration `0005_project_deployment_desired_state.sql` adds:
   It stores the command payload hash and exact original response snapshot for
   safe retries, plus actor identity, action and date.
 
-**Observed state is always `unreconciled`, generation 0**, even when desired
-state is `running`. This is intentional and enforced by a database CHECK:
-there is no worker reconciler or runtime health acknowledgement in this
-milestone. Do not interpret a successful POST as proof that a model is
-available. A future separate worker/DB migration is required for observed
-state transitions, deployment rollout or rollback of real running workloads.
+**Observed state is initially `unreconciled`, generation 0** on each
+new desired generation. An **explicit, separately launched trusted local
+operator reconciler**, available after migration `0006`, can record a
+point-in-time observation such as `ready`, `disabled`, `blocked` or
+`failed`. A `ready` snapshot means only that a model reported as
+installed and loaded at the pinned digest by the **loopback Ollama API
+at observed_at**. This is not continuous serving health, authorization of a
+model through the Go gateway, a GPU deployment, or a guarantee that the model
+will remain loaded. A `disabled` observation means the operator asked this
+deployment to stop and no preload occurred; it does **not** unload shared
+Ollama model weights or block direct gateway inference.
 
 Every mutation runs in one SQL transaction: lock authoritative `projects`
 row `FOR UPDATE`, re-read exact issuer+subject membership and project grant
@@ -74,7 +79,7 @@ and is never used to pull or run untrusted model code in this milestone.
    proxy-forwarded bearer tokens, exposed environment secrets or automated
    startup DDL.
 2. Back up PostgreSQL. Apply migrations `0001`, `0002`, `0003`,
-   `0004`, **then `0005`**, as a privileged migration operator.
+   `0004`, `0005`, **then `0006`**, as a privileged migration operator.
 3. Configure the pinned OIDC public JWKS/issuer/audience/client and trusted
    loopback `METRIQEN_DATABASE_URL` as documented for the existing
    PostgreSQL-backed project API. Provision real membership and grants
@@ -84,14 +89,18 @@ and is never used to pull or run untrusted model code in this milestone.
    Retry the same key; verify no duplicate row. Promote and rollback with
    generation checks. Remove the project grant and verify the unchanged
    token now receives 404. Confirm missing DB responds 503.
-5. Before live serving, implement the separately authorized worker
-   reconciler, model allowlist/digest attestation, failure/success ack,
-   crash recovery, CAS-based desired vs observed state, operator rollback,
-   bounded worker capacity and secure runtime-to-project routing.
+5. For manual local reconciliation, follow the
+   [operator runbook](deployment-reconciler.md). The worker enforces
+   operator-approved digest allowlists, a fixed local Ollama origin and
+   bounded attempts/leases, but is not a secure model serving orchestrator.
+6. Before production serving, implement robust signed model artifact
+   provenance, actual model-to-project routing enforcement, guaranteed
+   unloading/isolation, production worker attestation, consistent health
+   intervals, tenant quotas, TLS/IdP, retries/alerts and autoscaling.
 
 CI exercises deterministic SQLite HTTP/security tests and **isolated real
-PostgreSQL 16 migration 0001→0005**, including concurrent independent
+PostgreSQL 16 migration 0001→0006**, including concurrent independent
 connections racing on idempotency and generation. These are not tests of an
 actual deployed IdP, model runtime, GPU, Mac PostgreSQL, TLS or production
-recovery. This is a durable *intent and command journal* foundation, not a
-completed deployment orchestrator.
+recovery. This is a durable *intent/command journal plus explicitly invoked local
+observation pass*, not a completed deployment orchestrator.
