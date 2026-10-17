@@ -96,18 +96,16 @@ def test_service_auth_and_loopback_denied_before_querying_projects(sandbox):
     assert store.calls == []
 
 
-@pytest.mark.parametrize("bad", [
-    "NOT-AN-ID", "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA",
-    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab",
+@pytest.mark.parametrize("bad,expected", [
+    ("NOT-AN-ID", 422),
+    ("AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA", 404),
+    ("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 422),
+    ("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab", 404),
 ])
-def test_invalid_or_absent_project_denied(sandbox, bad):
+def test_invalid_or_absent_project_denied(sandbox, bad, expected):
     client, store, signer, _ = checked(sandbox)
     store.grant(Role.OWNER)
-    if bad.startswith("aaaaaaaa-aaaa-4aaa") and bad != str(PROJECT_A):
-        # A valid but unknown canonical ID is denied without revealing tenant data.
-        assert request(client, bad, headers(signer)).status_code == 404
-    else:
-        assert request(client, bad, headers(signer)).status_code == 404
+    assert request(client, bad, headers(signer)).status_code == expected
     assert client.post(PATH, json={}, headers=headers(signer)).status_code == 422
     assert client.post(PATH, json={"project_id": str(PROJECT_A),
                 "role": "owner"}, headers=headers(signer)).status_code == 422
