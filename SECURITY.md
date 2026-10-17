@@ -75,6 +75,27 @@ live Redis validation on Mac, or production hardening is claimed.
 
 When both the control API's `METRIQEN_GATEWAY_INTERNAL_TOKEN` and gateway-side `METRIQEN_GATEWAY_PROJECT_AUTH_URL`/`METRIQEN_GATEWAY_PROJECT_AUTH_TOKEN` are operator-configured, direct chat inference is denied until an OIDC access JWT and a canonical project ID pass the current `inference.invoke` permission check on trusted PostgreSQL data. Untrusted JWT role/tenant claims are ignored; authorization happens before prompt decoding, queue admission or runtime forwarding. The gateway treats service errors and malformed decisions as 503 and never forwards credentials or the project header to Ollama. The legacy loopback-only mode stays unauthenticated unless guarded mode is explicitly enabled. Do not enable the legacy shared bearer token with project mode. The new unit/HTTP checks and disposable PostgreSQL CI tests are not real IdP/HTTPS, Mac or production load tests. See [project authorization runbook](docs/operations/project-inference-authorization.md).
 
+## Optional per-project requested output cap reservations
+
+An additional **explicitly opt-in** Redis 7 token-cap budgeting seam can
+reserve the fully validated request's `max_tokens` units atomically before
+forwarding prompts to Ollama. It requires both Python
+`METRIQEN_PROJECT_OUTPUT_RESERVATION_PER_MINUTE` (256–1,000,000) and
+Go `METRIQEN_GATEWAY_PROJECT_OUTPUT_RESERVATIONS=1`, plus previously
+configured shared Redis project in-flight leases. Admission requires a
+live, one-use, random scoped permit; Redis `TIME`, `ZSCORE`,
+`EXISTS` and atomic counter increments prevent cross-replica replay
+or TOCTOU double debit. The requested cap is charged conservatively,
+even for incomplete, canceled or failed inference requests; never
+refund based on upstream self-reported token usage. Redis errors fail
+closed. Mismatched controller/gateway opt-in rejects new inference.
+Keys contain only tenant-scoped HMAC digests and opaque random permit
+receipts. **This is not an actual generated token meter, input-token
+measurement, cryptographic runtime enforcement, usage billing or
+cost attribution**. Unprotected legacy loopback gateway routes bypass
+the opt-in budget; an operator must configure all replicas consistently.
+See [request output cap runbook](docs/operations/project-output-token-reservations.md).
+
 ## Optional distributed active-inference project permits
 
 An independently configured `METRIQEN_PROJECT_INFLIGHT_*` Redis 7 ZSET
