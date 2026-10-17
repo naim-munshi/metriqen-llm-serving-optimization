@@ -36,7 +36,7 @@ func (s *syntheticLeases) serve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		data, _ := io.ReadAll(io.LimitReader(r.Body, 512))
-		if string(data) != `{"project_id":"`+projectA+`"}` {
+		if string(data) != `{"project_id":"` + projectA + `"}` {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -52,8 +52,8 @@ func (s *syntheticLeases) serve(w http.ResponseWriter, r *http.Request) {
 		id := fmt.Sprintf("%032x", s.issued)
 		s.used[id] = true
 		s.mu.Unlock()
-		_, _ = io.WriteString(w, `{"authorized":true,"project_id":"`+projectA+
-			`","lease":{"scope":"`+testProjectLeaseScope+`","permit":"`+id+`"}}`)
+		_, _ = io.WriteString(w, `{"authorized":true,"project_id":"` + projectA+
+			`","lease":{"scope":"` + testProjectLeaseScope + `","permit":"` + id + `"}}`)
 	case gatewayReleasePath:
 		if r.Header.Get("Authorization") != "" ||
 			r.Header.Get("Cookie") != "" ||
@@ -65,8 +65,8 @@ func (s *syntheticLeases) serve(w http.ResponseWriter, r *http.Request) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		for id := range s.used {
-			if strings.Contains(string(body), `"permit":"`+id+`"`) &&
-				strings.Contains(string(body), `"scope":"`+testProjectLeaseScope+`"`) {
+			if strings.Contains(string(body), `"permit":"` + id + `"`) &&
+				strings.Contains(string(body), `"scope":"` + testProjectLeaseScope + `"`) {
 				delete(s.used, id)
 				s.released++
 				w.WriteHeader(http.StatusNoContent)
@@ -234,7 +234,7 @@ func TestDistributedPermitAlwaysReleasesOnUpstreamFailureAndCancellation(t *test
 }
 
 func TestLeaseGuardRejectsMissingTamperedAndUnexpectedPermits(t *testing.T) {
-	controlResponse := `{"authorized":true,"project_id":"`+projectA+`"}`
+	controlResponse := `{"authorized":true,"project_id":"` + projectA + `"}`
 	control := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(w, controlResponse)
