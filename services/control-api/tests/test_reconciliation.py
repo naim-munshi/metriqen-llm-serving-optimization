@@ -185,7 +185,12 @@ def test_crashed_worker_lease_expires_and_stale_result_is_rejected(deployment_en
     row = client.get(f"{base()}/stable", headers=auth(signing)).json()
     assert row["observed_state"] == "ready"
     assert row["observed_generation"] == 1
-    assert store.claim_one(now=t0 + timedelta(hours=2)) is None
+    # Periodic explicit operator runs may refresh an aging ready proof.
+    later = t0 + timedelta(hours=2)
+    fresh = store.claim_one(now=later)
+    assert fresh is not None and fresh.attempt == 1
+    assert fresh.lease_id != replacement.lease_id
+    assert store.finish(fresh, "ready", now=later + timedelta(seconds=1))
 
 
 def test_stale_generation_worker_cannot_publish_ready_after_stop(deployment_env):
