@@ -24,7 +24,7 @@ When both trusted OIDC verifier and local PostgreSQL are configured, `/api/v1/me
 
 ## Required before production use
 
-Threat modeling; OIDC/MFA; server-side authorization; scoped, rotatable API keys; secret management; model-artifact verification; tenant-isolation tests; inference quotas and timeouts; logs without raw prompts; vulnerability scans; backup/restore and incident-response tests.
+Threat modeling; OIDC/MFA; server-side authorization; scoped, rotatable API keys; secret management; model-artifact verification; tenant-isolation tests; production-grade token and concurrent inference quotas and timeouts; logs without raw prompts; vulnerability scans; backup/restore and incident-response tests.
 
 Never commit tokens, credentials, private prompts, or proprietary benchmark datasets.
 
@@ -55,6 +55,21 @@ The local-only `/api/v1/organizations/{org_id}/invitations` (including restricte
 ## Pending invitation cancellation (local-only)
 
 A separately applied `0004_invitation_cancellation.sql` adds `cancelled_at` and audited `invitation.cancelled` events. Current owner/admin membership and role ceilings are rechecked under the organization's PostgreSQL row lock. Cancelled invitations disappear from pending lists, cannot later be accepted, and can be replaced; repeated, cross-tenant and higher-privilege cancellation attempts fail closed. Browser cancellation additionally requires the Redis session, exact Origin, and CSRF token. These protections have synthetic-identity unit/HTTP tests plus isolated PostgreSQL 16 CI, not a deployed environment test.
+
+## Optional distributed project request-budget enforcement
+
+When explicitly configured alongside guarded inference, Redis 7 Lua enforces
+an atomic, first-hit 60-second **per-project request count** across gateway
+and control API replicas sharing a Redis instance, HMAC key and limit. A
+verified JWT and current SQL `inference.invoke` permission are checked
+*before* touching a quota key. Keys contain no plaintext tenant or user
+identifiers. Quota denials return HTTP 429 + fixed `Retry-After: 60` without
+sending prompts to the runtime; Redis errors are generic 503. Legacy unguarded
+gateway mode bypasses this protection; configuration must be consistent on
+**every** replica and cannot be assumed operational from code alone. No
+global in-flight limit, token/cost quota, retry refund, real provider,
+live Redis validation on Mac, or production hardening is claimed.
+[Operator runbook](docs/operations/project-inference-authorization.md).
 
 ## Opt-in per-project Go inference authorization
 
