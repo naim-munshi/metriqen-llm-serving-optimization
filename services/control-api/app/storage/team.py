@@ -89,6 +89,7 @@ class SQLTeamStore:
                 organization_invitations.c.target_issuer == principal.issuer,
                 organization_invitations.c.target_subject == target,
                 organization_invitations.c.accepted_at.is_(None),
+                organization_invitations.c.cancelled_at.is_(None),
                 organization_invitations.c.expires_at > now,
             )).first()
             if pending is not None:
@@ -96,6 +97,7 @@ class SQLTeamStore:
             count = conn.execute(select(organization_invitations.c.id).where(
                 organization_invitations.c.organization_id == org_id,
                 organization_invitations.c.accepted_at.is_(None),
+                organization_invitations.c.cancelled_at.is_(None),
                 organization_invitations.c.expires_at > now,
             ).limit(self.MAX_PENDING_PER_ORG)).all()
             if len(count) >= self.MAX_PENDING_PER_ORG:
@@ -120,6 +122,7 @@ class SQLTeamStore:
             organization_invitations.c.target_issuer == principal.issuer,
             organization_invitations.c.target_subject == principal.subject,
             organization_invitations.c.accepted_at.is_(None),
+            organization_invitations.c.cancelled_at.is_(None),
             organization_invitations.c.expires_at > datetime.now(timezone.utc),
         ).order_by(organization_invitations.c.created_at,
                    organization_invitations.c.id).limit(100)
@@ -146,6 +149,7 @@ class SQLTeamStore:
                 organization_invitations.c.target_subject == principal.subject,
             ).with_for_update()).one_or_none()
             if (invitation is None or invitation.accepted_at is not None
+                    or invitation.cancelled_at is not None
                     or invitation.expires_at.replace(tzinfo=timezone.utc) <= now):
                 raise TeamNotFound
             inviter_role = self._role(conn, org_id, invitation.inviter_issuer,
@@ -165,6 +169,56 @@ class SQLTeamStore:
             self._audit(conn, principal, org_id, "invitation.accepted",
                         principal.subject, role, invite_id)
         return {"organization_id": str(org_id), "role": role.value}
+
+    def organization_pending(self, principal: VerifiedIdentity, org_id: UUID) -> list[dict]:
+        """Only a current manager can see pending invitations for this tenant."""
+        now = datetime.now(timezone.utc)
+        with self.engine.begin() as conn:
+            self._lock_org(conn, org_id)
+            manager = self._manager(conn, principal, org_id)
+            rows = conn.execute(select(
+                organization_invitations.c.id,
+                organization_invitations.c.target_subject,
+                organization_invitations.c.role,
+                organization_invitations.c.expires_at,
+            ).where(
+                organization_invitations.c.organization_id == org_id,
+                organization_invitations.c.target_issuer == principal.issuer,
+                organization_invitations.c.accepted_at.is_(None),
+                organization_invitations.c.cancelled_at.is_(None),
+                organization_invitations.c.expires_at > now,
+            ).order_by(
+                organization_invitations.c.created_at,
+                organization_invitations.c.id,
+            ).limit(self.MAX_PENDING_PER_ORG)).all()
+        # Non-owner admins must not enumerate higher-privilege invitations.
+        return [{"id": str(r.id), "target_subject": r.target_subject,
+                 "role": r.role, "expires_at": r.expires_at.isoformat()}
+                for r in rows if self._may_invite(manager, Role(r.role))]
+
+    def cancel(self, principal: VerifiedIdentity, org_id: UUID,
+               invite_id: UUID) -> None:
+        """Lock tenant, authorize role ceiling, atomically cancel and audit."""
+        now = datetime.now(timezone.utc)
+        with self.engine.begin() as conn:
+            self._lock_org(conn, org_id)
+            manager = self._manager(conn, principal, org_id)
+            invitation = conn.execute(select(organization_invitations).where(
+                organization_invitations.c.id == invite_id,
+                organization_invitations.c.organization_id == org_id,
+                organization_invitations.c.target_issuer == principal.issuer,
+            ).with_for_update()).one_or_none()
+            if (invitation is None
+                    or invitation.accepted_at is not None
+                    or invitation.cancelled_at is not None
+                    or invitation.expires_at.replace(tzinfo=timezone.utc) <= now
+                    or not self._may_invite(manager, Role(invitation.role))):
+                raise TeamNotFound
+            conn.execute(update(organization_invitations).where(
+                organization_invitations.c.id == invite_id,
+            ).values(cancelled_at=now))
+            self._audit(conn, principal, org_id, "invitation.cancelled",
+                        invitation.target_subject, Role(invitation.role), invite_id)
 
     def members(self, principal: VerifiedIdentity, org_id: UUID) -> list[dict]:
         with self.engine.connect() as conn:
