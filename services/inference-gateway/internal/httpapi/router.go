@@ -37,6 +37,13 @@ func NewRouterWithInferenceAndScheduler(localUpstreamURL, rawAllowedModels, rawQ
 // operator-configured bearer token on the loopback chat inference endpoint.
 // This is local shared-secret defense-in-depth, not production authentication.
 func NewRouterWithInferenceAndSchedulerAndToken(localUpstreamURL, rawAllowedModels, rawQueueDepth, rawToken string) (http.Handler, error) {
+	return NewRouterWithInferenceAndSchedulerAndAuth(localUpstreamURL, rawAllowedModels, rawQueueDepth, rawToken, "", "")
+}
+
+// NewRouterWithInferenceAndSchedulerAndAuth optionally requires per-request,
+// database-authoritative project grants via a pinned loopback control API.
+// It is mutually exclusive with the legacy local shared-bearer mode.
+func NewRouterWithInferenceAndSchedulerAndAuth(localUpstreamURL, rawAllowedModels, rawQueueDepth, rawToken, rawProjectAuthURL, rawProjectAuthSecret string) (http.Handler, error) {
 	token, err := validateLocalBearerToken(rawToken)
 	if err != nil {
 		return nil, err
@@ -54,6 +61,13 @@ func NewRouterWithInferenceAndSchedulerAndToken(localUpstreamURL, rawAllowedMode
 		return nil, err
 	}
 	if token != "" && bridge.endpoint == "" {
+		return nil, errBearerRequiresInference
+	}
+	projectAuth, err := newProjectAuthorizer(rawProjectAuthURL, rawProjectAuthSecret)
+	if err != nil {
+		return nil, err
+	}
+	if projectAuth != nil && (token != "" || bridge.endpoint == "") {
 		return nil, errBearerRequiresInference
 	}
 	bridge.allowedModels = allowed
@@ -86,7 +100,7 @@ func NewRouterWithInferenceAndSchedulerAndToken(localUpstreamURL, rawAllowedMode
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(bridge.outcomes.snapshot())
 	})
-	mux.HandleFunc("POST /v1/chat/completions", protectLocalInference(token, bridge.serveChat))
+	mux.HandleFunc("POST /v1/chat/completions", projectAuth.protect(protectLocalInference(token, bridge.serveChat)))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
