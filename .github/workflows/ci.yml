@@ -194,6 +194,105 @@ jobs:
         working-directory: services/inference-gateway
         run: go vet ./...
 
+  gateway-model-selection-microbench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: "1.27.2"
+          cache: false
+      - name: Record Go runtime and isolated CPU benchmark methodology
+        working-directory: services/inference-gateway
+        run: |
+          go version
+          echo "Synthetic CPU-only path: baseline double JSON decode vs optimized single-pass model selection"
+          echo "The numbers do not measure model inference, GPU throughput, TTFT, or real p95 latency."
+      - name: Run paired Go allocation and CPU microbenchmarks (no unstable speedup assertion)
+        working-directory: services/inference-gateway
+        env:
+          GOMAXPROCS: "1"
+        run: go test -run '^    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.13"
+      - name: Run offline benchmark contract tests
+        run: python -m unittest discover -s tools/benchmark/tests -v
+      - name: Check Python syntax
+        run: python -W error::SyntaxWarning -m compileall -q -f tools
+
+  local-inference-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: "1.23.x"
+          cache: false
+      - name: Exercise Go gateway through benchmark CLI
+        run: python -m unittest discover -s tests/e2e -v
+
+  nlp-evaluation-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.13"
+      - name: Verify deterministic NLP evaluation
+        run: python -m unittest discover -s tools/nlp_eval/tests -v
+      - name: Python syntax verification
+        run: python -m compileall -q tools/nlp_eval
+ -bench '^BenchmarkModelSelection    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.13"
+      - name: Run offline benchmark contract tests
+        run: python -m unittest discover -s tools/benchmark/tests -v
+      - name: Check Python syntax
+        run: python -W error::SyntaxWarning -m compileall -q -f tools
+
+  local-inference-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: "1.23.x"
+          cache: false
+      - name: Exercise Go gateway through benchmark CLI
+        run: python -m unittest discover -s tests/e2e -v
+
+  nlp-evaluation-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.13"
+      - name: Verify deterministic NLP evaluation
+        run: python -m unittest discover -s tools/nlp_eval/tests -v
+      - name: Python syntax verification
+        run: python -m compileall -q tools/nlp_eval
+ -benchtime=250ms -count=5 -benchmem -cpu 1 ./internal/httpapi
+
   local-benchmark-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
