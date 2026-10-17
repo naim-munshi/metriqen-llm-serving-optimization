@@ -143,6 +143,8 @@ def validate(manifests: dict[str, Path], preflights: dict[str, Path]) -> dict:
     """
     if set(manifests) != set(PHASE_PARALLELISM) or set(preflights) != set(PHASE_PARALLELISM):
         raise PreflightEvidenceError("exactly A1/B1/A2/B2 manifests and preflights required")
+    if any(Path(path).is_symlink() for path in preflights.values()):
+        raise PreflightEvidenceError("preflight must be an ordinary JSON file, not a symlink")
     all_paths = [Path(path).resolve() for path in (*manifests.values(), *preflights.values())]
     if len(set(all_paths)) != 8:
         raise PreflightEvidenceError("four distinct manifests and four distinct preflights required")
