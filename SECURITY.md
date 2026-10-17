@@ -75,6 +75,28 @@ live Redis validation on Mac, or production hardening is claimed.
 
 When both the control API's `METRIQEN_GATEWAY_INTERNAL_TOKEN` and gateway-side `METRIQEN_GATEWAY_PROJECT_AUTH_URL`/`METRIQEN_GATEWAY_PROJECT_AUTH_TOKEN` are operator-configured, direct chat inference is denied until an OIDC access JWT and a canonical project ID pass the current `inference.invoke` permission check on trusted PostgreSQL data. Untrusted JWT role/tenant claims are ignored; authorization happens before prompt decoding, queue admission or runtime forwarding. The gateway treats service errors and malformed decisions as 503 and never forwards credentials or the project header to Ollama. The legacy loopback-only mode stays unauthenticated unless guarded mode is explicitly enabled. Do not enable the legacy shared bearer token with project mode. The new unit/HTTP checks and disposable PostgreSQL CI tests are not real IdP/HTTPS, Mac or production load tests. See [project authorization runbook](docs/operations/project-inference-authorization.md).
 
+## Optional distributed active-inference project permits
+
+An independently configured `METRIQEN_PROJECT_INFLIGHT_*` Redis 7 ZSET
+enforces an atomic per-project **active request limit** across guarded Go
+gateway replicas. An authorization response includes an opaque, random
+expiring lease only after fresh signed JWT/current database `inference.invoke`
+authorization, optional strict SQL deployment readiness and request-rate
+quota. Go requires the lease under
+`METRIQEN_GATEWAY_PROJECT_INFLIGHT_LEASES=1`, and releases it after the
+inference handler returns—including client cancellation and upstream error.
+An authenticated, loopback-only internal release endpoint cannot release
+arbitrary permits without an unguessable permit ID and the internal service
+secret. Unexpected Redis responses or outages fail new inference closed.
+A 240s lease TTL permits crash recovery after the gateway's nominal 150s
+execution budget. This is **not cryptographic runtime attestation or a
+guarantee that a wedged handler is killed when a permit expires**; a process
+running past TTL could cause oversubscription. Partial Go/Python
+configuration fails closed, but intentionally unguarded loopback gateways
+still bypass limits. No global token-count, GPU, cost, or production TLS/IdP
+enforcement is claimed. See
+[distributed project permit runbook](docs/operations/distributed-project-inflight.md).
+
 ## Opt-in strict project-deployment model routing
 
 With `METRIQEN_ENFORCE_DEPLOYMENT_ROUTING=1` configured on **every**
