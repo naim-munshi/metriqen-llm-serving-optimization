@@ -234,7 +234,7 @@ func TestDistributedPermitAlwaysReleasesOnUpstreamFailureAndCancellation(t *test
 }
 
 func TestLeaseGuardRejectsMissingTamperedAndUnexpectedPermits(t *testing.T) {
-	controlResponse := `{"authorized":true,"project_id":"`+projectA+`"}`
+	controlResponse := `{"authorized":true,"project_id":"` + projectA + `"}`
 	control := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(w, controlResponse)
@@ -249,13 +249,13 @@ func TestLeaseGuardRejectsMissingTamperedAndUnexpectedPermits(t *testing.T) {
 	defer upstream.Close()
 	h := leasedGateway(t, upstream.URL, control.URL)
 	for _, body := range []string{
-		`{"authorized":true,"project_id":"`+projectA+`"}`,
-		`{"authorized":true,"project_id":"`+projectA+`","lease":null}`,
-		`{"authorized":true,"project_id":"`+projectA +
-			`","lease":{"scope":"`+strings.Repeat("a", 64)+`","permit":"short"}}`,
-		`{"authorized":true,"project_id":"`+projectA +
-			`","lease":{"scope":"`+strings.Repeat("A", 64) +
-			`","permit":"`+strings.Repeat("b", 32)+`"}}`,
+		`{"authorized":true,"project_id":"` + projectA + `"}`,
+		`{"authorized":true,"project_id":"` + projectA + `","lease":null}`,
+		`{"authorized":true,"project_id":"` + projectA +
+			`","lease":{"scope":"` + strings.Repeat("a", 64) + `","permit":"short"}}`,
+		`{"authorized":true,"project_id":"` + projectA +
+			`","lease":{"scope":"` + strings.Repeat("A", 64) +
+			`","permit":"` + strings.Repeat("b", 32) + `"}}`,
 	} {
 		controlResponse = body
 		w := httptest.NewRecorder()
@@ -272,9 +272,9 @@ func TestLeaseGuardRejectsMissingTamperedAndUnexpectedPermits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	controlResponse = `{"authorized":true,"project_id":"`+projectA +
-		`","lease":{"scope":"`+testProjectLeaseScope +
-		`","permit":"`+strings.Repeat("a", 32)+`"}}`
+	controlResponse = `{"authorized":true,"project_id":"` + projectA +
+		`","lease":{"scope":"` + testProjectLeaseScope +
+		`","permit":"` + strings.Repeat("a", 32) + `"}}`
 	w := httptest.NewRecorder()
 	legacy.ServeHTTP(w, projectRequest("user-jwt", projectA))
 	if w.Code != http.StatusServiceUnavailable {
