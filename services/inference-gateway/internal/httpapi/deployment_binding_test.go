@@ -144,7 +144,7 @@ func TestStrictRoutingDeniesRetaggedMissingAndAmbiguousModels(t *testing.T) {
 	}))
 	defer control.Close()
 
-	models := `{"models":[{"name":"`+deployedModel+`","digest":"`+deployedDigest+`"}]}`
+	models := `{"models":[{"name":"` + deployedModel + `","digest":"` + deployedDigest + `"}]}`
 	var chats atomic.Int32
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -162,11 +162,11 @@ func TestStrictRoutingDeniesRetaggedMissingAndAmbiguousModels(t *testing.T) {
 	h := strictGateway(t, control.URL, upstream.URL)
 	for _, tc := range []struct {
 		name, loaded string
-		expected int
+		expected     int
 	}{
 		{"model not loaded", `{"models":[]}`, 409},
-		{"digest changed", `{"models":[{"name":"`+deployedModel+`","digest":"`+strings.Repeat("b", 64)+`"}]}`, 409},
-		{"duplicate loaded model", `{"models":[{"name":"`+deployedModel+`","digest":"`+deployedDigest+`"},{"name":"`+deployedModel+`","digest":"`+deployedDigest+`"}]}`, 503},
+		{"digest changed", `{"models":[{"name":"` + deployedModel + `","digest":"` + strings.Repeat("b", 64) + `"}]}`, 409},
+		{"duplicate loaded model", `{"models":[{"name":"` + deployedModel + `","digest":"` + deployedDigest + `"},{"name":"` + deployedModel + `","digest":"` + deployedDigest + `"}]}`, 503},
 		{"malformed Ollama", `{"models":"forged"}`, 503},
 		{"missing models", `{}`, 503},
 	} {
