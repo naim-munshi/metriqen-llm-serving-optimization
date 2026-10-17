@@ -21,6 +21,7 @@ from test_durable_deployments import (
     deployment_env, become, create, change, auth, base,
     A, B, DA, DB,
 )
+from test_sql_project_store import seeded, engine, signing_config
 
 ALLOWED = {A: DA, B: DB}
 
