@@ -246,7 +246,7 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 				ModelDigest               string             `json:"model_digest"`
 				Generation                int                `json:"generation"`
 				Lease                     *projectLeaseGrant `json:"lease,omitempty"`
-				OutputReservationRequired bool `json:"output_reservation_required,omitempty"`
+				OutputReservationRequired bool               `json:"output_reservation_required,omitempty"`
 			}
 			if err := decoder.Decode(&decision); err != nil ||
 				!decision.Authorized || decision.ProjectID != projects[0] ||
@@ -267,7 +267,7 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 				Authorized                bool               `json:"authorized"`
 				ProjectID                 string             `json:"project_id"`
 				Lease                     *projectLeaseGrant `json:"lease,omitempty"`
-				OutputReservationRequired bool `json:"output_reservation_required,omitempty"`
+				OutputReservationRequired bool               `json:"output_reservation_required,omitempty"`
 			}
 			if err := decoder.Decode(&decision); err != nil ||
 				!decision.Authorized || decision.ProjectID != projects[0] {
