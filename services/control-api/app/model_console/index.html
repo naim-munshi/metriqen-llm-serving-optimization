@@ -89,6 +89,21 @@
         </div>
         <p class="metrics-disclaimer">Local process diagnostic counters, not throughput, p95 latency, TTFT, GPU utilization, uptime or a performance benchmark. Refreshes while connected and visible.</p>
       </section>
+      <section class="panel deployment-panel" id="deployments" aria-labelledby="deploy-title">
+        <div class="section-head">
+          <div><div class="eyebrow">04 / MODEL ROUTING</div><h2 id="deploy-title">Local deployments</h2></div>
+          <span id="deployment-count" class="count">—</span>
+        </div>
+        <p class="section-note">Named local inference routes with approved model digests, active/paused state and one-step rollback. No GPU workers are provisioned.</p>
+        <form id="deployment-form" class="deployment-form" autocomplete="off">
+          <label for="deployment-name">Deployment name</label>
+          <input id="deployment-name" name="name" required minlength="1" maxlength="32" pattern="[a-z][a-z0-9_-]*" placeholder="e.g. assistant" spellcheck="false">
+          <label for="deployment-model">Approved loaded model</label>
+          <select id="deployment-model" name="model" aria-label="Select model revision for deployment"></select>
+          <button class="primary" type="submit" id="deployment-create" disabled>Create deployment</button>
+        </form>
+        <div class="deployment-list" id="deployment-list"><p class="empty">Connect to view local deployment routes.</p></div>
+      </section>
       <footer>METRIQEN LOCAL MODEL CONTROL · Not a public deployment service</footer>
     </main>
   </div>
