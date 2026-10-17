@@ -187,7 +187,7 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 		bridge.outcomes.finish(outcome, streamDone, time.Since(attemptStarted))
 		// A classified usage observation is always recorded for each
 		// *completed admitted* attempt, including transport failures.
-		bridge.usage.record(streaming, outcome, usage)
+		bridge.usage.recordWithStreamResult(streaming, outcome, streamDone, usage)
 	}()
 
 	ctx, cancel := context.WithTimeout(r.Context(), requestDeadline)
@@ -287,6 +287,7 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 	buffer := make([]byte, 1024)
 	forwarded := 0
 	var terminal sseTerminalTracker
+	usageTracker := newSSEProviderUsageTracker(requestedOutputCap)
 	for {
 		n, readErr := response.Body.Read(buffer)
 		if n > 0 {
@@ -309,6 +310,10 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 			// Observe only bytes successfully forwarded to the caller.
 			// The tracker stores a constant number of bytes, not model text.
 			terminal.observe(buffer[:n])
+			// Bounded usage metadata observer reads only bytes already
+			// successfully forwarded. It cannot mark untrusted data as
+			// billable usage, nor reinterpret missing/invalid [DONE].
+			usageTracker.observe(buffer[:n])
 		}
 		if readErr != nil {
 			if errors.Is(r.Context().Err(), context.Canceled) {
@@ -320,6 +325,7 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 				// distinguish an SSE terminal marker from a truncated stream.
 				outcome = inferenceStreamCleanEOF
 				streamDone = terminal.completed()
+				usage = usageTracker.result(streamDone)
 			} else {
 				bridge.upstreamFailures.record(upstreamStreamReadError)
 			}

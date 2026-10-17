@@ -28,6 +28,9 @@ func TestProviderUsageParsingNeverTreatsMalformedOrAboveCapAsPlausible(t *testin
 		{"string numbers", `{"prompt_tokens":"3","completion_tokens":2,"total_tokens":5}`, providerUsageMalformed, 0, 0, 0},
 		{"floating point", `{"prompt_tokens":3.0,"completion_tokens":2,"total_tokens":5}`, providerUsageMalformed, 0, 0, 0},
 		{"exponent", `{"prompt_tokens":3e0,"completion_tokens":2,"total_tokens":5}`, providerUsageMalformed, 0, 0, 0},
+		{"null prompt count", `{"prompt_tokens":null,"completion_tokens":2,"total_tokens":2}`, providerUsageMalformed, 0, 0, 0},
+		{"null completion count", `{"prompt_tokens":1,"completion_tokens":null,"total_tokens":1}`, providerUsageMalformed, 0, 0, 0},
+		{"null total count", `{"prompt_tokens":1,"completion_tokens":2,"total_tokens":null}`, providerUsageMalformed, 0, 0, 0},
 		{"negative", `{"prompt_tokens":-1,"completion_tokens":2,"total_tokens":1}`, providerUsageMalformed, 0, 0, 0},
 		{"boolean", `{"prompt_tokens":true,"completion_tokens":2,"total_tokens":5}`, providerUsageMalformed, 0, 0, 0},
 		{"overflow integer", `{"prompt_tokens":99999999999999999999999,"completion_tokens":2,"total_tokens":5}`, providerUsageMalformed, 0, 0, 0},
@@ -73,9 +76,14 @@ func assertUsagePartition(t *testing.T, s providerUsageSnapshot) {
 	total := s.NonstreamProviderPlausibleTotal + s.NonstreamProviderMissingTotal +
 		s.NonstreamProviderMalformedTotal + s.NonstreamProviderInconsistentTotal +
 		s.NonstreamProviderAboveCapTotal + s.NonstreamNoCompletionTotal +
-		s.StreamNotMeasuredTotal
+		s.StreamNotMeasuredTotal + s.StreamProviderPlausibleTotal
 	if total != s.ClassifiedTerminalAttemptsTotal {
 		t.Fatalf("nonexclusive /metrics/usage partition: %+v", s)
+	}
+	if s.StreamNotMeasuredTotal != s.StreamProviderMissingTotal+
+		s.StreamProviderMalformedTotal+s.StreamProviderInconsistentTotal+
+		s.StreamProviderAboveCapTotal+s.StreamIncompleteTotal {
+		t.Fatalf("stream missing/invalid/incomplete partition incorrect: %+v", s)
 	}
 	if s.ProviderPromptTokensReportedTotal+s.ProviderOutputTokensReportedTotal != s.ProviderAllTokensReportedTotal {
 		t.Fatalf("provider token totals violate reported sum: %+v", s)
@@ -108,7 +116,7 @@ func TestProviderUsageMetricsClassifyNonstreamAfterSuccessfulWrite(t *testing.T)
 			defer upstream.Close()
 			gateway := newGateway(t, upstream.URL)
 			idle, _ := readUsageSnapshot(t, gateway)
-			if idle.SchemaVersion != 1 || idle.ClassifiedTerminalAttemptsTotal != 0 {
+			if idle.SchemaVersion != 2 || idle.ClassifiedTerminalAttemptsTotal != 0 {
 				t.Fatalf("unexpected idle usage snapshot: %+v", idle)
 			}
 			reply := request(t, gateway, validChat, "application/json")

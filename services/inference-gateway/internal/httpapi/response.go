@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -68,6 +69,12 @@ func classifyProviderUsage(raw json.RawMessage, outputCap int) providerUsageObse
 	parse := func(key string) (int64, bool) {
 		value, ok := fields[key]
 		if !ok || len(value) == 0 {
+			return 0, false
+		}
+		// encoding/json treats literal JSON null as a successful decode
+		// into a zero-valued int64. Reject it explicitly: missing usage
+		// cannot masquerade as an actual zero-token observation.
+		if bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
 			return 0, false
 		}
 		var number int64
