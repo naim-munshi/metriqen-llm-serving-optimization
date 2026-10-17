@@ -21,19 +21,21 @@ URL = "redis://inflight_user:synthetic-long-redis-password@127.0.0.1:6379/0"
 
 
 class FakeRedis:
+    INVALID_SENTINEL = object()
+
     def __init__(self):
         self.lock = threading.Lock()
         self.members = {}
         self.now = 0
         self.fail = False
-        self.override = None
+        self.override = self.INVALID_SENTINEL
         self.calls = []
 
     def eval(self, script, keys, key, *args):
         with self.lock:
             if self.fail:
                 raise RuntimeError("REDIS_PRIVATE_CREDENTIAL_NEVER_RETURN")
-            if self.override is not None:
+            if self.override is not self.INVALID_SENTINEL:
                 return self.override
             self.calls.append((key, args))
             if "ZREMRANGEBYSCORE" in script:
