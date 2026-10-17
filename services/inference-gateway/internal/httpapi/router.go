@@ -52,6 +52,14 @@ func NewRouterWithInferenceAndSchedulerAndAuth(localUpstreamURL, rawAllowedModel
 // The strict deployment mode is opt-in, requires the project authorization
 // seam, and verifies the SQL-authorized model digest before forwarding.
 func NewRouterWithInferenceAndSchedulerAndDeploymentAuth(localUpstreamURL, rawAllowedModels, rawQueueDepth, rawToken, rawProjectAuthURL, rawProjectAuthSecret, rawDeploymentMode string) (http.Handler, error) {
+	return NewRouterWithInferenceAndSchedulerAndDeploymentAndLeases(
+		localUpstreamURL, rawAllowedModels, rawQueueDepth, rawToken,
+		rawProjectAuthURL, rawProjectAuthSecret, rawDeploymentMode, "")
+}
+
+// Distributed active-project admission is guarded and separately opt-in.
+// Legacy localhost router constructors keep their unchanged behavior.
+func NewRouterWithInferenceAndSchedulerAndDeploymentAndLeases(localUpstreamURL, rawAllowedModels, rawQueueDepth, rawToken, rawProjectAuthURL, rawProjectAuthSecret, rawDeploymentMode, rawLeaseMode string) (http.Handler, error) {
 	token, err := validateLocalBearerToken(rawToken)
 	if err != nil {
 		return nil, err
@@ -71,7 +79,7 @@ func NewRouterWithInferenceAndSchedulerAndDeploymentAuth(localUpstreamURL, rawAl
 	if token != "" && bridge.endpoint == "" {
 		return nil, errBearerRequiresInference
 	}
-	projectAuth, err := newStrictProjectAuthorizer(rawProjectAuthURL, rawProjectAuthSecret, rawDeploymentMode)
+	projectAuth, err := newLeasedProjectAuthorizer(rawProjectAuthURL, rawProjectAuthSecret, rawDeploymentMode, rawLeaseMode)
 	if err != nil {
 		return nil, err
 	}

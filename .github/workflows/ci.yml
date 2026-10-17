@@ -148,11 +148,11 @@ jobs:
       - name: Install project
         working-directory: services/control-api
         run: python -m pip install -e '.[dev]'
-      - name: Verify shared Redis 7 Lua quotas and scoped ACL in parallel
+      - name: Verify shared Redis 7 quota/inflight leases, ACL and crash recovery
         working-directory: services/control-api
         env:
           METRIQEN_REDIS_CI: "1"
-        run: python -m pytest -q tests/test_project_quota_redis_ci.py
+        run: python -m pytest -q tests/test_project_quota_redis_ci.py tests/test_project_inflight_redis_ci.py
 
   local-load-balancer-config:
     runs-on: ubuntu-latest

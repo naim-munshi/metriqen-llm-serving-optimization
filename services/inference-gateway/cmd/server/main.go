@@ -30,9 +30,10 @@ func main() {
 	projectAuthURL := os.Getenv("METRIQEN_GATEWAY_PROJECT_AUTH_URL")
 	projectAuthSecret := os.Getenv("METRIQEN_GATEWAY_PROJECT_AUTH_TOKEN")
 	deploymentMode := os.Getenv("METRIQEN_ENFORCE_DEPLOYMENT_ROUTING")
-	router, err := httpapi.NewRouterWithInferenceAndSchedulerAndDeploymentAuth(
+	leaseMode := os.Getenv("METRIQEN_GATEWAY_PROJECT_INFLIGHT_LEASES")
+	router, err := httpapi.NewRouterWithInferenceAndSchedulerAndDeploymentAndLeases(
 		upstream, allowedModels, queueDepth, token, projectAuthURL,
-		projectAuthSecret, deploymentMode)
+		projectAuthSecret, deploymentMode, leaseMode)
 	if err != nil {
 		log.Fatal("invalid local inference upstream configuration")
 	}
