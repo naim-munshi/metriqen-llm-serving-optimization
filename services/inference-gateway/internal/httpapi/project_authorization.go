@@ -22,52 +22,8 @@ import (
 const gatewayAuthPath = "/internal/gateway/authorize"
 const maxProjectJWTLength = 16 << 10
 
-var canonicalDeployment = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,31}package httpapi
-
-import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"io"
-	"mime"
-	"net"
-	"net/http"
-	"net/url"
-	"regexp"
-	"strconv"
-	"strings"
-	"time"
-)
-
-// These credentials protect only an opt-in, loopback-to-loopback development
-// authorization call. No caller token is forwarded to the inference runtime.
-const gatewayAuthPath = "/internal/gateway/authorize"
-)
-var canonicalDigest = regexp.MustCompile(`^[0-9a-f]{64}package httpapi
-
-import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"io"
-	"mime"
-	"net"
-	"net/http"
-	"net/url"
-	"regexp"
-	"strconv"
-	"strings"
-	"time"
-)
-
-// These credentials protect only an opt-in, loopback-to-loopback development
-// authorization call. No caller token is forwarded to the inference runtime.
-const gatewayAuthPath = "/internal/gateway/authorize"
-)
+var canonicalDeployment = regexp.MustCompile("^[a-z][a-z0-9_-]{0,31}$")
+var canonicalDigest = regexp.MustCompile("^[0-9a-f]{64}$")
 
 var canonicalProjectID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
