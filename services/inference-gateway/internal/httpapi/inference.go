@@ -90,7 +90,7 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusRequestEntityTooLarge, "request_too_large", "Request exceeds 1 MiB")
 		return
 	}
-	validated, streaming, err := validateChatRequest(body)
+	validated, streaming, requestedModel, err := validateChatRequestWithModel(body)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
@@ -99,13 +99,10 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 	// model* to the SQL-authorized model bound to this request context. A
 	// forged header cannot authorize a different model in the prompt body.
 	if binding, present := r.Context().Value(deploymentBindingKey{}).(deploymentBinding); present {
-		var fields map[string]json.RawMessage
-		var model string
-		if err := json.Unmarshal(validated, &fields); err != nil {
-			writeError(w, http.StatusBadRequest, "invalid_request", "Invalid model selection")
-			return
-		}
-		if err := json.Unmarshal(fields["model"], &model); err != nil || model != binding.modelTag {
+		// This value comes directly from the JSON map parsed and validated
+		// by validateChatRequestWithModel. It is the same canonical value
+		// sent upstream, even for duplicate input JSON keys.
+		if requestedModel != binding.modelTag {
 			writeError(w, http.StatusForbidden, "deployment_model_mismatch",
 				"Requested model does not match authorized deployment")
 			return
@@ -123,19 +120,8 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 		}
 	}
 	if len(bridge.allowedModels) > 0 {
-		// The request has already passed bounded JSON/model validation. Read
-		// only its model field and reject disallowed tags before taking capacity
-		// or sending prompt content to an upstream runtime.
-		var fields map[string]json.RawMessage
-		var requestedModel string
-		if err := json.Unmarshal(validated, &fields); err != nil {
-			writeError(w, http.StatusBadRequest, "invalid_request", "Invalid model selection")
-			return
-		}
-		if err := json.Unmarshal(fields["model"], &requestedModel); err != nil {
-			writeError(w, http.StatusBadRequest, "invalid_request", "Invalid model selection")
-			return
-		}
+		// Reuse the verified model across both allowlist and deployment
+		// guards: no second/third JSON parse of the complete request body.
 		if _, allowed := bridge.allowedModels[requestedModel]; !allowed {
 			writeError(w, http.StatusForbidden, "model_not_allowed", "Model is not allowed by this local gateway")
 			return
@@ -310,48 +296,59 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 	}
 }
 
+// validateChatRequest keeps the previous internal API for contract tests and
+// integrations. Serving uses the detail variant to avoid repeated JSON model
+// decoding with both strict deployment authorization and model allowlists.
 func validateChatRequest(body []byte) ([]byte, bool, error) {
+	validated, streaming, _, err := validateChatRequestWithModel(body)
+	return validated, streaming, err
+}
+
+// validateChatRequestWithModel returns the same model selected by the first
+// JSON parse that produces the sanitized forwarded payload. Model selection
+// is never trusted from a client header, authorization claim, or cached value.
+func validateChatRequestWithModel(body []byte) ([]byte, bool, string, error) {
 	var payload map[string]json.RawMessage
 	if err := json.Unmarshal(body, &payload); err != nil || payload == nil {
-		return nil, false, errors.New("Request must be a JSON object")
+		return nil, false, "", errors.New("Request must be a JSON object")
 	}
 	var model string
 	if err := json.Unmarshal(payload["model"], &model); err != nil || strings.TrimSpace(model) == "" || len(model) > maxModelNameSize {
-		return nil, false, errors.New("A non-empty model name is required")
+		return nil, false, "", errors.New("A non-empty model name is required")
 	}
 	var messages []json.RawMessage
 	if err := json.Unmarshal(payload["messages"], &messages); err != nil || len(messages) == 0 || len(messages) > maxMessages {
-		return nil, false, fmt.Errorf("messages must contain between 1 and %d entries", maxMessages)
+		return nil, false, "", fmt.Errorf("messages must contain between 1 and %d entries", maxMessages)
 	}
 	for _, message := range messages {
 		var m map[string]json.RawMessage
 		if err := json.Unmarshal(message, &m); err != nil || m == nil {
-			return nil, false, errors.New("Each message must be an object")
+			return nil, false, "", errors.New("Each message must be an object")
 		}
 		var role string
 		if err := json.Unmarshal(m["role"], &role); err != nil || strings.TrimSpace(role) == "" {
-			return nil, false, errors.New("Each message requires a role")
+			return nil, false, "", errors.New("Each message requires a role")
 		}
 		if _, ok := m["content"]; !ok {
-			return nil, false, errors.New("Each message requires content")
+			return nil, false, "", errors.New("Each message requires content")
 		}
 	}
 	var streaming bool
 	if raw, ok := payload["stream"]; ok {
 		if err := json.Unmarshal(raw, &streaming); err != nil {
-			return nil, false, errors.New("stream must be a boolean")
+			return nil, false, "", errors.New("stream must be a boolean")
 		}
 	}
 	if raw, ok := payload["max_tokens"]; ok {
 		var tokens int
 		if err := json.Unmarshal(raw, &tokens); err != nil || tokens < 1 || tokens > maxOutputTokens {
-			return nil, false, fmt.Errorf("max_tokens must be between 1 and %d", maxOutputTokens)
+			return nil, false, "", fmt.Errorf("max_tokens must be between 1 and %d", maxOutputTokens)
 		}
 	} else {
 		payload["max_tokens"] = json.RawMessage(strconv.Itoa(defaultMaxTokens))
 	}
 	serialized, err := json.Marshal(payload)
-	return serialized, streaming, err
+	return serialized, streaming, model, err
 }
 
 func writeError(w http.ResponseWriter, status int, code, message string) {

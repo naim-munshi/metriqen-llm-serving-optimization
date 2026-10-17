@@ -194,6 +194,27 @@ jobs:
         working-directory: services/inference-gateway
         run: go vet ./...
 
+  gateway-model-selection-microbench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: "1.27.2"
+          cache: false
+      - name: Record Go runtime and isolated CPU benchmark methodology
+        working-directory: services/inference-gateway
+        run: |
+          go version
+          echo "Synthetic CPU-only path: baseline double JSON decode vs optimized single-pass model selection"
+          echo "The numbers do not measure model inference, GPU throughput, TTFT, or real p95 latency."
+      - name: Run paired Go allocation and CPU microbenchmarks (no unstable speedup assertion)
+        working-directory: services/inference-gateway
+        env:
+          GOMAXPROCS: "1"
+        run: go test -run '^$' -bench '^BenchmarkModelSelection$' -benchtime=250ms -count=5 -benchmem -cpu 1 ./internal/httpapi
+
   local-benchmark-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
