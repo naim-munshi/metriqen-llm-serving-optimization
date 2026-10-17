@@ -17,6 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.security.http_identity import PinnedIdentitySettings, authenticated_identity
 from app.security.policy import Membership, Permission, Resource, is_allowed
 from app.security.project_access import ProjectAccessStore, ProjectRecord
+from app.security.project_quota import RedisProjectQuota
 
 SECRET_ENV = "METRIQEN_GATEWAY_INTERNAL_TOKEN"
 SECRET_HEADER = "x-metriqen-gateway-secret"
@@ -49,6 +50,7 @@ def gateway_authorization_router(
     settings: PinnedIdentitySettings | None,
     store: ProjectAccessStore | None,
     service_secret: str | None,
+    project_quota: RedisProjectQuota | None = None,
 ) -> APIRouter:
     router = APIRouter(include_in_schema=False)
 
@@ -85,6 +87,11 @@ def gateway_authorization_router(
                          project_id=project_id),
             )):
                 raise HTTPException(404, "project not found")
+            # Admission budget is decremented only AFTER the latest verified
+            # identity and authoritative tenant permissions succeed.
+            # A Redis transport error fails closed with a generic 503.
+            if project_quota is not None:
+                project_quota.enforce(project.organization_id, project_id)
             return {"authorized": True, "project_id": str(project_id)}
         except HTTPException:
             raise
