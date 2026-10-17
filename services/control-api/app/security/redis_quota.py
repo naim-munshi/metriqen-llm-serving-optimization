@@ -68,7 +68,7 @@ def local_acl_redis_client(url: str):
     loopback-only and authenticate with a dedicated ACL identity.
     """
     if (not isinstance(url, str) or len(url) > 2048 or
-            any(ch in url for ch in "\\r\\n\\t")):
+            any(ch in url for ch in "\r\n\t")):
         raise ValueError("invalid local Redis configuration")
     parsed = urlsplit(url)
     if (parsed.scheme != "redis" or parsed.hostname != "127.0.0.1"
