@@ -12,13 +12,14 @@ import os
 import re
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.security.http_identity import PinnedIdentitySettings, authenticated_identity
 from app.security.policy import Membership, Permission, Resource, is_allowed
 from app.security.project_access import ProjectAccessStore, ProjectRecord
 from app.security.project_quota import RedisProjectQuota
+from app.security.project_inflight import RedisProjectInflight
 from app.storage.deployment_routing import (
     DeploymentRoute, SQLDeploymentRoutingStore, RouteNotFound, RouteNotReady,
 )
@@ -54,6 +55,12 @@ def load_gateway_internal_token(
     return token
 
 
+class ProjectInflightRelease(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    scope: str = Field(min_length=64, max_length=64)
+    permit: str = Field(min_length=32, max_length=32)
+
+
 class ProjectAuthorizationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     project_id: str = Field(min_length=36, max_length=36)
@@ -68,11 +75,11 @@ def gateway_authorization_router(
     *,
     deployment_routing_store: SQLDeploymentRoutingStore | None = None,
     require_deployment_routing: bool = False,
+    project_inflight: RedisProjectInflight | None = None,
 ) -> APIRouter:
     router = APIRouter(include_in_schema=False)
 
-    @router.post("/internal/gateway/authorize")
-    def authorize(request: Request, payload: ProjectAuthorizationRequest):
+    def service_auth(request: Request):
         if settings is None or store is None or service_secret is None:
             raise HTTPException(503, "gateway authorization not configured")
         if request.client is None or request.client.host not in LOCAL_PEERS:
@@ -82,6 +89,18 @@ def gateway_authorization_router(
             headers[0].encode("utf-8"), service_secret.encode("ascii")
         )):
             raise HTTPException(403, "internal gateway access denied")
+
+    @router.post("/internal/gateway/release", status_code=204)
+    def release(request: Request, payload: ProjectInflightRelease):
+        service_auth(request)
+        if project_inflight is None:
+            raise HTTPException(503, "project active inference limit not configured")
+        project_inflight.release(payload.scope, payload.permit)
+        return Response(status_code=204)
+
+    @router.post("/internal/gateway/authorize")
+    def authorize(request: Request, payload: ProjectAuthorizationRequest):
+        service_auth(request)
         # A current dedicated access JWT is verified on *every* inference.
         principal = authenticated_identity(request, settings)
         try:
@@ -111,13 +130,17 @@ def gateway_authorization_router(
                     raise HTTPException(503, "deployment authorization unavailable")
                 if project_quota is not None:
                     project_quota.enforce(route.organization_id, project_id)
-                return {
+                result = {
                     "authorized": True, "project_id": str(project_id),
                     "deployment": route.deployment,
                     "model_tag": route.model_tag,
                     "model_digest": route.model_digest,
                     "generation": route.generation,
                 }
+                if project_inflight is not None:
+                    result["lease"] = project_inflight.acquire(
+                        route.organization_id, project_id)
+                return result
             if payload.deployment is not None:
                 # The old project-only guard must never silently accept a
                 # caller's deployment header as a routing or readiness proof.
@@ -140,7 +163,11 @@ def gateway_authorization_router(
             # A Redis transport error fails closed with a generic 503.
             if project_quota is not None:
                 project_quota.enforce(project.organization_id, project_id)
-            return {"authorized": True, "project_id": str(project_id)}
+            result = {"authorized": True, "project_id": str(project_id)}
+            if project_inflight is not None:
+                result["lease"] = project_inflight.acquire(
+                    project.organization_id, project_id)
+            return result
         except HTTPException:
             raise
         except Exception:
