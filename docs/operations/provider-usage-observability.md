@@ -19,7 +19,7 @@ counters **never refund, settle, or alter** that budget.
 
 ## Snapshot contract
 
-A freshly started gateway (schema v1) returns zeros:
+A freshly started gateway (schema v2) returns zeros:
 
 ```json
 {
