@@ -297,11 +297,42 @@ async function showTeam(org, container) {
         {target_subject: target.value, role: role.value}, true);
       target.value = "";
       status("Invitation recorded. Recipient can accept from their own My Account.");
+      await showTeam(org, container);
     } catch (error) {
       status(error instanceof Error ? error.message : "Invitation denied", true);
     } finally { setBusy(false); }
   });
   container.append(form);
+  const pending = await jsonRequest(base + "/invitations");
+  if (!Array.isArray(pending.invitations)) throw new Error("Invalid team invitation list");
+  container.append(makeNode("h3", "", "Pending invitations"));
+  const pendingList = makeNode("ul", "project-items");
+  for (const invitation of pending.invitations) {
+    const row = makeNode("li", "team-member");
+    row.append(makeNode("span", "", invitation.target_subject +
+      " (" + invitation.role + ") "));
+    const cancel = makeNode("button", "button secondary workspace-action", "Cancel");
+    cancel.type = "button";
+    cancel.setAttribute("aria-label", "Cancel invitation to " + invitation.target_subject);
+    cancel.addEventListener("click", async () => {
+      if (busy) return;
+      setBusy(true);
+      try {
+        await jsonRequest(base + "/invitations/" +
+          encodeURIComponent(invitation.id) + "/cancel", "POST", null, true);
+        status("Pending invitation cancelled and audited.");
+        await showTeam(org, container);
+      } catch (error) {
+        status(error instanceof Error ? error.message : "Cancellation denied", true);
+      } finally { setBusy(false); }
+    });
+    row.append(cancel);
+    pendingList.append(row);
+  }
+  if (!pending.invitations.length) {
+    pendingList.append(makeNode("li", "", "No pending invitations."));
+  }
+  container.append(pendingList);
   const audit = await jsonRequest(base + "/audit");
   if (!Array.isArray(audit.events)) throw new Error("Invalid audit response");
   container.append(makeNode("h3", "", "Recent team audit events"));
