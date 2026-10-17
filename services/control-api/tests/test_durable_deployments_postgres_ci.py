@@ -166,7 +166,7 @@ def test_real_postgres_deployment_retries_role_revocation_and_cas_races():
             SQLDurableDeploymentStore(engine).get(
                 principal("owner"), outside_project, "assistant")
         assert SQLDurableDeploymentStore(engine).list(
-            principal("operator"), project) == [state]
+            principal("operator"), project) == [recovered]
         from sqlalchemy import delete
         with engine.begin() as conn:
             conn.execute(delete(project_grants).where(
