@@ -58,6 +58,17 @@ def test_console_assets_and_local_auth_contract(tmp_path):
     assert 'id="connect-form"' in html
     assert 'id="available-list"' in html
     assert 'id="registry-list"' in html
+    assert 'id="deployments"' in html
+    assert 'id="deployment-form"' in html
+    assert 'id="deployment-model"' in html
+    assert 'id="deployment-list"' in html
+    assert '"/deployments"' in javascript
+    assert '"/rollback"' in javascript
+    assert '"/promote"' in javascript
+    assert '"/stop"' in javascript
+    assert '"/start"' in javascript
+    assert 'output.textContent = result.content' in javascript
+
     assert "onclick=" not in html
     assert "innerHTML" not in javascript
     assert "localStorage" not in javascript

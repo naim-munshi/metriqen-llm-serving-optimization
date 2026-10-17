@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict
 
 from app.local_inference import ChatInput, LocalGatewayChat, selected_local_gateway_port
 from app.local_monitoring import GatewayMonitoring
+from app.local_deployments import DeploymentChoice, DeploymentCreate, LocalDeploymentStore, clean_name
 
 MODEL_TAG = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,62}:[A-Za-z0-9][A-Za-z0-9._-]{0,62}\Z")
 DIGEST = re.compile(r"[0-9a-f]{64}\Z")
@@ -203,6 +204,7 @@ def local_model_router(token: str, store: Registry, runtime: LocalModelRuntime,
                        gateway_monitoring: GatewayMonitoring | None = None) -> APIRouter:
     chat_client = gateway_chat or LocalGatewayChat()
     monitoring = gateway_monitoring or GatewayMonitoring()
+    deployments = LocalDeploymentStore(store.path)
     def operator(request: Request) -> None:
         if request.client is None or request.client.host not in LOOPBACK_CLIENTS:
             raise HTTPException(403, "local operator routes require loopback")
@@ -315,6 +317,98 @@ def local_model_router(token: str, store: Registry, runtime: LocalModelRuntime,
             raise HTTPException(503, "Ollama still reports model loaded")
         return {"tag": tag, "unloaded": True, "already_unloaded": False}
 
+    def require_ready(tag: str, digest: str) -> None:
+        record = store.get(_tag(tag))
+        if (record is None or not record["approved"] or
+                record["digest"] != digest):
+            raise HTTPException(409, "deployment model is not approved at the pinned digest")
+        _match_installed(runtime, record)
+        loaded = next((item for item in runtime.loaded() if item["tag"] == tag), None)
+        if loaded is None or loaded["digest"] != digest:
+            raise HTTPException(409, "deployment model revision must be loaded first")
+
+    @router.get("/deployments")
+    def list_local_deployments() -> dict:
+        items = deployments.list()
+        if not items:
+            return {"deployments": []}
+        # One installed + loaded snapshot rather than N model API calls.
+        installed = {m["tag"]: m["digest"] for m in runtime.installed()}
+        loaded = {m["tag"]: m["digest"] for m in runtime.loaded()}
+        registered = {m["tag"]: m for m in store.list()}
+        result = []
+        for record in items:
+            tag, digest = record["active_tag"], record["active_digest"]
+            approved = registered.get(tag)
+            ready = (record["enabled"] and approved is not None and
+                     approved["approved"] and approved["digest"] == digest and
+                     installed.get(tag) == digest and loaded.get(tag) == digest)
+            result.append({**record, "ready": bool(ready)})
+        return {"deployments": result}
+
+    @router.post("/deployments", status_code=201)
+    def create_deployment(payload: DeploymentCreate) -> dict:
+        name = clean_name(payload.name)
+        tag = _tag(payload.tag)
+        registered = store.get(tag)
+        if registered is None:
+            raise HTTPException(404, "model must be registered first")
+        require_ready(tag, registered["digest"])
+        return deployments.create(name, tag, registered["digest"])
+
+    @router.post("/deployments/{name}/promote")
+    def promote_deployment(name: str, payload: DeploymentChoice) -> dict:
+        name = clean_name(name)
+        if deployments.get(name) is None:
+            raise HTTPException(404, "local deployment not found")
+        tag = _tag(payload.tag)
+        registered = store.get(tag)
+        if registered is None:
+            raise HTTPException(404, "candidate model must be registered")
+        require_ready(tag, registered["digest"])
+        return deployments.promote(name, tag, registered["digest"])
+
+    @router.post("/deployments/{name}/rollback")
+    def rollback_deployment(name: str) -> dict:
+        name = clean_name(name)
+        record = deployments.get(name)
+        if record is None:
+            raise HTTPException(404, "local deployment not found")
+        if record["previous_tag"] is None:
+            raise HTTPException(409, "deployment has no previous revision")
+        require_ready(record["previous_tag"], record["previous_digest"])
+        return deployments.rollback(name, expected_previous_tag=record["previous_tag"],
+                                    expected_previous_digest=record["previous_digest"])
+
+    @router.post("/deployments/{name}/stop")
+    def stop_deployment(name: str) -> dict:
+        # Disables traffic via this stable alias; DOES NOT unload globally
+        # shared Ollama weights or change other deployments.
+        return deployments.set_enabled(clean_name(name), False)
+
+    @router.post("/deployments/{name}/start")
+    def start_deployment(name: str) -> dict:
+        record = deployments.get(clean_name(name))
+        if record is None:
+            raise HTTPException(404, "local deployment not found")
+        require_ready(record["active_tag"], record["active_digest"])
+        return deployments.set_enabled(name, True)
+
+    @router.post("/deployments/{name}/chat")
+    def chat_deployment(name: str, payload: ChatInput) -> dict:
+        name = clean_name(name)
+        record = deployments.get(name)
+        if record is None:
+            raise HTTPException(404, "local deployment not found")
+        if not record["enabled"]:
+            raise HTTPException(409, "local deployment is stopped")
+        if not payload.prompt.strip():
+            raise HTTPException(422, "nonempty prompt required")
+        require_ready(record["active_tag"], record["active_digest"])
+        response = chat_client.complete(record["active_tag"], payload.prompt,
+                                        payload.max_tokens)
+        return {"deployment": name, **response}
+
     return router
 
 
@@ -369,6 +463,7 @@ def configure_local_models(app: FastAPI, *, token: str | None = None,
         raise ValueError("METRIQEN_LOCAL_MODEL_DB is required with local operator token")
     store = Registry(path)
     store.initialize()
+    LocalDeploymentStore(path).initialize()
     if gateway_chat is None:
         gateway_chat = LocalGatewayChat(port=selected_local_gateway_port())
     app.include_router(local_model_router(token, store, runtime or OllamaRuntime(),
