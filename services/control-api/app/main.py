@@ -23,6 +23,7 @@ from app.storage.workspaces import SQLWorkspaceStore
 from app.storage.team import SQLTeamStore
 from app.team_api import team_router
 from app.security.gateway_authorization import gateway_authorization_router, load_gateway_internal_token
+from app.security.project_quota import RedisProjectQuota, load_project_quota
 
 
 def create_app(
@@ -35,8 +36,14 @@ def create_app(
     workspace_store: SQLWorkspaceStore | None = None,
     team_store: SQLTeamStore | None = None,
     gateway_internal_token: str | None = None,
+    project_quota: RedisProjectQuota | None = None,
 ) -> FastAPI:
     """Create isolated app instances; trusted stores are explicitly injected."""
+    if project_quota is not None and (
+        identity_settings is None or project_store is None or
+        gateway_internal_token is None
+    ):
+        raise ValueError("project quota requires trusted gateway authorization")
     application = FastAPI(
         title="Metriqen Control API",
         version="0.1.0",
@@ -87,7 +94,7 @@ def create_app(
                                                   account_quota))
     application.include_router(team_router(identity_settings, team_store, account_quota))
     application.include_router(gateway_authorization_router(
-        identity_settings, project_store, gateway_internal_token))
+        identity_settings, project_store, gateway_internal_token, project_quota))
 
     # Browser authentication is an explicit localhost-only OIDC/Redis opt-in.
     # No login/session routes or static account page are exposed by default.
@@ -105,6 +112,7 @@ def create_app(
 # or schema migration runs here. Without a DSN, project reads still deny 503.
 _configured_project_store = load_local_project_store()
 _configured_identity = load_identity_settings()
+_configured_project_quota = load_project_quota()
 app = create_app(
     _configured_identity,
     project_store=_configured_project_store,
@@ -118,4 +126,5 @@ app = create_app(
                 if _configured_project_store is not None else None),
     gateway_internal_token=load_gateway_internal_token(
         _configured_identity, _configured_project_store),
+    project_quota=_configured_project_quota,
 )
