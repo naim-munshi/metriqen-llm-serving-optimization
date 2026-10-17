@@ -65,6 +65,17 @@ def test_console_assets_and_local_auth_contract(tmp_path):
     assert 'credentials: "omit"' in javascript
     assert 'Authorization": "Bearer " + operatorToken' in javascript
     assert '"/chat"' in javascript
+    assert 'id="monitoring"' in html
+    assert 'id="metric-attempts"' in html
+    assert 'id="metric-rejected"' in html
+    assert 'id="metric-duration"' in html
+    assert 'id="refresh-monitoring"' in html
+    assert '"/monitoring"' in javascript
+    assert 'sessionToken !== operatorToken' in javascript
+    assert 'setInterval(() =>' in javascript
+    assert '!document.hidden' in javascript
+    assert 'Gateway metrics unavailable' in javascript
+    assert 'clearMonitoring("Disconnected.' in javascript
     assert '"/model-statuses"' in javascript
     assert '"Load model first"' in javascript
     assert 'Not loaded — click Load before running inference' in javascript
