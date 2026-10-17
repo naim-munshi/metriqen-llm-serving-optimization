@@ -6,6 +6,7 @@ revocable session plus exact Origin/CSRF checks. Neither trusts client roles.
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
@@ -21,7 +22,10 @@ from app.workspaces import canonical_org_id
 class InviteInput(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     target_subject: str = Field(min_length=1, max_length=255)
-    role: Role
+    role: Literal[
+        "owner", "admin", "ml_engineer", "deployment_operator",
+        "developer", "auditor", "viewer",
+    ]
 
 
 class RevokeMemberInput(BaseModel):
@@ -98,7 +102,7 @@ def team_router(settings: PinnedIdentitySettings | None,
         identifier = canonical_org_id(org_id)
         target = subject_value(payload.target_subject)
         throttle(principal)
-        return team_safely(lambda: team.invite(principal, identifier, target, payload.role))
+        return team_safely(lambda: team.invite(principal, identifier, target, Role(payload.role)))
 
     @router.get("/api/v1/organizations/{org_id}/members")
     def members(request: Request, org_id: str):
