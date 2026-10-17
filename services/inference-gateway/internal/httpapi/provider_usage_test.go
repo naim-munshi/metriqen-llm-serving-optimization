@@ -73,9 +73,14 @@ func assertUsagePartition(t *testing.T, s providerUsageSnapshot) {
 	total := s.NonstreamProviderPlausibleTotal + s.NonstreamProviderMissingTotal +
 		s.NonstreamProviderMalformedTotal + s.NonstreamProviderInconsistentTotal +
 		s.NonstreamProviderAboveCapTotal + s.NonstreamNoCompletionTotal +
-		s.StreamNotMeasuredTotal
+		s.StreamNotMeasuredTotal + s.StreamProviderPlausibleTotal
 	if total != s.ClassifiedTerminalAttemptsTotal {
 		t.Fatalf("nonexclusive /metrics/usage partition: %+v", s)
+	}
+	if s.StreamNotMeasuredTotal != s.StreamProviderMissingTotal+
+		s.StreamProviderMalformedTotal+s.StreamProviderInconsistentTotal+
+		s.StreamProviderAboveCapTotal+s.StreamIncompleteTotal {
+		t.Fatalf("stream missing/invalid/incomplete partition incorrect: %+v", s)
 	}
 	if s.ProviderPromptTokensReportedTotal+s.ProviderOutputTokensReportedTotal != s.ProviderAllTokensReportedTotal {
 		t.Fatalf("provider token totals violate reported sum: %+v", s)
@@ -108,7 +113,7 @@ func TestProviderUsageMetricsClassifyNonstreamAfterSuccessfulWrite(t *testing.T)
 			defer upstream.Close()
 			gateway := newGateway(t, upstream.URL)
 			idle, _ := readUsageSnapshot(t, gateway)
-			if idle.SchemaVersion != 1 || idle.ClassifiedTerminalAttemptsTotal != 0 {
+			if idle.SchemaVersion != 2 || idle.ClassifiedTerminalAttemptsTotal != 0 {
 				t.Fatalf("unexpected idle usage snapshot: %+v", idle)
 			}
 			reply := request(t, gateway, validChat, "application/json")
