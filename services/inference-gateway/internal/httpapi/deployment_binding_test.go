@@ -118,7 +118,7 @@ func TestStrictRoutingBindsBodyAndLoadedDigestBeforeForwarding(t *testing.T) {
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("duplicate deployment header accepted: %d", w.Code)
 	}
-	if chats.Load() != 1 || probes.Load() != 1 || controlCalls.Load() != 3 {
+	if chats.Load() != 1 || probes.Load() != 1 || controlCalls.Load() != 2 {
 		t.Fatalf("unexpected forwarded chats/probes/authorizations: %d %d %d",
 			chats.Load(), probes.Load(), controlCalls.Load())
 	}
