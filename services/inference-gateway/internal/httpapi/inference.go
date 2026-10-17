@@ -36,10 +36,11 @@ type inferenceBridge struct {
 	allowedModels    map[string]struct{}
 	upstreamFailures *upstreamFailureCounters
 	outcomes         *inferenceOutcomeCounters
+	usage            *providerUsageCounters
 }
 
 func newInferenceBridge(rawURL string) (*inferenceBridge, error) {
-	bridge := &inferenceBridge{admission: newAdmissionScheduler(maxConcurrent, 0), upstreamFailures: &upstreamFailureCounters{}, outcomes: &inferenceOutcomeCounters{}}
+	bridge := &inferenceBridge{admission: newAdmissionScheduler(maxConcurrent, 0), upstreamFailures: &upstreamFailureCounters{}, outcomes: &inferenceOutcomeCounters{}, usage: &providerUsageCounters{}}
 	if strings.TrimSpace(rawURL) == "" {
 		return bridge, nil // disabled unless explicitly configured
 	}
@@ -181,7 +182,13 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 	bridge.outcomes.start()
 	outcome := inferencePreResponseFailure
 	streamDone := false
-	defer func() { bridge.outcomes.finish(outcome, streamDone, time.Since(attemptStarted)) }()
+	usage := providerUsageObservation{kind: providerUsageUnavailable}
+	defer func() {
+		bridge.outcomes.finish(outcome, streamDone, time.Since(attemptStarted))
+		// A classified usage observation is always recorded for each
+		// *completed admitted* attempt, including transport failures.
+		bridge.usage.record(streaming, outcome, usage)
+	}()
 
 	ctx, cancel := context.WithTimeout(r.Context(), requestDeadline)
 	defer cancel()
@@ -234,7 +241,7 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 	// Validate bounded JSON before sending HTTP 200; malformed or oversized
 	// upstream output must not be classified as a successful completion.
 	if !streaming {
-		completion, err := readValidatedCompletion(response.Body)
+		completion, candidateUsage, err := readValidatedCompletionWithUsage(response.Body, requestedOutputCap)
 		if err != nil {
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				bridge.upstreamFailures.record(upstreamTimeout)
@@ -262,6 +269,7 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		outcome = inferenceNonstreamComplete
+		usage = candidateUsage // Only count provider-reported figures on a complete write.
 		return
 	}
 
