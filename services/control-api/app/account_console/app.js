@@ -136,7 +136,7 @@ async function refreshWorkspaces() {
         }
       });
       heading.append(manage);
-      card.append(teamDetails);
+      detail.append(teamDetails);
     }
     card.append(heading, detail);
     view.addEventListener("click", async () => {
