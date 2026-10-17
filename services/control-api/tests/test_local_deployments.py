@@ -161,7 +161,8 @@ def test_rollback_refuses_absent_or_unavailable_previous(env):
 def test_invalid_deployment_payload_rejected(env, body):
     client, runtime, gateway, _ = env
     prepare(client, runtime, A)
-    assert deploy(client).status_code == 201 if body.get("name") == "prod" else True
+    if body.get("name") == "prod":
+        assert deploy(client).status_code == 201
     result = request(client, "POST", "/api/v1/local/deployments", body)
     assert result.status_code in (409, 422)
     assert len(request(client, "GET", "/api/v1/local/deployments").json()["deployments"]) <= 1
