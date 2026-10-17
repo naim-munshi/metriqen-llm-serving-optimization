@@ -17,6 +17,7 @@ function setBusy(value) {
   el("logout").disabled = value;
   el("create-organization").disabled = value;
   el("refresh-workspaces").disabled = value;
+  el("refresh-invitations").disabled = value;
   document.querySelectorAll(".workspace-action").forEach(b => { b.disabled = value; });
 }
 
@@ -64,6 +65,10 @@ async function boot() {
     el("guest").hidden = true;
     el("member").hidden = false;
     status("Signed in with a verified identity.");
+    await refreshInvitations().catch(error => {
+      el("pending-invitations").replaceChildren(makeNode("p", "description",
+        error instanceof Error ? error.message : "Invitations unavailable"));
+    });
     await refreshWorkspaces().catch(error => {
       el("workspace-note").textContent =
         error instanceof Error ? error.message : "Workspace API unavailable";
@@ -115,6 +120,24 @@ async function refreshWorkspaces() {
     view.type = "button";
     const detail = makeNode("div", "workspace-projects");
     heading.append(meta, view);
+    if (org.role === "owner" || org.role === "admin") {
+      const manage = makeNode("button", "button secondary workspace-action", "Manage team");
+      manage.type = "button";
+      const teamDetails = makeNode("div", "workspace-projects");
+      manage.addEventListener("click", async () => {
+        if (busy) return;
+        setBusy(true);
+        try {
+          await showTeam(org, teamDetails);
+        } catch (error) {
+          status(error instanceof Error ? error.message : "Team access denied", true);
+        } finally {
+          setBusy(false);
+        }
+      });
+      heading.append(manage);
+      card.append(teamDetails);
+    }
     card.append(heading, detail);
     view.addEventListener("click", async () => {
       if (busy) return;
@@ -174,6 +197,131 @@ async function refreshWorkspaces() {
   el("workspace-note").textContent = result.organizations.length +
     " organization(s) available to your verified identity.";
 }
+
+
+async function refreshInvitations() {
+  const result = await jsonRequest("/auth/invitations");
+  if (!Array.isArray(result.invitations)) throw new Error("Invalid invitations response");
+  const list = el("pending-invitations");
+  list.replaceChildren();
+  if (!result.invitations.length) {
+    list.append(makeNode("p", "description", "No pending invitations for this identity."));
+    return;
+  }
+  for (const invite of result.invitations) {
+    const row = makeNode("div", "workspace-card");
+    row.append(makeNode("strong", "", invite.organization_name),
+               makeNode("p", "description", "Role: " + invite.role +
+                 " · Expires: " + invite.expires_at));
+    const accept = makeNode("button", "button primary workspace-action", "Accept invitation");
+    accept.type = "button";
+    accept.addEventListener("click", async () => {
+      if (busy) return;
+      setBusy(true);
+      try {
+        await jsonRequest("/auth/invitations/" + encodeURIComponent(invite.id) +
+          "/accept", "POST", null, true);
+        status("Invitation accepted. Your membership is now stored in PostgreSQL.");
+        await refreshInvitations();
+        await refreshWorkspaces();
+      } catch (error) {
+        status(error instanceof Error ? error.message : "Acceptance denied", true);
+      } finally {
+        setBusy(false);
+      }
+    });
+    row.append(accept);
+    list.append(row);
+  }
+}
+
+async function showTeam(org, container) {
+  const base = "/auth/organizations/" + encodeURIComponent(org.id);
+  const data = await jsonRequest(base + "/members");
+  if (!Array.isArray(data.members)) throw new Error("Invalid team response");
+  container.replaceChildren(makeNode("h3", "", "Members of " + org.name));
+  const list = makeNode("ul", "project-items");
+  for (const member of data.members) {
+    const item = makeNode("li", "team-member");
+    item.append(makeNode("span", "", member.subject + " (" + member.role + ") "));
+    if (member.subject !== el("subject").textContent && member.role !== "owner" &&
+        (org.role === "owner" || member.role !== "admin")) {
+      const remove = makeNode("button", "button secondary workspace-action", "Remove");
+      remove.type = "button";
+      remove.setAttribute("aria-label", "Remove " + member.subject);
+      remove.addEventListener("click", async () => {
+        if (busy) return;
+        setBusy(true);
+        try {
+          await jsonRequest(base + "/members/revoke", "POST",
+            {target_subject: member.subject}, true);
+          status("Membership revoked and recorded in audit.");
+          await showTeam(org, container);
+        } catch (error) {
+          status(error instanceof Error ? error.message : "Revocation denied", true);
+        } finally { setBusy(false); }
+      });
+      item.append(remove);
+    }
+    list.append(item);
+  }
+  container.append(list);
+
+  const form = makeNode("form", "project-form");
+  const label = makeNode("label", "", "Invite by exact OIDC subject (not email)");
+  const target = document.createElement("input");
+  target.required = true;
+  target.maxLength = 255;
+  target.placeholder = "Verified subject identifier";
+  target.setAttribute("aria-label", "Invitee OIDC subject");
+  const role = document.createElement("select");
+  role.setAttribute("aria-label", "Invitation role");
+  const allowedRoles = org.role === "owner"
+    ? ["viewer", "developer", "ml_engineer", "deployment_operator", "auditor", "admin"]
+    : ["viewer", "developer", "ml_engineer", "deployment_operator", "auditor"];
+  for (const value of allowedRoles) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value.replaceAll("_", " ");
+    role.append(option);
+  }
+  const send = makeNode("button", "button primary workspace-action", "Create invitation");
+  send.type = "submit";
+  form.append(label, target, role, send);
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    try {
+      await jsonRequest(base + "/invitations", "POST",
+        {target_subject: target.value, role: role.value}, true);
+      target.value = "";
+      status("Invitation recorded. Recipient can accept from their own My Account.");
+    } catch (error) {
+      status(error instanceof Error ? error.message : "Invitation denied", true);
+    } finally { setBusy(false); }
+  });
+  container.append(form);
+  const audit = await jsonRequest(base + "/audit");
+  if (!Array.isArray(audit.events)) throw new Error("Invalid audit response");
+  container.append(makeNode("h3", "", "Recent team audit events"));
+  const events = makeNode("ul", "project-items");
+  for (const event of audit.events.slice(0, 10)) {
+    events.append(makeNode("li", "", event.action + " · " +
+      event.actor_subject + " → " + event.target_subject + " (" + event.role + ")"));
+  }
+  if (!audit.events.length) events.append(makeNode("li", "", "No team events yet."));
+  container.append(events);
+}
+
+el("refresh-invitations").addEventListener("click", async () => {
+  if (busy || !csrf) return;
+  setBusy(true);
+  try { await refreshInvitations(); }
+  catch (error) {
+    status(error instanceof Error ? error.message : "Invitations unavailable", true);
+  } finally { setBusy(false); }
+});
 
 el("refresh-workspaces").addEventListener("click", async () => {
   if (busy || !csrf) return;
