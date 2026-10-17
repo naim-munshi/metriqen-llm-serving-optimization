@@ -40,11 +40,11 @@ func (g *projectLeaseGrant) valid() bool {
 var canonicalProjectID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 type projectAuthorizer struct {
-	endpoint          string
-	secret            string
-	client            *http.Client
-	requireDeployment bool
-	leaseEnabled      bool
+	endpoint           string
+	secret             string
+	client             *http.Client
+	requireDeployment  bool
+	leaseEnabled       bool
 	tokenBudgetEnabled bool
 }
 
@@ -239,13 +239,13 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 		var outputReservationRequired bool
 		if a.requireDeployment {
 			var decision struct {
-				Authorized  bool               `json:"authorized"`
-				ProjectID   string             `json:"project_id"`
-				Deployment  string             `json:"deployment"`
-				ModelTag    string             `json:"model_tag"`
-				ModelDigest string             `json:"model_digest"`
-				Generation  int                `json:"generation"`
-				Lease       *projectLeaseGrant `json:"lease,omitempty"`
+				Authorized                bool               `json:"authorized"`
+				ProjectID                 string             `json:"project_id"`
+				Deployment                string             `json:"deployment"`
+				ModelTag                  string             `json:"model_tag"`
+				ModelDigest               string             `json:"model_digest"`
+				Generation                int                `json:"generation"`
+				Lease                     *projectLeaseGrant `json:"lease,omitempty"`
 				OutputReservationRequired bool `json:"output_reservation_required,omitempty"`
 			}
 			if err := decoder.Decode(&decision); err != nil ||
@@ -264,9 +264,9 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 				}))
 		} else {
 			var decision struct {
-				Authorized bool               `json:"authorized"`
-				ProjectID  string             `json:"project_id"`
-				Lease      *projectLeaseGrant `json:"lease,omitempty"`
+				Authorized                bool               `json:"authorized"`
+				ProjectID                 string             `json:"project_id"`
+				Lease                     *projectLeaseGrant `json:"lease,omitempty"`
 				OutputReservationRequired bool `json:"output_reservation_required,omitempty"`
 			}
 			if err := decoder.Decode(&decision); err != nil ||
