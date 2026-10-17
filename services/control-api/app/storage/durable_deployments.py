@@ -99,6 +99,9 @@ class SQLDurableDeploymentStore:
             "desired_generation": row.desired_generation,
             "observed_state": row.observed_state,
             "observed_generation": row.observed_generation,
+            "observed_at": timestamp(row.observed_at) if row.observed_at is not None else None,
+            "observed_code": row.observed_code,
+            "reconcile_attempts": row.reconcile_attempts,
             "created_at": timestamp(row.created_at),
             "updated_at": timestamp(row.updated_at),
         }
@@ -198,7 +201,9 @@ class SQLDurableDeploymentStore:
                 name=name, model_tag=tag, model_digest=digest,
                 desired_state="running", desired_generation=1,
                 observed_state="unreconciled", observed_generation=0,
-                created_at=now, updated_at=now,
+                reconcile_attempts=0, observed_at=None, observed_code=None,
+                reconcile_lease_id=None, reconcile_lease_until=None,
+                reconcile_retry_at=None, created_at=now, updated_at=now,
             ))
             row = conn.execute(select(project_deployments).where(
                 project_deployments.c.id == deployment_id,
@@ -232,8 +237,17 @@ class SQLDurableDeploymentStore:
                 raise DeploymentNotFound
             if row.desired_generation != expected_generation:
                 raise DeploymentConflict
-            changes = {"desired_generation": row.desired_generation + 1,
-                       "updated_at": now}
+            # Every new desired generation invalidates ALL previous runtime
+            # evidence and any in-flight worker claim. Its stale completion
+            # can never report a prior model as ready for this new revision.
+            changes = {
+                "desired_generation": row.desired_generation + 1,
+                "observed_generation": 0, "observed_state": "unreconciled",
+                "observed_at": None, "observed_code": None,
+                "reconcile_attempts": 0, "reconcile_retry_at": None,
+                "reconcile_lease_id": None, "reconcile_lease_until": None,
+                "updated_at": now,
+            }
             if action == "promote":
                 if tag == row.model_tag and digest == row.model_digest:
                     raise DeploymentConflict
