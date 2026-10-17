@@ -15,6 +15,8 @@ trusted local PostgreSQL store are configured:
 - `GET /api/v1/invitations` – current recipient's pending invitations
 - `POST /api/v1/invitations/{id}/accept` – exact recipient, once only
 - `POST /api/v1/organizations/{org_id}/invitations` – JSON `{"target_subject":"...","role":"viewer"}`, owner/admin only
+- `GET /api/v1/organizations/{org_id}/invitations` – authorized manager's pending invitations (higher roles hidden from admins)
+- `POST /api/v1/organizations/{org_id}/invitations/{id}/cancel` – authorized manager cancels a pending invitation with same-transaction audit
 - `GET /api/v1/organizations/{org_id}/members` – owner/admin only
 - `POST /api/v1/organizations/{org_id}/members/revoke` – JSON `{"target_subject":"..."}`, owner/admin only
 - `GET /api/v1/organizations/{org_id}/audit` – role with `audit.read`
@@ -33,16 +35,17 @@ Inputs are strictly validated, unknown/unauthorized tenants return the same
 membership changes and audit inserts are in the **same transaction**. Owners
 can invite admins or lower roles; admins can invite lower roles only.
 Owner invitations, owner removal, self removal, admin-on-admin removal,
-duplicate pending invitations, replay, cross-tenant access, and removed-inviter
-acceptance are denied. No approval or role is granted by a JWT custom claim.
+duplicate pending invitations, replay, cancellation of an accepted/expired/previously cancelled invitation, cross-tenant access, and removed-inviter
+acceptance are denied. Cancellation prevents later recipient acceptance and permits
+creating a replacement invitation when justified. No approval or role is granted by a JWT custom claim.
 
 ## Migration and operator acceptance
 
 1. Keep FastAPI, Go gateway, PostgreSQL and Redis on **loopback only**. Never
    forward port 8000 or 8081 publicly.
 2. Review and explicitly apply migrations `0001_tenant_access.sql`,
-   `0002_verified_user_profiles.sql`, `0003_team_invitations_audit.sql`
-   **in that order** using a privileged operator migration role and backups.
+   `0002_verified_user_profiles.sql`, `0003_team_invitations_audit.sql`,
+   `0004_invitation_cancellation.sql` **in that order** using a privileged operator migration role and backups.
    Application startup and HTTP requests do not perform DDL.
 3. Configure operator-pinned IdP issuer/audience/client identifier/public JWKS,
    HTTPS IdP authorization/token URLs, and local authenticated Redis ACL
@@ -53,7 +56,8 @@ acceptance are denied. No approval or role is granted by a JWT custom claim.
    recipient and accept; verify replay fails; revoke as owner; verify access
    loss on the next request and audit entry creation.
 5. Verify CSRF and origin denials in a local browser, Redis outage behavior,
-   expired sessions, duplicate invitations and removed owners/admins.
+   expired sessions, duplicate invitations, deliberate cancellation before acceptance,
+   admin denial for cancelling owner-issued admin invites, and removed owners/admins.
 
 CI exercises synthetic OIDC/Redis, SQLite policy tests and isolated
 PostgreSQL 16 migrations and transaction tests. It does **not** attest a
@@ -64,7 +68,7 @@ PostgreSQL/Redis. Missing configuration leaves protected routes unavailable.
 
 These are development-only HTTP cookies (`Secure=False`) restricted to
 localhost, **not** hardened HTTPS BFF ingress. No email notifications,
-invitation cancellation, owner transfer, project grant UI, per-project Go
+owner transfer, project grant UI, per-project Go
 gateway enforcement, append-only audit DB role, retention controls,
 tamper-evident audit trail, PostgreSQL row-level security, or verified
 production identity provider. DB administrators can alter audit rows and
