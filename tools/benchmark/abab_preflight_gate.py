@@ -64,7 +64,9 @@ def _local_json(path: Path, phase: str) -> dict:
         if isinstance(exc, PreflightEvidenceError):
             raise
         raise PreflightEvidenceError(f"{phase}: invalid preflight JSON") from None
-    if not isinstance(raw, dict) or set(raw) != EXPECTED_REPORT_KEYS:
+    if not isinstance(raw, dict):
+        raise PreflightEvidenceError(f"{phase}: JSON object required")
+    if not phase.endswith(" manifest") and set(raw) != EXPECTED_REPORT_KEYS:
         raise PreflightEvidenceError(f"{phase}: unsupported preflight report structure")
     return raw
 
