@@ -26,6 +26,7 @@ from app.main import create_app
 from app.security.http_identity import PinnedIdentitySettings
 from app.storage.profiles import SQLProfileStore
 from app.storage.workspaces import SQLWorkspaceStore
+from app.storage.team import SQLTeamStore
 from app.storage.schema import metadata
 
 ISSUER = "https://idp.example.test/realms/metriqen"
@@ -138,7 +139,7 @@ def fixture(monkeypatch):
     metadata.create_all(engine)
     client = TestClient(create_app(
         identity, profile_store=SQLProfileStore(engine), browser_login=login,
-        workspace_store=SQLWorkspaceStore(engine),
+        workspace_store=SQLWorkspaceStore(engine), team_store=SQLTeamStore(engine),
     ), client=("127.0.0.1", 50505))
     try:
         yield client, store, exchanger, engine, identity
