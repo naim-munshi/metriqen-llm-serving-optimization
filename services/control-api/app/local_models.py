@@ -20,6 +20,7 @@ from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Respons
 from pydantic import BaseModel, ConfigDict
 
 from app.local_inference import ChatInput, LocalGatewayChat, selected_local_gateway_port
+from app.local_monitoring import GatewayMonitoring
 
 MODEL_TAG = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,62}:[A-Za-z0-9][A-Za-z0-9._-]{0,62}\Z")
 DIGEST = re.compile(r"[0-9a-f]{64}\Z")
@@ -198,8 +199,10 @@ def _match_installed(runtime: LocalModelRuntime, record: dict) -> None:
 
 
 def local_model_router(token: str, store: Registry, runtime: LocalModelRuntime,
-                       gateway_chat: LocalGatewayChat | None = None) -> APIRouter:
+                       gateway_chat: LocalGatewayChat | None = None,
+                       gateway_monitoring: GatewayMonitoring | None = None) -> APIRouter:
     chat_client = gateway_chat or LocalGatewayChat()
+    monitoring = gateway_monitoring or GatewayMonitoring()
     def operator(request: Request) -> None:
         if request.client is None or request.client.host not in LOOPBACK_CLIENTS:
             raise HTTPException(403, "local operator routes require loopback")
@@ -208,6 +211,11 @@ def local_model_router(token: str, store: Registry, runtime: LocalModelRuntime,
             raise HTTPException(401, "local operator token required", headers={"WWW-Authenticate": "Bearer"})
 
     router = APIRouter(prefix="/api/v1/local", tags=["local-models"], dependencies=[Depends(operator)])
+
+    @router.get("/monitoring")
+    def local_inference_monitoring() -> dict:
+        """Authorized, fresh read-only gateway snapshot. No prompt storage."""
+        return monitoring.snapshot()
 
     @router.get("/available-models")
     def available_models() -> dict:
@@ -344,7 +352,8 @@ def model_console_router() -> APIRouter:
 def configure_local_models(app: FastAPI, *, token: str | None = None,
                            path: Path | None = None,
                            runtime: LocalModelRuntime | None = None,
-                           gateway_chat: LocalGatewayChat | None = None) -> None:
+                           gateway_chat: LocalGatewayChat | None = None,
+                           gateway_monitoring: GatewayMonitoring | None = None) -> None:
     """Explicit local opt-in; default control API remains unchanged."""
     if token is None:
         token = os.getenv("METRIQEN_LOCAL_MODEL_TOKEN", "")
@@ -363,5 +372,6 @@ def configure_local_models(app: FastAPI, *, token: str | None = None,
     if gateway_chat is None:
         gateway_chat = LocalGatewayChat(port=selected_local_gateway_port())
     app.include_router(local_model_router(token, store, runtime or OllamaRuntime(),
-                                          gateway_chat=gateway_chat))
+                                          gateway_chat=gateway_chat,
+                                          gateway_monitoring=gateway_monitoring))
     app.include_router(model_console_router())
