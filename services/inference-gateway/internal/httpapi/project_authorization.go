@@ -22,12 +22,79 @@ import (
 const gatewayAuthPath = "/internal/gateway/authorize"
 const maxProjectJWTLength = 16 << 10
 
+var canonicalDeployment = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,31}package httpapi
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"mime"
+	"net"
+	"net/http"
+	"net/url"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+)
+
+// These credentials protect only an opt-in, loopback-to-loopback development
+// authorization call. No caller token is forwarded to the inference runtime.
+const gatewayAuthPath = "/internal/gateway/authorize"
+)
+var canonicalDigest = regexp.MustCompile(`^[0-9a-f]{64}package httpapi
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"mime"
+	"net"
+	"net/http"
+	"net/url"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+)
+
+// These credentials protect only an opt-in, loopback-to-loopback development
+// authorization call. No caller token is forwarded to the inference runtime.
+const gatewayAuthPath = "/internal/gateway/authorize"
+)
+
 var canonicalProjectID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 type projectAuthorizer struct {
-	endpoint string
-	secret   string
-	client   *http.Client
+	endpoint          string
+	secret            string
+	client            *http.Client
+	requireDeployment bool
+}
+
+// newStrictProjectAuthorizer refuses partial or inconsistent opt-in mode.
+// Legacy project-only authorization remains backward-compatible.
+func newStrictProjectAuthorizer(rawURL, secret, mode string) (*projectAuthorizer, error) {
+	if mode != "" && mode != "0" && mode != "1" {
+		return nil, errors.New("invalid project deployment routing mode")
+	}
+	auth, err := newProjectAuthorizer(rawURL, secret)
+	if err != nil {
+		return nil, err
+	}
+	if mode == "1" {
+		if auth == nil {
+			return nil, errors.New("deployment routing requires project authorization")
+		}
+		auth.requireDeployment = true
+	}
+	return auth, nil
 }
 
 func newProjectAuthorizer(rawURL, secret string) (*projectAuthorizer, error) {
@@ -95,6 +162,18 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 		// No body read, admission queue, upstream request, or prompt access
 		// occurs before a successful current-membership authorization.
 		body := []byte(`{"project_id":"` + projects[0] + `"}`)
+		deployment := ""
+		if a.requireDeployment {
+			names := r.Header.Values("X-Metriqen-Deployment")
+			if len(names) != 1 || !canonicalDeployment.MatchString(names[0]) {
+				writeError(w, http.StatusBadRequest, "invalid_deployment",
+					"Canonical deployment name required")
+				return
+			}
+			deployment = names[0]
+			body = []byte(`{"project_id":"` + projects[0] +
+				`","deployment":"` + deployment + `"}`)
+		}
 		ctx, cancel := context.WithTimeout(r.Context(), 2500*time.Millisecond)
 		defer cancel()
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, a.endpoint, bytes.NewReader(body))
@@ -119,6 +198,10 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 		case http.StatusForbidden, http.StatusNotFound:
 			denyProjectAuth(w, http.StatusForbidden)
 			return
+		case http.StatusConflict:
+			writeError(w, http.StatusConflict, "deployment_not_ready",
+				"Model deployment is not ready")
+			return
 		case http.StatusTooManyRequests:
 			// Do not consume local scheduler capacity or forward the prompt.
 			// Fixed 60s budget intentionally ignores arbitrary upstream headers.
@@ -137,23 +220,48 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 			denyProjectAuth(w, http.StatusServiceUnavailable)
 			return
 		}
-		var decision struct {
-			Authorized bool   `json:"authorized"`
-			ProjectID  string `json:"project_id"`
-		}
 		decoder := json.NewDecoder(io.LimitReader(resp.Body, 513))
 		decoder.DisallowUnknownFields()
-		if err := decoder.Decode(&decision); err != nil || !decision.Authorized ||
-			decision.ProjectID != projects[0] {
-			denyProjectAuth(w, http.StatusServiceUnavailable)
-			return
+		var nextRequest *http.Request
+		if a.requireDeployment {
+			var decision struct {
+				Authorized  bool   `json:"authorized"`
+				ProjectID   string `json:"project_id"`
+				Deployment  string `json:"deployment"`
+				ModelTag    string `json:"model_tag"`
+				ModelDigest string `json:"model_digest"`
+				Generation  int    `json:"generation"`
+			}
+			if err := decoder.Decode(&decision); err != nil ||
+				!decision.Authorized || decision.ProjectID != projects[0] ||
+				decision.Deployment != deployment || decision.Generation < 1 ||
+				!validModelTag(decision.ModelTag) ||
+				!canonicalDigest.MatchString(decision.ModelDigest) {
+				denyProjectAuth(w, http.StatusServiceUnavailable)
+				return
+			}
+			nextRequest = r.WithContext(context.WithValue(r.Context(),
+				deploymentBindingKey{}, deploymentBinding{
+					modelTag: decision.ModelTag, digest: decision.ModelDigest,
+				}))
+		} else {
+			var decision struct {
+				Authorized bool   `json:"authorized"`
+				ProjectID  string `json:"project_id"`
+			}
+			if err := decoder.Decode(&decision); err != nil ||
+				!decision.Authorized || decision.ProjectID != projects[0] {
+				denyProjectAuth(w, http.StatusServiceUnavailable)
+				return
+			}
+			nextRequest = r
 		}
 		var remaining any
 		if err := decoder.Decode(&remaining); !errors.Is(err, io.EOF) {
 			denyProjectAuth(w, http.StatusServiceUnavailable)
 			return
 		}
-		next(w, r)
+		next(w, nextRequest)
 	}
 }
 
