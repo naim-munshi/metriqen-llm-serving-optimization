@@ -53,6 +53,16 @@ Each setting had 9 runs (3 repeats at concurrency 1/2/4), **324/324 measured req
 
 **Next experimental protocol (not performance evidence):** the [FIFO admission overload comparison](docs/benchmarks/admission-overload.md) uses an independent local-only runner to record all successful and rejected requests at offered concurrency 4/6/8/12, plus process-local admission counter deltas, for queue depth 0 versus 2. This has **no published real-model scheduler benefit**; it does not modify the October 13 Ollama parallelism results or their historical private evidence.
 
+## Local deployment routes (opt-in)
+
+The operator Model Manager now supports **persistent named local deployment
+aliases** backed by SQLite. An approved, preloaded revision can be assigned
+to a stable inference route, promoted to another approved revision, paused,
+resumed and rolled back one step. The browser includes deployment controls
+and a stable-name inference playground. This is **real local routing** but
+**not** GPU worker provisioning, autoscaling, public authentication or
+production deployment. [Operator contract and limits](docs/operations/local-deployments.md).
+
 ## Local inference monitoring (opt-in)
 
 The Model Manager includes **Gateway Monitoring** with actual process-local inference,
