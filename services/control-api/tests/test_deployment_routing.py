@@ -29,6 +29,7 @@ from test_sql_project_store import (
     seeded, engine, signing_config, PROJECT_A, PROJECT_A2, PROJECT_B,
     ISSUER, ORG_A,
 )
+from test_project_access_http import sandbox, signed_material
 
 SECRET = "project-bound-local-service-secret-0123456789abcdef"
 INTERNAL = "/internal/gateway/authorize"
@@ -44,7 +45,7 @@ class CountingQuota:
 
 @pytest.fixture
 def bound_route(deployment_env, signing_config):
-    _, engine, _, signer = deployment_env
+    writer, engine, _, signer = deployment_env
     _, settings = signing_config
     quota = CountingQuota()
     control = TestClient(
@@ -56,7 +57,7 @@ def bound_route(deployment_env, signing_config):
             project_quota=quota,
         ), client=("127.0.0.1", 47111),
     )
-    return control, engine, signer, quota
+    return control, writer, engine, signer, quota
 
 
 def call(client, signer, *, project=PROJECT_A, deployment="stable",
@@ -76,14 +77,15 @@ def attest_ready(engine, *, now=None):
 
 
 def test_strict_route_needs_fresh_ready_generation_and_current_sql_grant(bound_route):
-    client, engine, signer, quota = bound_route
+    client, writer, engine, signer, quota = bound_route
     # Untrusted role/permission claims cannot promote a viewer to owner.
     assert call(client, signer, role="owner",
                 permissions=["inference.invoke"]).status_code == 404
-    become(engine, Role.DEVELOPER)
+    become(engine, Role.OWNER)
     assert call(client, signer).status_code == 404  # No deployment.
     assert quota.used == []
-    assert create(client, signer).status_code == 201
+    assert create(writer, signer).status_code == 201
+    become(engine, Role.DEVELOPER)
     assert call(client, signer).status_code == 409  # Unreconciled.
     assert quota.used == []
     attest_ready(engine)
@@ -100,10 +102,10 @@ def test_strict_route_needs_fresh_ready_generation_and_current_sql_grant(bound_r
     assert call(client, signer, project=PROJECT_B).status_code == 404
     assert len(quota.used) == 1
     # New desired generation invalidates *all* old observation evidence.
-    promote = change(client, signer, "promote", 1, "strict-promotion-0001")
+    promote = change(writer, signer, "promote", 1, "strict-promotion-0001")
     assert promote.status_code == 404  # Developer cannot manage deployments.
     become(engine, Role.OWNER)
-    promote = change(client, signer, "promote", 1, "strict-promotion-0001")
+    promote = change(writer, signer, "promote", 1, "strict-promotion-0001")
     assert promote.status_code == 200
     assert call(client, signer).status_code == 409
     attest_ready(engine)
@@ -112,7 +114,7 @@ def test_strict_route_needs_fresh_ready_generation_and_current_sql_grant(bound_r
     assert switched.json()["model_tag"] == B
     assert switched.json()["model_digest"] == DB
     assert switched.json()["generation"] == 2
-    stopped = change(client, signer, "stop", 2, "strict-stop-0001")
+    stopped = change(writer, signer, "stop", 2, "strict-stop-0001")
     assert stopped.status_code == 200
     assert call(client, signer).status_code == 409
     assert len(quota.used) == 2  # Only two actually-ready attempts charged.
@@ -127,9 +129,9 @@ def test_strict_route_needs_fresh_ready_generation_and_current_sql_grant(bound_r
 
 
 def test_observation_expiry_blocks_stale_models_without_quota(bound_route):
-    client, engine, signer, quota = bound_route
+    client, writer, engine, signer, quota = bound_route
     become(engine, Role.OWNER)
-    assert create(client, signer).status_code == 201
+    assert create(writer, signer).status_code == 201
     attest_ready(engine)
     assert call(client, signer).status_code == 200
     past = datetime.now(timezone.utc) - timedelta(seconds=ROUTING_FRESHNESS_SECONDS + 2)
@@ -151,9 +153,9 @@ def test_observation_expiry_blocks_stale_models_without_quota(bound_route):
     "stable\nsecond", "%2Fother",
 ])
 def test_ambiguous_client_deployment_does_not_fallback_to_project_only(bound_route, malformed):
-    client, engine, signer, quota = bound_route
+    client, writer, engine, signer, quota = bound_route
     become(engine, Role.OWNER)
-    assert create(client, signer).status_code == 201
+    assert create(writer, signer).status_code == 201
     attest_ready(engine)
     payload = {"project_id": str(PROJECT_A)}
     if malformed is not None:
@@ -166,9 +168,9 @@ def test_ambiguous_client_deployment_does_not_fallback_to_project_only(bound_rou
 
 
 def test_failure_and_cross_tenant_never_use_ready_claims(bound_route):
-    client, engine, signer, quota = bound_route
+    client, writer, engine, signer, quota = bound_route
     become(engine, Role.OWNER)
-    assert create(client, signer).status_code == 201
+    assert create(writer, signer).status_code == 201
     store = SQLReconciliationStore(engine)
     claim = store.claim_one()
     assert store.finish(claim, "failed", "runtime_unavailable")
