@@ -190,7 +190,13 @@ func TestDistributedPermitAlwaysReleasesOnUpstreamFailureAndCancellation(t *test
 			return
 		}
 		started <- struct{}{}
-		<-r.Context().Done()
+		// httptest's HTTP/1.1 handler context can outlive client-side
+		// cancellation until the connection is closed. Never let the
+		// fixture block Server.Close() indefinitely after a canceled test.
+		select {
+		case <-r.Context().Done():
+		case <-time.After(3 * time.Second):
+		}
 	}))
 	defer upstream.Close()
 	h := leasedGateway(t, upstream.URL, control.URL)
