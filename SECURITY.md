@@ -75,6 +75,26 @@ live Redis validation on Mac, or production hardening is claimed.
 
 When both the control API's `METRIQEN_GATEWAY_INTERNAL_TOKEN` and gateway-side `METRIQEN_GATEWAY_PROJECT_AUTH_URL`/`METRIQEN_GATEWAY_PROJECT_AUTH_TOKEN` are operator-configured, direct chat inference is denied until an OIDC access JWT and a canonical project ID pass the current `inference.invoke` permission check on trusted PostgreSQL data. Untrusted JWT role/tenant claims are ignored; authorization happens before prompt decoding, queue admission or runtime forwarding. The gateway treats service errors and malformed decisions as 503 and never forwards credentials or the project header to Ollama. The legacy loopback-only mode stays unauthenticated unless guarded mode is explicitly enabled. Do not enable the legacy shared bearer token with project mode. The new unit/HTTP checks and disposable PostgreSQL CI tests are not real IdP/HTTPS, Mac or production load tests. See [project authorization runbook](docs/operations/project-inference-authorization.md).
 
+## Opt-in strict project-deployment model routing
+
+With `METRIQEN_ENFORCE_DEPLOYMENT_ROUTING=1` configured on **every**
+Go gateway and control API replica, a gateway inference request must name a
+canonical deployment. After verified OIDC/SQL inference permission, control
+API requires the deployment's desired running, same-generation ready
+observation within 120s and returns a trusted tag/digest binding. Go compares
+the validated chat JSON model against that binding and probes its pinned
+Ollama `/api/ps` for an exact currently loaded digest before scheduling or
+forwarding any prompt. Stopped, missing, cross-tenant, unready, stale, changed,
+malformed or unavailable revisions fail closed. Trusted Redis request quotas
+are enforced after SQL authorization. This protects local development from
+simple forged model/deployment headers; **disabled strict mode still allows
+the older project-only guard and legacy unguarded local inference**.
+An operator must enable the strict flag consistently; it is never silently
+turned on by setting only one side. No production live model revocation,
+immutable/signed artifact attestation, mTLS, real identity provider testing,
+or protection against local Ollama tag mutation between /api/ps and inference
+is established. See [strict model-routing runbook](docs/operations/project-inference-authorization.md).
+
 ## Explicit local deployment reconciliation (snapshot only)
 
 An opt-in operator-invoked reconciliation command now observes approved
@@ -105,7 +125,10 @@ model, or assert health: all observed states remain `unreconciled`.
 Operator migrations `0005` and `0006` are needed. The
 optional, explicit local reconciliation command can record a bounded
 observed status and preload approved existing models, but does not create
-a production reconciler or secure serving routing. Model signature
+production reconciliation. The **separately opt-in** strict local
+project-deployment routing mode checks SQL desired/observed readiness and
+revalidates the Ollama loaded digest before inference, without providing
+production-grade routing isolation. Model signature
 attestation, secure browser editing, cross-component serving routes,
 always-on health checks or audited immutable runtime events remain absent. See
 [durable project deployment runbook](docs/operations/durable-project-deployment-state.md).
