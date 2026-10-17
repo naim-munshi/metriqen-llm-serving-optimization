@@ -39,13 +39,23 @@ def test_browser_invites_require_session_csrf_and_database_permissions(browser_f
     issued = client.post(endpoint, json={"target_subject": "alice", "role": "viewer"},
                          headers=secure)
     assert issued.status_code == 201
+    manager_pending = client.get(f"/auth/organizations/{org}/invitations")
+    assert manager_pending.status_code == 200
+    assert [i["id"] for i in manager_pending.json()["invitations"]] == [issued.json()["id"]]
+    cancel_url = f"/auth/organizations/{org}/invitations/{issued.json()['id']}/cancel"
+    assert client.post(cancel_url).status_code == 403
+    assert client.post(cancel_url, headers={"Origin": "https://evil.example",
+                       "X-Metriqen-CSRF": csrf}).status_code == 403
+    assert client.post(cancel_url, headers=secure).json() == {"cancelled": True}
+    assert client.post(cancel_url, headers=secure).status_code == 404
+    assert client.get(f"/auth/organizations/{org}/invitations").json()["invitations"] == []
     assert client.get(f"/auth/organizations/{org}/members").status_code == 200
-    assert client.get(f"/auth/organizations/{org}/audit").json()["events"][0]["action"] == "invitation.created"
+    assert client.get(f"/auth/organizations/{org}/audit").json()["events"][0]["action"] == "invitation.cancelled"
     assert client.get("/auth/invitations").json()["invitations"] == []
     assert client.post(f"/auth/invitations/{issued.json()['id']}/accept",
                        headers=secure).status_code == 404
     with engine.connect() as conn:
-        assert len(conn.execute(select(team_audit_events)).all()) == 1
+        assert len(conn.execute(select(team_audit_events)).all()) == 2
 
 
 def test_browser_pending_accept_is_one_time_and_logout_revokes_access(browser_fixture):
