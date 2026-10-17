@@ -145,8 +145,7 @@ func TestProviderUsageMetricsClassifyNonstreamAfterSuccessfulWrite(t *testing.T)
 					t.Fatalf("over-cap report wrongly accepted: %+v", usage)
 				}
 			}
-			if tc.wantKind != providerUsagePlausible && (
-				usage.ProviderPromptTokensReportedTotal != 0 ||
+			if tc.wantKind != providerUsagePlausible && (usage.ProviderPromptTokensReportedTotal != 0 ||
 				usage.ProviderOutputTokensReportedTotal != 0 ||
 				usage.ProviderAllTokensReportedTotal != 0) {
 				t.Fatalf("unreliable upstream claims contaminated provider totals: %+v", usage)
