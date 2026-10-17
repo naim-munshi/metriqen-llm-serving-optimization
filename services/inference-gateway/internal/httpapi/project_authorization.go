@@ -20,10 +20,22 @@ import (
 // These credentials protect only an opt-in, loopback-to-loopback development
 // authorization call. No caller token is forwarded to the inference runtime.
 const gatewayAuthPath = "/internal/gateway/authorize"
+const gatewayReleasePath = "/internal/gateway/release"
 const maxProjectJWTLength = 16 << 10
+const projectLeaseDeadline = 150 * time.Second
 
 var canonicalDeployment = regexp.MustCompile("^[a-z][a-z0-9_-]{0,31}$")
 var canonicalDigest = regexp.MustCompile("^[0-9a-f]{64}$")
+var canonicalPermit = regexp.MustCompile("^[0-9a-f]{32}$")
+
+type projectLeaseGrant struct {
+	Scope  string `json:"scope"`
+	Permit string `json:"permit"`
+}
+
+func (g *projectLeaseGrant) valid() bool {
+	return g != nil && canonicalDigest.MatchString(g.Scope) && canonicalPermit.MatchString(g.Permit)
+}
 
 var canonicalProjectID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
@@ -32,6 +44,24 @@ type projectAuthorizer struct {
 	secret            string
 	client            *http.Client
 	requireDeployment bool
+	leaseEnabled       bool
+}
+
+func newLeasedProjectAuthorizer(rawURL, secret, deploymentMode, leaseMode string) (*projectAuthorizer, error) {
+	if leaseMode != "" && leaseMode != "0" && leaseMode != "1" {
+		return nil, errors.New("invalid distributed project concurrency mode")
+	}
+	auth, err := newStrictProjectAuthorizer(rawURL, secret, deploymentMode)
+	if err != nil {
+		return nil, err
+	}
+	if leaseMode == "1" {
+		if auth == nil {
+			return nil, errors.New("distributed project concurrency requires project authorization")
+		}
+		auth.leaseEnabled = true
+	}
+	return auth, nil
 }
 
 // newStrictProjectAuthorizer refuses partial or inconsistent opt-in mode.
@@ -160,10 +190,18 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 			return
 		case http.StatusTooManyRequests:
 			// Do not consume local scheduler capacity or forward the prompt.
-			// Fixed 60s budget intentionally ignores arbitrary upstream headers.
-			w.Header().Set("Retry-After", "60")
-			writeError(w, http.StatusTooManyRequests, "project_quota_exceeded",
-				"Project inference request quota exceeded")
+			// Accept only the two operator-defined bounded retry intervals.
+			// Never reflect an arbitrary control-service header to clients.
+			retry := resp.Header.Values("Retry-After")
+			if a.leaseEnabled && len(retry) == 1 && retry[0] == "1" {
+				w.Header().Set("Retry-After", "1")
+				writeError(w, http.StatusTooManyRequests, "project_capacity_exceeded",
+					"Project active inference capacity exceeded")
+			} else {
+				w.Header().Set("Retry-After", "60")
+				writeError(w, http.StatusTooManyRequests, "project_quota_exceeded",
+					"Project inference request quota exceeded")
+			}
 			return
 		case http.StatusOK:
 			// A 200 is only accepted with an exact, matching positive decision.
@@ -179,6 +217,7 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 		decoder := json.NewDecoder(io.LimitReader(resp.Body, 513))
 		decoder.DisallowUnknownFields()
 		var nextRequest *http.Request
+		var lease *projectLeaseGrant
 		if a.requireDeployment {
 			var decision struct {
 				Authorized  bool   `json:"authorized"`
@@ -187,6 +226,7 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 				ModelTag    string `json:"model_tag"`
 				ModelDigest string `json:"model_digest"`
 				Generation  int    `json:"generation"`
+				Lease       *projectLeaseGrant `json:"lease,omitempty"`
 			}
 			if err := decoder.Decode(&decision); err != nil ||
 				!decision.Authorized || decision.ProjectID != projects[0] ||
@@ -196,6 +236,7 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 				denyProjectAuth(w, http.StatusServiceUnavailable)
 				return
 			}
+			lease = decision.Lease
 			nextRequest = r.WithContext(context.WithValue(r.Context(),
 				deploymentBindingKey{}, deploymentBinding{
 					modelTag: decision.ModelTag, digest: decision.ModelDigest,
@@ -204,20 +245,67 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 			var decision struct {
 				Authorized bool   `json:"authorized"`
 				ProjectID  string `json:"project_id"`
+				Lease      *projectLeaseGrant `json:"lease,omitempty"`
 			}
 			if err := decoder.Decode(&decision); err != nil ||
 				!decision.Authorized || decision.ProjectID != projects[0] {
 				denyProjectAuth(w, http.StatusServiceUnavailable)
 				return
 			}
+			lease = decision.Lease
 			nextRequest = r
+		}
+		if a.leaseEnabled {
+			if !lease.valid() {
+				denyProjectAuth(w, http.StatusServiceUnavailable)
+				return
+			}
+		} else if lease != nil {
+			// A partially configured control API must never silently
+			// enable or bypass the distributed concurrency contract.
+			denyProjectAuth(w, http.StatusServiceUnavailable)
+			return
 		}
 		var remaining any
 		if err := decoder.Decode(&remaining); !errors.Is(err, io.EOF) {
 			denyProjectAuth(w, http.StatusServiceUnavailable)
 			return
 		}
+		if a.leaseEnabled {
+			// Handler is bounded by its 120-second upstream timeout and the
+			// loopback HTTP server's 130-second write deadline. Hard-limit
+			// this handler to 150s, well inside the 240s Redis crash lease.
+			// A stalled handler beyond this budget must not be assumed
+			// safe without a real serving process kill switch.
+			executionCtx, end := context.WithTimeout(nextRequest.Context(), projectLeaseDeadline)
+			defer end()
+			defer a.releaseLease(*lease)
+			next(w, nextRequest.WithContext(executionCtx))
+			return
+		}
 		next(w, nextRequest)
+	}
+}
+
+func (a *projectAuthorizer) releaseLease(lease projectLeaseGrant) {
+	if a == nil || !a.leaseEnabled || !lease.valid() {
+		return
+	}
+	// A canceled client context must not prevent releasing its permit.
+	// Release errors are conservatively recovered via Redis lease expiry.
+	ctx, cancel := context.WithTimeout(context.Background(), 2500*time.Millisecond)
+	defer cancel()
+	body := []byte(`{"scope":"` + lease.Scope + `","permit":"` + lease.Permit + `"}`)
+	endpoint := strings.TrimSuffix(a.endpoint, gatewayAuthPath) + gatewayReleasePath
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Metriqen-Gateway-Secret", a.secret)
+	resp, err := a.client.Do(req)
+	if err == nil {
+		_ = resp.Body.Close()
 	}
 }
 
