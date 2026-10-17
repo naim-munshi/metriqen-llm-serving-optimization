@@ -20,6 +20,8 @@ from app.security.redis_quota import RedisAccountQuota, load_account_quota
 from app.browser_auth import BrowserLogin, browser_configured, browser_login_router
 from app.workspaces import organization_router
 from app.storage.workspaces import SQLWorkspaceStore
+from app.storage.team import SQLTeamStore
+from app.team_api import team_router
 
 
 def create_app(
@@ -30,6 +32,7 @@ def create_app(
     account_quota: RedisAccountQuota | None = None,
     browser_login: BrowserLogin | None = None,
     workspace_store: SQLWorkspaceStore | None = None,
+    team_store: SQLTeamStore | None = None,
 ) -> FastAPI:
     """Create isolated app instances; trusted stores are explicitly injected."""
     application = FastAPI(
@@ -80,12 +83,13 @@ def create_app(
     # tenant resource. No JWT-supplied role or organization creates a grant.
     application.include_router(organization_router(identity_settings, workspace_store,
                                                   account_quota))
+    application.include_router(team_router(identity_settings, team_store, account_quota))
 
     # Browser authentication is an explicit localhost-only OIDC/Redis opt-in.
     # No login/session routes or static account page are exposed by default.
     if browser_login is not None:
         application.include_router(browser_login_router(browser_login, profile_store,
-                                                        account_quota, workspace_store))
+                                                        account_quota, workspace_store, team_store))
 
     # Operator-only model lifecycle is opt-in and never substitutes for
     # project-scoped identity or inference gateway authorization.
@@ -106,4 +110,6 @@ app = create_app(
     browser_login=browser_configured(None, _configured_identity),
     workspace_store=(SQLWorkspaceStore(_configured_project_store._engine)
                      if _configured_project_store is not None else None),
+    team_store=(SQLTeamStore(_configured_project_store._engine)
+                if _configured_project_store is not None else None),
 )
