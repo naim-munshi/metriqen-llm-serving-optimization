@@ -13,15 +13,15 @@ import (
 )
 
 type syntheticOutputBudget struct {
-	mu          sync.Mutex
-	active      map[string]bool
-	spent       map[string]bool
-	nextID      int
-	used        int
-	limit       int
+	mu           sync.Mutex
+	active       map[string]bool
+	spent        map[string]bool
+	nextID       int
+	used         int
+	limit        int
 	reservations int
-	releases    int
-	returnError bool
+	releases     int
+	returnError  bool
 }
 
 func (s *syntheticOutputBudget) control(w http.ResponseWriter, r *http.Request) {
@@ -48,10 +48,10 @@ func (s *syntheticOutputBudget) control(w http.ResponseWriter, r *http.Request) 
 		s.active[permit] = true
 		s.mu.Unlock()
 		payload := map[string]any{
-			"authorized": true,
-			"project_id": projectA,
+			"authorized":                  true,
+			"project_id":                  projectA,
 			"output_reservation_required": true,
-			"lease": map[string]string{"scope": testProjectLeaseScope, "permit": permit},
+			"lease":                       map[string]string{"scope": testProjectLeaseScope, "permit": permit},
 		}
 		_ = json.NewEncoder(w).Encode(payload)
 	case "/internal/gateway/reserve-output":
@@ -60,9 +60,9 @@ func (s *syntheticOutputBudget) control(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		var body struct {
-			Scope string `json:"scope"`
-			Permit string `json:"permit"`
-			MaxTokens int `json:"max_tokens"`
+			Scope     string `json:"scope"`
+			Permit    string `json:"permit"`
+			MaxTokens int    `json:"max_tokens"`
 		}
 		if json.NewDecoder(r.Body).Decode(&body) != nil ||
 			body.Scope != testProjectLeaseScope || body.MaxTokens < 1 ||
@@ -95,7 +95,7 @@ func (s *syntheticOutputBudget) control(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		var body struct {
-			Scope string `json:"scope"`
+			Scope  string `json:"scope"`
 			Permit string `json:"permit"`
 		}
 		if json.NewDecoder(r.Body).Decode(&body) != nil ||
@@ -145,7 +145,9 @@ func TestOutputReservationBeforeForwardingAcrossGatewayReplicas(t *testing.T) {
 			r.Header.Get("X-Metriqen-Project-ID") != "" {
 			t.Error("trusted service or user token leaked to Ollama")
 		}
-		var body struct{ MaxTokens int `json:"max_tokens"` }
+		var body struct {
+			MaxTokens int `json:"max_tokens"`
+		}
 		if json.NewDecoder(r.Body).Decode(&body) != nil || body.MaxTokens != 256 {
 			t.Error("wrong validated cap forwarded to model")
 		}
@@ -278,7 +280,9 @@ func TestCanonicalValidatedOutputCapMatchesForwardedJSON(t *testing.T) {
 		if err != nil || cap != tc.want {
 			t.Fatalf("validated output cap mismatch: want=%d got=%d err=%v", tc.want, cap, err)
 		}
-		var forwarded struct{ MaxTokens int `json:"max_tokens"` }
+		var forwarded struct {
+			MaxTokens int `json:"max_tokens"`
+		}
 		if json.Unmarshal(body, &forwarded) != nil || forwarded.MaxTokens != cap {
 			t.Fatal("reserved cap differs from the literal model bound")
 		}
