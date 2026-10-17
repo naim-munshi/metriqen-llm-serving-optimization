@@ -104,6 +104,22 @@ def team_router(settings: PinnedIdentitySettings | None,
         throttle(principal)
         return team_safely(lambda: team.invite(principal, identifier, target, Role(payload.role)))
 
+    @router.get("/api/v1/organizations/{org_id}/invitations")
+    def pending_for_organization(request: Request, org_id: str):
+        principal, team = trusted(request)
+        identifier = canonical_org_id(org_id)
+        return {"invitations": team_safely(
+            lambda: team.organization_pending(principal, identifier))}
+
+    @router.post("/api/v1/organizations/{org_id}/invitations/{invite_id}/cancel")
+    def cancel_invitation(request: Request, org_id: str, invite_id: str):
+        principal, team = trusted(request)
+        identifier = canonical_org_id(org_id)
+        invitation = invitation_id(invite_id)
+        throttle(principal)
+        team_safely(lambda: team.cancel(principal, identifier, invitation))
+        return {"cancelled": True}
+
     @router.get("/api/v1/organizations/{org_id}/members")
     def members(request: Request, org_id: str):
         principal, team = trusted(request)
