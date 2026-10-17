@@ -5,6 +5,56 @@ const api = "/api/v1/local";
 const $ = id => document.getElementById(id);
 let operatorToken = "";
 let busy = false;
+
+const METRIC_FIELDS = Object.freeze({
+  "metric-attempts": v => v.inference.admitted_attempts_total,
+  "metric-complete": v => v.inference.nonstream_complete_total,
+  "metric-active": v => v.inference.active_attempts,
+  "metric-queue": v => v.admission.waiting_requests,
+  "metric-rejected": v => v.admission.rejected_full_total,
+  "metric-timeouts": v => v.admission.queue_timeout_total,
+  "metric-failures": v => v.inference.pre_response_failure_total,
+  "metric-duration": v => v.inference.mean_post_admission_duration_ms === null
+    ? "—" : v.inference.mean_post_admission_duration_ms + " ms",
+  "metric-upstream": v => v.upstream.failure_events_total
+});
+
+function clearMonitoring(message) {
+  Object.keys(METRIC_FIELDS).forEach(id => { $(id).textContent = "—"; });
+  $("monitor-state").textContent = message;
+  $("monitor-time").textContent = "";
+}
+
+// Monitoring is independent of model discovery: a stopped gateway must not
+// prevent model management or discard the operator's in-memory credentials.
+async function refreshMonitoring() {
+  if (!operatorToken) {
+    clearMonitoring("Connect to view gateway metrics.");
+    return;
+  }
+  const sessionToken = operatorToken;
+  try {
+    const values = await call("/monitoring");
+    if (sessionToken !== operatorToken) return;
+    if (values.schema_version !== 1 || values.process_local_counters !== true ||
+        values.source !== "local_gateway_8081") {
+      throw new Error("Unknown monitoring protocol");
+    }
+    for (const [id, getter] of Object.entries(METRIC_FIELDS)) {
+      const reading = getter(values);
+      if (typeof reading !== "number" && reading !== "—" && typeof reading !== "string") {
+        throw new Error("Missing gateway metric");
+      }
+      $(id).textContent = String(reading);
+    }
+    $("monitor-state").textContent = "● Gateway metrics available";
+    $("monitor-time").textContent = "Observed " + values.observed_at_utc;
+  } catch (_) {
+    if (sessionToken !== operatorToken) return;
+    clearMonitoring("Gateway metrics unavailable — check localhost:8081 and refresh.");
+  }
+}
+
 const promptDrafts = new Map(); // transient only; no browser storage
 
 function notify(message, isError = false) {
@@ -15,6 +65,7 @@ function notify(message, isError = false) {
 function setBusy(value) {
   busy = value;
   $("refresh").disabled = value || !operatorToken;
+  $("refresh-monitoring").disabled = value || !operatorToken;
   $("connect-button").disabled = value;
   $("disconnect").disabled = value || !operatorToken;
   document.querySelectorAll(".model-action").forEach(node => { node.disabled = value || node.dataset.locked === "true"; });
@@ -211,6 +262,7 @@ function render(available, registered, statuses) {
           output.textContent = result.content;
           output.hidden = false;
           notify("Received local inference response from " + model.tag + ".");
+          await refreshMonitoring();
         }, "primary");
         if (!loaded) {
           runButton.dataset.locked = "true";
@@ -246,9 +298,11 @@ $("connect-form").addEventListener("submit", event => {
   perform(async () => {
     try {
       await refresh();
+      await refreshMonitoring();
       notify("Connected to local operator API. Registry synchronized.");
     } catch (error) {
       operatorToken = "";
+      clearMonitoring("Connect to view gateway metrics.");
       empty("available-list", "Connect using a valid local operator token.");
       empty("registry-list", "Registered models appear here.");
       $("available-count").textContent = "—";
@@ -259,14 +313,26 @@ $("connect-form").addEventListener("submit", event => {
 });
 $("refresh").addEventListener("click", () => perform(async () => {
   await refresh();
+  await refreshMonitoring();
   notify("Local model list refreshed.");
 }));
+$("refresh-monitoring").addEventListener("click", () => perform(async () => {
+  await refreshMonitoring();
+}));
+// Periodic read-only refresh stops automatically while disconnected/hidden/busy.
+setInterval(() => {
+  if (operatorToken && !busy && !document.hidden) {
+    void refreshMonitoring();
+  }
+}, 15000);
 $("disconnect").addEventListener("click", () => {
   if (busy) return;
   operatorToken = "";
   promptDrafts.clear();
   $("refresh").disabled = true;
+  $("refresh-monitoring").disabled = true;
   $("disconnect").disabled = true;
+  clearMonitoring("Disconnected. Connect to view gateway metrics.");
   $("available-count").textContent = "—";
   $("registry-count").textContent = "—";
   empty("available-list", "Connect to inspect installed models.");

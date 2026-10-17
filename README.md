@@ -53,6 +53,15 @@ Each setting had 9 runs (3 repeats at concurrency 1/2/4), **324/324 measured req
 
 **Next experimental protocol (not performance evidence):** the [FIFO admission overload comparison](docs/benchmarks/admission-overload.md) uses an independent local-only runner to record all successful and rejected requests at offered concurrency 4/6/8/12, plus process-local admission counter deltas, for queue depth 0 versus 2. This has **no published real-model scheduler benefit**; it does not modify the October 13 Ollama parallelism results or their historical private evidence.
 
+## Local inference monitoring (opt-in)
+
+The Model Manager includes **Gateway Monitoring** with actual process-local inference,
+queue and upstream-failure counters fetched from fixed loopback Go endpoints
+through the protected FastAPI control API. Metrics refresh in the visible
+connected browser and never log prompts. Counters reset when Go restarts;
+mean post-admission duration is NOT p95, TTFT, throughput or an optimization
+claim. [Monitoring runbook](docs/operations/local-inference-monitoring.md).
+
 ## Local model manager and Ollama lifecycle (opt-in)
 
 An operator-only control API slice now discovers **installed** Ollama models, persistently registers their actual SHA-256 digests in private local SQLite, approves revisions, requests a five-minute **preload**, verifies the loaded-model identity, and can unload the matching approved model. A **responsive local Model Manager UI** at `http://127.0.0.1:8000/console/models` supports this workflow from a browser and includes a **single-turn inference playground** which checks registry approval, installed/loaded model digest, and forwards through the local Go gateway. It uses a memory-only local operator token. It is **disabled by default** and requires a separate local bearer secret; the Go inference route does **not** enforce registry approval yet. This is a functional *local model management* step, not a GPU deployment orchestrator or serving optimization. [Instructions and limits](docs/operations/local-model-registry.md).
