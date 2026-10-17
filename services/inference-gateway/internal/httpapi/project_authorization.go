@@ -45,6 +45,24 @@ type projectAuthorizer struct {
 	client            *http.Client
 	requireDeployment bool
 	leaseEnabled      bool
+	tokenBudgetEnabled bool
+}
+
+func newBudgetedProjectAuthorizer(rawURL, secret, deploymentMode, leaseMode, budgetMode string) (*projectAuthorizer, error) {
+	if budgetMode != "" && budgetMode != "0" && budgetMode != "1" {
+		return nil, errors.New("invalid project output reservation mode")
+	}
+	auth, err := newLeasedProjectAuthorizer(rawURL, secret, deploymentMode, leaseMode)
+	if err != nil {
+		return nil, err
+	}
+	if budgetMode == "1" {
+		if auth == nil || !auth.leaseEnabled {
+			return nil, errors.New("project output reservations require verified distributed project leases")
+		}
+		auth.tokenBudgetEnabled = true
+	}
+	return auth, nil
 }
 
 func newLeasedProjectAuthorizer(rawURL, secret, deploymentMode, leaseMode string) (*projectAuthorizer, error) {
@@ -214,10 +232,11 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 			denyProjectAuth(w, http.StatusServiceUnavailable)
 			return
 		}
-		decoder := json.NewDecoder(io.LimitReader(resp.Body, 513))
+		decoder := json.NewDecoder(io.LimitReader(resp.Body, 1025))
 		decoder.DisallowUnknownFields()
 		var nextRequest *http.Request
 		var lease *projectLeaseGrant
+		var outputReservationRequired bool
 		if a.requireDeployment {
 			var decision struct {
 				Authorized  bool               `json:"authorized"`
@@ -227,6 +246,7 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 				ModelDigest string             `json:"model_digest"`
 				Generation  int                `json:"generation"`
 				Lease       *projectLeaseGrant `json:"lease,omitempty"`
+				OutputReservationRequired bool `json:"output_reservation_required,omitempty"`
 			}
 			if err := decoder.Decode(&decision); err != nil ||
 				!decision.Authorized || decision.ProjectID != projects[0] ||
@@ -237,6 +257,7 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 				return
 			}
 			lease = decision.Lease
+			outputReservationRequired = decision.OutputReservationRequired
 			nextRequest = r.WithContext(context.WithValue(r.Context(),
 				deploymentBindingKey{}, deploymentBinding{
 					modelTag: decision.ModelTag, digest: decision.ModelDigest,
@@ -246,6 +267,7 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 				Authorized bool               `json:"authorized"`
 				ProjectID  string             `json:"project_id"`
 				Lease      *projectLeaseGrant `json:"lease,omitempty"`
+				OutputReservationRequired bool `json:"output_reservation_required,omitempty"`
 			}
 			if err := decoder.Decode(&decision); err != nil ||
 				!decision.Authorized || decision.ProjectID != projects[0] {
@@ -253,6 +275,7 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 				return
 			}
 			lease = decision.Lease
+			outputReservationRequired = decision.OutputReservationRequired
 			nextRequest = r
 		}
 		if a.leaseEnabled {
@@ -268,6 +291,18 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 		}
 		var remaining any
 		if err := decoder.Decode(&remaining); !errors.Is(err, io.EOF) {
+			if a.leaseEnabled && lease.valid() {
+				a.releaseLease(*lease)
+			}
+			denyProjectAuth(w, http.StatusServiceUnavailable)
+			return
+		}
+		if a.tokenBudgetEnabled != outputReservationRequired {
+			// A partially enabled API/gateway combination cannot drop
+			// output reservations while still serving inference.
+			if a.leaseEnabled && lease.valid() {
+				a.releaseLease(*lease)
+			}
 			denyProjectAuth(w, http.StatusServiceUnavailable)
 			return
 		}
@@ -280,7 +315,14 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 			executionCtx, end := context.WithTimeout(nextRequest.Context(), projectLeaseDeadline)
 			defer end()
 			defer a.releaseLease(*lease)
-			next(w, nextRequest.WithContext(executionCtx))
+			requestCtx := executionCtx
+			if a.tokenBudgetEnabled {
+				requestCtx = context.WithValue(executionCtx,
+					projectOutputReservationKey{}, projectOutputReservation{
+						authorizer: a, lease: *lease,
+					})
+			}
+			next(w, nextRequest.WithContext(requestCtx))
 			return
 		}
 		next(w, nextRequest)
