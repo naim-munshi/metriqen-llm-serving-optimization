@@ -74,3 +74,19 @@ live Redis validation on Mac, or production hardening is claimed.
 ## Opt-in per-project Go inference authorization
 
 When both the control API's `METRIQEN_GATEWAY_INTERNAL_TOKEN` and gateway-side `METRIQEN_GATEWAY_PROJECT_AUTH_URL`/`METRIQEN_GATEWAY_PROJECT_AUTH_TOKEN` are operator-configured, direct chat inference is denied until an OIDC access JWT and a canonical project ID pass the current `inference.invoke` permission check on trusted PostgreSQL data. Untrusted JWT role/tenant claims are ignored; authorization happens before prompt decoding, queue admission or runtime forwarding. The gateway treats service errors and malformed decisions as 503 and never forwards credentials or the project header to Ollama. The legacy loopback-only mode stays unauthenticated unless guarded mode is explicitly enabled. Do not enable the legacy shared bearer token with project mode. The new unit/HTTP checks and disposable PostgreSQL CI tests are not real IdP/HTTPS, Mac or production load tests. See [project authorization runbook](docs/operations/project-inference-authorization.md).
+
+## Durable desired deployment records (not model-serving orchestration)
+
+An opt-in PostgreSQL desired-state API now uses verified dedicated OIDC
+access JWTs, database-authoritative `deployment.read` /
+`deployment.manage` roles, composite project/organization FKs,
+serialization under project row locks, strict generation checks, and durable
+issuer/subject-scoped idempotency receipts. It is **separate** from the
+operator-only SQLite aliases. Changing desired state does not verify a model
+digest, schedule GPU workers, load Ollama models, authorize serving of that
+model, or assert health: all observed states remain `unreconciled`.
+A new operator-applied `0005` migration is needed. No production
+reconciler, model signature attestation, secure browser editing surface,
+cross-component serving routes, automatic recovery or audited immutable
+runtime events have been implemented. See
+[durable project deployment runbook](docs/operations/durable-project-deployment-state.md).
