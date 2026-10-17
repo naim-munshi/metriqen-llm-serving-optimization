@@ -114,8 +114,8 @@ Index("ix_team_audit_organization", team_audit_events.c.organization_id, team_au
 
 
 # Project-scoped durable desired-state records. These are not live Ollama
-# workers: observed state remains 'unreconciled' until a separate trusted
-# reconciliation milestone is implemented.
+# workers: observed state can be verified by an explicit local operator
+# reconciliation pass, but it is not live serving health or traffic routing.
 project_deployments = Table(
     "project_deployments", metadata,
     Column("id", Uuid(as_uuid=True), primary_key=True),
@@ -130,6 +130,12 @@ project_deployments = Table(
     Column("desired_generation", Integer, nullable=False),
     Column("observed_state", String(20), nullable=False),
     Column("observed_generation", Integer, nullable=False),
+    Column("observed_at", DateTime(timezone=True)),
+    Column("observed_code", String(32)),
+    Column("reconcile_attempts", Integer, nullable=False),
+    Column("reconcile_lease_id", Uuid(as_uuid=True)),
+    Column("reconcile_lease_until", DateTime(timezone=True)),
+    Column("reconcile_retry_at", DateTime(timezone=True)),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
     ForeignKeyConstraint(
@@ -140,10 +146,15 @@ project_deployments = Table(
     UniqueConstraint("project_id", "name", name="uq_project_deployment_name"),
     CheckConstraint("desired_state IN ('running','stopped')",
                     name="ck_project_deployment_desired"),
-    CheckConstraint("observed_state IN ('unreconciled')",
+    CheckConstraint("observed_state IN ('unreconciled','ready','disabled','blocked','failed')",
                     name="ck_project_deployment_observed"),
-    CheckConstraint("desired_generation >= 1 AND observed_generation = 0",
+    CheckConstraint("desired_generation >= 1 AND observed_generation >= 0 "
+                    "AND observed_generation <= desired_generation",
                     name="ck_project_deployment_generation"),
+    CheckConstraint("reconcile_attempts >= 0 AND reconcile_attempts <= 3",
+                    name="ck_project_reconcile_attempts"),
+    CheckConstraint("(reconcile_lease_id IS NULL) = (reconcile_lease_until IS NULL)",
+                    name="ck_project_reconcile_lease_pair"),
     CheckConstraint("(previous_tag IS NULL) = (previous_digest IS NULL)",
                     name="ck_project_deployment_previous_pair"),
 )

@@ -1,4 +1,4 @@
-"""Isolated PostgreSQL 16 test of migration 0005, idempotency and races.
+"""Isolated PostgreSQL 16 test of migrations 0005–0006, idempotency and leases.
 
 Only works on a fresh, synthetic 'metriqen_ci' database on loopback. Never
 points at the user's Mac, other schemas or a production PostgreSQL server.
@@ -44,6 +44,7 @@ def fixture():
         "0001_tenant_access.sql", "0002_verified_user_profiles.sql",
         "0003_team_invitations_audit.sql", "0004_invitation_cancellation.sql",
         "0005_project_deployment_desired_state.sql",
+        "0006_deployment_reconciliation.sql",
     )
     with psycopg.connect(host=url.host, port=url.port, dbname=url.database,
                          user=url.username, password=url.password,
@@ -128,6 +129,35 @@ def test_real_postgres_deployment_retries_role_revocation_and_cas_races():
             principal("owner"), project, "assistant")
         assert state["desired_generation"] == 2
         assert state["observed_generation"] == 0
+        from app.storage.reconciliation import SQLReconciliationStore, LEASE_SECONDS
+        from datetime import datetime, timedelta, timezone
+        reconciler = SQLReconciliationStore(engine)
+        t0 = datetime.now(timezone.utc)
+        # Independent workers race over a PostgreSQL row lock; exactly one
+        # receives the active lease even when they use separate connections.
+        def claim_worker(_):
+            return SQLReconciliationStore(engine).claim_one(now=t0)
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            claims = list(pool.map(claim_worker, range(16)))
+        assert len([item for item in claims if item is not None]) == 1
+        leased = next(item for item in claims if item is not None)
+        assert leased.generation == 2
+        assert not reconciler.finish(
+            leased, "ready", now=t0 + timedelta(seconds=LEASE_SECONDS + 1),
+        )  # an expired worker cannot claim a late health success
+        reclaimed = reconciler.claim_one(now=t0 + timedelta(seconds=LEASE_SECONDS + 2))
+        assert reclaimed is not None and reclaimed.attempt == 2
+        assert reclaimed.lease_id != leased.lease_id
+        assert reconciler.finish(
+            reclaimed, "blocked", "not_allowlisted",
+            now=t0 + timedelta(seconds=LEASE_SECONDS + 3),
+        )
+        assert reconciler.claim_one(now=t0 + timedelta(seconds=LEASE_SECONDS + 4)) is None
+        recovered = SQLDurableDeploymentStore(engine).get(
+            principal("owner"), project, "assistant")
+        assert recovered["observed_state"] == "blocked"
+        assert recovered["observed_generation"] == 2
+        assert recovered["reconcile_attempts"] == 2
         with engine.connect() as conn:
             assert len(conn.execute(select(project_deployments)).all()) == 1
             assert len(conn.execute(select(project_deployment_commands)).all()) == 2
@@ -136,7 +166,7 @@ def test_real_postgres_deployment_retries_role_revocation_and_cas_races():
             SQLDurableDeploymentStore(engine).get(
                 principal("owner"), outside_project, "assistant")
         assert SQLDurableDeploymentStore(engine).list(
-            principal("operator"), project) == [state]
+            principal("operator"), project) == [recovered]
         from sqlalchemy import delete
         with engine.begin() as conn:
             conn.execute(delete(project_grants).where(
@@ -149,5 +179,17 @@ def test_real_postgres_deployment_retries_role_revocation_and_cas_races():
             SQLDurableDeploymentStore(engine).change(
                 principal("operator"), project, "assistant", "stop",
                 "operator-no-grant-0001", 2)
+        # New user-authorized desired state supersedes the previously blocked
+        # runtime snapshot; even a worker holding an old lease cannot
+        # republish it for the new generation.
+        fresh = SQLDurableDeploymentStore(engine).change(
+            principal("owner"), project, "assistant",
+            "start" if state["desired_state"] == "stopped" else "stop",
+            "new-generation-after-observation", 2,
+        )
+        assert fresh["observed_state"] == "unreconciled"
+        assert fresh["observed_generation"] == 0
+        assert fresh["observed_at"] is None
+        assert fresh["reconcile_attempts"] == 0
     finally:
         engine.dispose()

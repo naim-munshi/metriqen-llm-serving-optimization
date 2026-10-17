@@ -75,6 +75,23 @@ live Redis validation on Mac, or production hardening is claimed.
 
 When both the control API's `METRIQEN_GATEWAY_INTERNAL_TOKEN` and gateway-side `METRIQEN_GATEWAY_PROJECT_AUTH_URL`/`METRIQEN_GATEWAY_PROJECT_AUTH_TOKEN` are operator-configured, direct chat inference is denied until an OIDC access JWT and a canonical project ID pass the current `inference.invoke` permission check on trusted PostgreSQL data. Untrusted JWT role/tenant claims are ignored; authorization happens before prompt decoding, queue admission or runtime forwarding. The gateway treats service errors and malformed decisions as 503 and never forwards credentials or the project header to Ollama. The legacy loopback-only mode stays unauthenticated unless guarded mode is explicitly enabled. Do not enable the legacy shared bearer token with project mode. The new unit/HTTP checks and disposable PostgreSQL CI tests are not real IdP/HTTPS, Mac or production load tests. See [project authorization runbook](docs/operations/project-inference-authorization.md).
 
+## Explicit local deployment reconciliation (snapshot only)
+
+An opt-in operator-invoked reconciliation command now observes approved
+Ollama model identities using a pinned loopback origin and allows bounded
+preloading only after matching the operator's explicit tag/digest allowlist
+and locally installed digest. PostgreSQL migration `0006` adds expiring
+work leases, bounded attempts and fixed observed-state codes. Desired
+generation changes invalidate previous observations and any old worker
+lease; a stale worker cannot publish a false ready state. Runtime errors
+are categorized, never persisted verbatim. **Ready is a point-in-time
+loaded digest observation, not live health or project-specific serving.
+Disabled never unloads globally shared models, nor blocks direct gateway
+traffic.** Running the CLI and operator approval are separate mandatory
+steps, not automatic server behavior. Ollama tag retagging between
+preload checks remains a TOCTOU risk in the absence of immutable artifacts.
+See [local reconciler runbook](docs/operations/deployment-reconciler.md).
+
 ## Durable desired deployment records (not model-serving orchestration)
 
 An opt-in PostgreSQL desired-state API now uses verified dedicated OIDC
@@ -85,8 +102,10 @@ issuer/subject-scoped idempotency receipts. It is **separate** from the
 operator-only SQLite aliases. Changing desired state does not verify a model
 digest, schedule GPU workers, load Ollama models, authorize serving of that
 model, or assert health: all observed states remain `unreconciled`.
-A new operator-applied `0005` migration is needed. No production
-reconciler, model signature attestation, secure browser editing surface,
-cross-component serving routes, automatic recovery or audited immutable
-runtime events have been implemented. See
+Operator migrations `0005` and `0006` are needed. The
+optional, explicit local reconciliation command can record a bounded
+observed status and preload approved existing models, but does not create
+a production reconciler or secure serving routing. Model signature
+attestation, secure browser editing, cross-component serving routes,
+always-on health checks or audited immutable runtime events remain absent. See
 [durable project deployment runbook](docs/operations/durable-project-deployment-state.md).
