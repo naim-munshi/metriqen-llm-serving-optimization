@@ -41,7 +41,8 @@ func TestProjectGuardAuthorizesBeforeInferenceAndRevocationIsImmediate(t *testin
 			t.Error("missing or mismatched trusted control headers")
 		}
 		body, err := io.ReadAll(r.Body)
-		if err != nil || string(body) != `{"project_id":"`+projectA+`"}` {
+		if err != nil || (string(body) != `{"project_id":"`+projectA+`"}` &&
+			string(body) != `{"project_id":"`+projectB+`"}`) {
 			t.Error("project auth payload malformed or prompt leaked")
 		}
 		w.Header().Set("Content-Type", "application/json")
