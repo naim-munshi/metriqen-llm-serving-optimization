@@ -30,9 +30,10 @@ timestamp; it contains no passwords, prompts, email addresses or tokens.
 
 Apply migrations 0001, 0002, then 0003 through an operator-controlled
 PostgreSQL migration process. Never apply DDL from an HTTP request or app
-startup. CI runs synthetic identity and SQLite adversarial tests. An isolated
-PostgreSQL 16 test for migration 0003 is checked in, but the PostgreSQL CI
-job must explicitly include that test before its result can be claimed.
+startup. CI runs synthetic identity and SQLite adversarial tests. A dedicated
+PostgreSQL 16 CI job applies migrations 0001, 0002, and 0003 against an
+ephemeral loopback database and exercises the invitation acceptance/audit
+lifecycle. This is not verification of a user-managed PostgreSQL instance.
 
 The application must remain loopback-only. No real external OIDC provider,
 Redis session, Mac database, HTTPS Secure cookie or production deployment
