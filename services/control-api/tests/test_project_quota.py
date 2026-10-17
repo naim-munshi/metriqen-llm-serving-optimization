@@ -28,6 +28,8 @@ ENDPOINT = "/internal/gateway/authorize"
 
 
 class AtomicFakeRedis:
+    INVALID_SENTINEL = object()
+
     def __init__(self):
         self.lock = threading.Lock()
         self.counts = {}
@@ -35,13 +37,13 @@ class AtomicFakeRedis:
         self.now = 0
         self.keys = []
         self.fail = False
-        self.override = None
+        self.override = self.INVALID_SENTINEL
 
     def eval(self, script, num_keys, key, window, limit):
         with self.lock:
             if self.fail:
                 raise ConnectionError("PRIVATE-REDIS-ACL-PASSWORD")
-            if self.override is not None:
+            if self.override is not self.INVALID_SENTINEL:
                 return self.override
             assert "redis.call('INCR'" in script
             assert "redis.call('EXPIRE'" in script
