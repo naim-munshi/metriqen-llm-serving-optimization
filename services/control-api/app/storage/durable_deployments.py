@@ -184,6 +184,14 @@ class SQLDurableDeploymentStore:
                 project_deployments.c.project_id == project_id,
             )).scalar_one() >= MAX_DEPLOYMENTS_PER_PROJECT:
                 raise DeploymentConflict
+            # The project-row lock serializes all creators across PostgreSQL
+            # replicas. Detect a name collision as a public 409 instead of
+            # accidentally exposing the database's UNIQUE violation as 503.
+            if conn.execute(select(project_deployments.c.id).where(
+                project_deployments.c.project_id == project_id,
+                project_deployments.c.name == name,
+            )).first() is not None:
+                raise DeploymentConflict
             deployment_id = uuid4()
             conn.execute(insert(project_deployments).values(
                 id=deployment_id, project_id=project_id, organization_id=org_id,
