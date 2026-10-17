@@ -80,11 +80,15 @@ When both the control API's `METRIQEN_GATEWAY_INTERNAL_TOKEN` and gateway-side `
 The local Go gateway's `GET /metrics/usage` endpoint records only
 bounded aggregate **provider-reported**, internally consistent
 `prompt_tokens` / `completion_tokens` / `total_tokens` for completed,
-fully written non-streaming HTTP responses. Missing, malformed, inconsistent
-and over-requested-cap claims are separately counted but excluded from
-token totals. Streaming is explicitly **unmeasured** (a terminal SSE
-marker is not token-usage evidence); failed/canceled/interrupted requests
-also cannot contribute token totals. No arbitrary response text, prompt,
+fully written non-streaming HTTP responses **and** clean, fully
+forwarded SSE streams with an exact terminal `[DONE]` marker and
+one bounded final `choices:[]` usage JSON event. Missing, malformed,
+duplicate/late, inconsistent, oversized, or over-requested-cap usage
+claims are separately counted but excluded from token totals.
+Streams without clean EOF plus terminal marker, including
+canceled/interrupted or post-terminal data, cannot contribute token
+totals. This is only structurally plausible **provider self-reporting**,
+not independent streaming tokenization or an attested runtime bill. No arbitrary response text, prompt,
 project or user identifiers, raw model metadata or per-request labels enter
 the process-local counters. The endpoint is read-only, no-store and must
 remain on loopback. **Self-reported data is not cryptographically verified,
