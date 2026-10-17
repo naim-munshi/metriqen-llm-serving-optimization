@@ -12,7 +12,7 @@ from app.security.gateway_authorization import (
 )
 from app.security.policy import Role
 from test_project_access_http import (
-    sandbox, token, ISSUER, ORG_A, PROJECT_A, PROJECT_A2, PROJECT_B,
+    sandbox, signed_material, token, ISSUER, ORG_A, PROJECT_A, PROJECT_A2, PROJECT_B,
 )
 
 SECRET = "synthetic-service-0123456789abcdef-0123456789abcdef"
