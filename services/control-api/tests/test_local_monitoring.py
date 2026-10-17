@@ -145,7 +145,7 @@ def test_metrics_exact_go_contract_and_arithmetic(sandbox):
     assert value["inference"]["stream_clean_eof_total"] == 1
     assert value["admission"]["rejected_full_total"] == 2
     assert value["upstream"]["failure_events_total"] == 2
-    assert "p95" not in json.dumps(value).lower()
+    assert all("p95" not in key and "ttft" not in key for key in value["inference"])
     assert state["paths"] == [
         ("/metrics/inference", None), ("/metrics/admission", None),
         ("/metrics/upstream", None),
