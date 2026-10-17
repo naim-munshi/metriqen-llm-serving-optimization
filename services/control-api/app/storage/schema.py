@@ -91,6 +91,7 @@ organization_invitations = Table(
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("expires_at", DateTime(timezone=True), nullable=False),
     Column("accepted_at", DateTime(timezone=True)),
+    Column("cancelled_at", DateTime(timezone=True)),
     CheckConstraint("role IN ('admin','ml_engineer','deployment_operator','developer','auditor','viewer')", name="ck_invitation_role"),
     CheckConstraint("expires_at > created_at", name="ck_invitation_expiry"),
 )
@@ -107,6 +108,6 @@ team_audit_events = Table(
     Column("role", String(32), nullable=False),
     Column("invitation_id", Uuid(as_uuid=True)),
     Column("created_at", DateTime(timezone=True), nullable=False),
-    CheckConstraint("action IN ('invitation.created','invitation.accepted','membership.revoked')", name="ck_team_audit_action"),
+    CheckConstraint("action IN ('invitation.created','invitation.accepted','invitation.cancelled','membership.revoked')", name="ck_team_audit_action"),
 )
 Index("ix_team_audit_organization", team_audit_events.c.organization_id, team_audit_events.c.created_at)
