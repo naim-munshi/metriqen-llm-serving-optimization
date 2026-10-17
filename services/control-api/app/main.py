@@ -21,6 +21,8 @@ from app.browser_auth import BrowserLogin, browser_configured, browser_login_rou
 from app.workspaces import organization_router
 from app.storage.workspaces import SQLWorkspaceStore
 from app.storage.team import SQLTeamStore
+from app.storage.durable_deployments import SQLDurableDeploymentStore
+from app.durable_deployments import durable_deployments_router
 from app.team_api import team_router
 from app.security.gateway_authorization import gateway_authorization_router, load_gateway_internal_token
 from app.security.project_quota import RedisProjectQuota, load_project_quota
@@ -35,6 +37,7 @@ def create_app(
     browser_login: BrowserLogin | None = None,
     workspace_store: SQLWorkspaceStore | None = None,
     team_store: SQLTeamStore | None = None,
+    durable_deployment_store: SQLDurableDeploymentStore | None = None,
     gateway_internal_token: str | None = None,
     project_quota: RedisProjectQuota | None = None,
 ) -> FastAPI:
@@ -93,6 +96,8 @@ def create_app(
     application.include_router(organization_router(identity_settings, workspace_store,
                                                   account_quota))
     application.include_router(team_router(identity_settings, team_store, account_quota))
+    application.include_router(durable_deployments_router(
+        identity_settings, durable_deployment_store, account_quota))
     application.include_router(gateway_authorization_router(
         identity_settings, project_store, gateway_internal_token, project_quota))
 
@@ -124,6 +129,8 @@ app = create_app(
                      if _configured_project_store is not None else None),
     team_store=(SQLTeamStore(_configured_project_store._engine)
                 if _configured_project_store is not None else None),
+    durable_deployment_store=(SQLDurableDeploymentStore(_configured_project_store._engine)
+                              if _configured_project_store is not None else None),
     gateway_internal_token=load_gateway_internal_token(
         _configured_identity, _configured_project_store),
     project_quota=_configured_project_quota,
