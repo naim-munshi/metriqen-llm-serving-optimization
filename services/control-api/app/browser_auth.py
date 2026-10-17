@@ -494,6 +494,27 @@ def browser_login_router(login: BrowserLogin, profiles: ProfileStore | None,
             quota.enforce(principal)
         return team_safely(lambda: team.invite(principal, parsed, target, Role(payload.role)))
 
+    @router.get("/auth/organizations/{org_id}/invitations")
+    def browser_organization_invitations(request: Request, org_id: str):
+        record, _ = session(request)
+        team = require_team(teams)
+        parsed = canonical_org_id(org_id)
+        return {"invitations": team_safely(
+            lambda: team.organization_pending(identity(record), parsed))}
+
+    @router.post("/auth/organizations/{org_id}/invitations/{invite_id}/cancel")
+    def browser_cancel_invitation(request: Request, org_id: str, invite_id: str):
+        record, _ = session(request)
+        same_origin_csrf(request, record)
+        team = require_team(teams)
+        parsed = canonical_org_id(org_id)
+        invitation = invitation_id(invite_id)
+        principal = identity(record)
+        if quota is not None:
+            quota.enforce(principal)
+        team_safely(lambda: team.cancel(principal, parsed, invitation))
+        return {"cancelled": True}
+
     @router.get("/auth/organizations/{org_id}/members")
     def browser_members(request: Request, org_id: str):
         record, _ = session(request)

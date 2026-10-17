@@ -23,7 +23,8 @@ def test_team_migration_and_audited_acceptance_on_real_postgres():
         pytest.fail("refusing non-CI PostgreSQL database")
     migrations = Path(__file__).resolve().parents[1] / "migrations"
     files = ("0001_tenant_access.sql", "0002_verified_user_profiles.sql",
-             "0003_team_invitations_audit.sql")
+             "0003_team_invitations_audit.sql",
+             "0004_invitation_cancellation.sql")
     with psycopg.connect(host=url.host, port=url.port, dbname=url.database,
                          user=url.username, password=url.password,
                          connect_timeout=3, autocommit=True) as conn:
@@ -45,7 +46,19 @@ def test_team_migration_and_audited_acceptance_on_real_postgres():
         assert store.accept(alice, UUID(invited["id"]))["role"] == "viewer"
         with pytest.raises(TeamNotFound):
             store.accept(alice, UUID(invited["id"]))
+        bob = VerifiedIdentity(issuer=issuer, subject="bob", audience="control-api")
+        pending = store.invite(owner, org, "bob", Role.VIEWER)
+        assert [item["id"] for item in store.organization_pending(owner, org)] == [pending["id"]]
+        store.cancel(owner, org, UUID(pending["id"]))
+        assert store.organization_pending(owner, org) == []
+        assert store.pending(bob) == []
+        with pytest.raises(TeamNotFound):
+            store.accept(bob, UUID(pending["id"]))
+        with pytest.raises(TeamNotFound):
+            store.cancel(owner, org, UUID(pending["id"]))
         with engine.connect() as conn:
-            assert len(conn.execute(select(team_audit_events)).all()) == 2
+            actions = [r.action for r in conn.execute(select(team_audit_events)).all()]
+            assert len(actions) == 4
+            assert actions.count("invitation.cancelled") == 1
     finally:
         engine.dispose()
