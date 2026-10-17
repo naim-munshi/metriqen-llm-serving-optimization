@@ -129,3 +129,32 @@ def test_auth_required_and_unconfigured_store_fail_closed(team_setup):
     absent = TestClient(create_app())
     assert absent.get("/api/v1/invitations").status_code == 503
     assert absent.post("/api/v1/invitations/" + str(uuid4()) + "/accept").status_code == 503
+
+
+def test_invitation_cancellation_requires_manager_and_blocks_recipient(team_setup):
+    client, key, _, org = team_setup
+    issued = invite(client, key, org, "alice")
+    assert issued.status_code == 201
+    invite_id = issued.json()["id"]
+    endpoint = url(org, f"invitations/{invite_id}/cancel")
+    owner = auth(key, user="owner")
+    outsider = auth(key, user="mallory", role="owner", organization_id=org)
+    alice = auth(key, user="alice")
+    pending = client.get(url(org, "invitations"), headers=owner)
+    assert pending.status_code == 200
+    assert [entry["id"] for entry in pending.json()["invitations"]] == [invite_id]
+    assert client.get(url(org, "invitations"), headers=outsider).status_code == 404
+    assert client.post(endpoint, headers=outsider).status_code == 404
+    assert client.post(endpoint, headers=alice).status_code == 404
+    assert client.post(url(str(uuid4()), f"invitations/{invite_id}/cancel"),
+                       headers=owner).status_code == 404
+    assert client.post(endpoint).status_code == 401
+    result = client.post(endpoint, headers=owner)
+    assert result.status_code == 200 and result.json() == {"cancelled": True}
+    assert client.post(endpoint, headers=owner).status_code == 404
+    assert client.get("/api/v1/invitations", headers=alice).json() == {"invitations": []}
+    assert client.post(f"/api/v1/invitations/{invite_id}/accept",
+                       headers=alice).status_code == 404
+    actions = [entry["action"] for entry in
+               client.get(url(org, "audit"), headers=owner).json()["events"]]
+    assert actions == ["invitation.cancelled", "invitation.created"]
