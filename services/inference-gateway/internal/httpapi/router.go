@@ -60,6 +60,14 @@ func NewRouterWithInferenceAndSchedulerAndDeploymentAuth(localUpstreamURL, rawAl
 // Distributed active-project admission is guarded and separately opt-in.
 // Legacy localhost router constructors keep their unchanged behavior.
 func NewRouterWithInferenceAndSchedulerAndDeploymentAndLeases(localUpstreamURL, rawAllowedModels, rawQueueDepth, rawToken, rawProjectAuthURL, rawProjectAuthSecret, rawDeploymentMode, rawLeaseMode string) (http.Handler, error) {
+	return NewRouterWithInferenceAndSchedulerAndDeploymentAndBudget(
+		localUpstreamURL, rawAllowedModels, rawQueueDepth, rawToken,
+		rawProjectAuthURL, rawProjectAuthSecret, rawDeploymentMode, rawLeaseMode, "")
+}
+
+// Opt-in output cap reservations must be backed by trusted Redis leases.
+// Legacy constructors and the unguarded localhost developer mode unchanged.
+func NewRouterWithInferenceAndSchedulerAndDeploymentAndBudget(localUpstreamURL, rawAllowedModels, rawQueueDepth, rawToken, rawProjectAuthURL, rawProjectAuthSecret, rawDeploymentMode, rawLeaseMode, rawBudgetMode string) (http.Handler, error) {
 	token, err := validateLocalBearerToken(rawToken)
 	if err != nil {
 		return nil, err
@@ -79,7 +87,7 @@ func NewRouterWithInferenceAndSchedulerAndDeploymentAndLeases(localUpstreamURL, 
 	if token != "" && bridge.endpoint == "" {
 		return nil, errBearerRequiresInference
 	}
-	projectAuth, err := newLeasedProjectAuthorizer(rawProjectAuthURL, rawProjectAuthSecret, rawDeploymentMode, rawLeaseMode)
+	projectAuth, err := newBudgetedProjectAuthorizer(rawProjectAuthURL, rawProjectAuthSecret, rawDeploymentMode, rawLeaseMode, rawBudgetMode)
 	if err != nil {
 		return nil, err
 	}
