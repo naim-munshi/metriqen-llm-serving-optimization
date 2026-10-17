@@ -124,6 +124,13 @@ func NewRouterWithInferenceAndSchedulerAndDeploymentAndBudget(localUpstreamURL, 
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(bridge.outcomes.snapshot())
 	})
+	// All values here originate from untrusted provider self-reports, never
+	// trusted billing. The view is read-only, process-local and has no
+	// high-cardinality user/model/project labels or raw response fields.
+	mux.HandleFunc("GET /metrics/usage", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(bridge.usage.snapshot())
+	})
 	mux.HandleFunc("POST /v1/chat/completions", projectAuth.protect(protectLocalInference(token, bridge.serveChat)))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
