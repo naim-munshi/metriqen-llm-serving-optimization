@@ -22,6 +22,7 @@ from app.workspaces import organization_router
 from app.storage.workspaces import SQLWorkspaceStore
 from app.storage.team import SQLTeamStore
 from app.team_api import team_router
+from app.security.gateway_authorization import gateway_authorization_router, load_gateway_internal_token
 
 
 def create_app(
@@ -33,6 +34,7 @@ def create_app(
     browser_login: BrowserLogin | None = None,
     workspace_store: SQLWorkspaceStore | None = None,
     team_store: SQLTeamStore | None = None,
+    gateway_internal_token: str | None = None,
 ) -> FastAPI:
     """Create isolated app instances; trusted stores are explicitly injected."""
     application = FastAPI(
@@ -84,6 +86,8 @@ def create_app(
     application.include_router(organization_router(identity_settings, workspace_store,
                                                   account_quota))
     application.include_router(team_router(identity_settings, team_store, account_quota))
+    application.include_router(gateway_authorization_router(
+        identity_settings, project_store, gateway_internal_token))
 
     # Browser authentication is an explicit localhost-only OIDC/Redis opt-in.
     # No login/session routes or static account page are exposed by default.
@@ -112,4 +116,6 @@ app = create_app(
                      if _configured_project_store is not None else None),
     team_store=(SQLTeamStore(_configured_project_store._engine)
                 if _configured_project_store is not None else None),
+    gateway_internal_token=load_gateway_internal_token(
+        _configured_identity, _configured_project_store),
 )
