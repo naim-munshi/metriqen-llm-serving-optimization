@@ -66,6 +66,10 @@ function setBusy(value) {
   busy = value;
   $("refresh").disabled = value || !operatorToken;
   $("refresh-monitoring").disabled = value || !operatorToken;
+  $("deployment-create").disabled = value || !operatorToken ||
+    $("deployment-model").options.length === 0;
+  $("deployment-name").disabled = value;
+  $("deployment-model").disabled = value;
   $("connect-button").disabled = value;
   $("disconnect").disabled = value || !operatorToken;
   document.querySelectorAll(".model-action").forEach(node => { node.disabled = value || node.dataset.locked === "true"; });
@@ -277,15 +281,132 @@ function render(available, registered, statuses) {
   }
 }
 
+
+function renderDeployments(rows, registered, statuses) {
+  $("deployment-count").textContent = String(rows.length);
+  const ready = new Set(statuses.filter(s => s.approved && s.loaded &&
+    s.digest_matches_loaded).map(s => s.tag));
+  const candidates = registered.filter(m => m.approved && ready.has(m.tag));
+  const createSelect = $("deployment-model");
+  const prior = createSelect.value;
+  createSelect.replaceChildren();
+  for (const model of candidates) {
+    const option = document.createElement("option");
+    option.value = model.tag;
+    option.textContent = model.tag + " · " + model.digest.slice(0, 12);
+    createSelect.append(option);
+  }
+  if (candidates.some(model => model.tag === prior)) createSelect.value = prior;
+  $("deployment-create").disabled = busy || !operatorToken || candidates.length === 0;
+
+  const list = $("deployment-list");
+  list.replaceChildren();
+  if (!rows.length) {
+    empty("deployment-list", "No local deployment names yet. Load an approved model, then create one.");
+    return;
+  }
+  for (const row of rows) {
+    const card = document.createElement("article");
+    card.className = "model-card deployment-card";
+    const heading = document.createElement("strong");
+    heading.textContent = row.name + "  →  " + row.active_tag;
+    const state = document.createElement("p");
+    state.className = "load-state " + (row.ready ? "ready" : "waiting");
+    state.textContent = row.ready ? "● Routing enabled · active model loaded"
+      : row.enabled ? "● Model not ready — load or verify the active revision"
+        : "● Deployment paused — no inference through this alias";
+    const digest = document.createElement("code");
+    digest.textContent = "Active SHA-256 " + row.active_digest.slice(0, 16) + "…";
+    const former = document.createElement("p");
+    former.className = "muted";
+    former.textContent = row.previous_tag ?
+      "Rollback revision: " + row.previous_tag : "No previous revision";
+    const controls = document.createElement("div");
+    controls.className = "model-actions";
+    const prefix = "/deployments/" + encodeURIComponent(row.name);
+    controls.append(action(row.enabled ? "Stop routing" : "Start routing", async () => {
+      await call(prefix + (row.enabled ? "/stop" : "/start"), "POST");
+      await refresh();
+      notify(row.name + (row.enabled ? " routing stopped." : " routing enabled."));
+    }, row.enabled ? "secondary" : "primary"));
+    const rollback = action("Rollback", async () => {
+      await call(prefix + "/rollback", "POST");
+      await refresh();
+      notify("Rolled back " + row.name + " to its previous approved, loaded revision.");
+    });
+    rollback.disabled = !row.previous_tag;
+    if (!row.previous_tag) rollback.dataset.locked = "true";
+    controls.append(rollback);
+    const promotePanel = document.createElement("div");
+    promotePanel.className = "promotion-control";
+    const label = document.createElement("label");
+    label.textContent = "Promote another approved, loaded model";
+    const chooser = document.createElement("select");
+    chooser.setAttribute("aria-label", "Candidate revision for " + row.name);
+    for (const candidate of candidates.filter(m => m.tag !== row.active_tag)) {
+      const option = document.createElement("option");
+      option.value = candidate.tag;
+      option.textContent = candidate.tag;
+      chooser.append(option);
+    }
+    const promote = action("Promote", async () => {
+      await call(prefix + "/promote", "POST", {tag: chooser.value});
+      await refresh();
+      notify("Deployment " + row.name + " now routes to " + chooser.value + ".");
+    });
+    if (!chooser.options.length) {
+      promote.disabled = true;
+      promote.dataset.locked = "true";
+    }
+    promotePanel.append(label, chooser, promote);
+
+    const playground = document.createElement("div");
+    playground.className = "playground";
+    const promptLabel = document.createElement("label");
+    promptLabel.textContent = "Inference via stable deployment name";
+    const input = document.createElement("textarea");
+    input.maxLength = 4096;
+    input.rows = 2;
+    input.placeholder = "Prompt sent to the current active model…";
+    input.setAttribute("aria-label", "Deployment prompt " + row.name);
+    const draftKey = "deployment:" + row.name;
+    input.value = promptDrafts.get(draftKey) || "";
+    input.addEventListener("input", () => { promptDrafts.set(draftKey, input.value); });
+    const output = document.createElement("pre");
+    output.className = "inference-output";
+    output.hidden = true;
+    const run = action("Run deployment inference", async () => {
+      const prompt = input.value.trim();
+      if (!prompt) throw new Error("Enter a prompt.");
+      if (!row.ready) throw new Error("Load the approved active model and enable routing first.");
+      const result = await call(prefix + "/chat", "POST", {prompt, max_tokens: 128});
+      if (typeof result.content !== "string") throw new Error("Invalid inference response.");
+      output.textContent = result.content;
+      output.hidden = false;
+      notify("Deployment " + row.name + " responded using " + result.tag + ".");
+      await refreshMonitoring();
+    }, "primary");
+    if (!row.ready) {
+      run.disabled = true;
+      run.dataset.locked = "true";
+    }
+    playground.append(promptLabel, input, run, output);
+    card.append(heading, state, digest, former, controls, promotePanel, playground);
+    list.append(card);
+  }
+}
+
 async function refresh() {
-  const [available, registered, readiness] = await Promise.all([
-    call("/available-models"), call("/models"), call("/model-statuses")
+  const [available, registered, readiness, deployments] = await Promise.all([
+    call("/available-models"), call("/models"), call("/model-statuses"),
+    call("/deployments")
   ]);
   if (!Array.isArray(available.models) || !Array.isArray(registered.models) ||
-      !Array.isArray(readiness.models)) {
+      !Array.isArray(readiness.models) || !Array.isArray(deployments.deployments)) {
     throw new Error("Unexpected registry API response");
   }
   render(available.models, registered.models, readiness.models);
+  renderDeployments(deployments.deployments, registered.models, readiness.models);
 }
 
 $("connect-form").addEventListener("submit", event => {
@@ -303,6 +424,8 @@ $("connect-form").addEventListener("submit", event => {
     } catch (error) {
       operatorToken = "";
       clearMonitoring("Connect to view gateway metrics.");
+      $("deployment-count").textContent = "—";
+      empty("deployment-list", "Connect to view local deployment routes.");
       empty("available-list", "Connect using a valid local operator token.");
       empty("registry-list", "Registered models appear here.");
       $("available-count").textContent = "—";
@@ -319,6 +442,18 @@ $("refresh").addEventListener("click", () => perform(async () => {
 $("refresh-monitoring").addEventListener("click", () => perform(async () => {
   await refreshMonitoring();
 }));
+$("deployment-form").addEventListener("submit", event => {
+  event.preventDefault();
+  perform(async () => {
+    const name = $("deployment-name").value.trim();
+    const tag = $("deployment-model").value;
+    if (!tag) throw new Error("Load an approved model before creating a deployment.");
+    await call("/deployments", "POST", {name, tag});
+    $("deployment-name").value = "";
+    await refresh();
+    notify("Created stable local deployment " + name + " → " + tag + ".");
+  });
+});
 // Periodic read-only refresh stops automatically while disconnected/hidden/busy.
 setInterval(() => {
   if (operatorToken && !busy && !document.hidden) {
@@ -333,6 +468,10 @@ $("disconnect").addEventListener("click", () => {
   $("refresh-monitoring").disabled = true;
   $("disconnect").disabled = true;
   clearMonitoring("Disconnected. Connect to view gateway metrics.");
+  $("deployment-count").textContent = "—";
+  $("deployment-model").replaceChildren();
+  $("deployment-create").disabled = true;
+  empty("deployment-list", "Connect to view local deployment routes.");
   $("available-count").textContent = "—";
   $("registry-count").textContent = "—";
   empty("available-list", "Connect to inspect installed models.");
