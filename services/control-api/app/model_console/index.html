@@ -63,6 +63,32 @@
           <div class="model-list" id="registry-list"><p class="empty">Registered models appear here.</p></div>
         </section>
       </div>
+      <section class="panel monitor-panel" id="monitoring" aria-labelledby="monitoring-title">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">03 / INFERENCE OPERATIONS</div>
+            <h2 id="monitoring-title">Gateway monitoring</h2>
+          </div>
+          <button class="secondary" id="refresh-monitoring" type="button" disabled>Refresh metrics</button>
+        </div>
+        <p class="section-note">Real counters from the local Go gateway at 127.0.0.1:8081. Totals reset when the gateway restarts. No prompts or outputs are recorded.</p>
+        <div class="monitor-topline">
+          <span id="monitor-state" role="status" aria-live="polite">Connect to view gateway metrics.</span>
+          <span id="monitor-time"></span>
+        </div>
+        <div class="metric-grid" aria-label="Gateway operational metrics">
+          <div class="metric"><span>Admitted attempts</span><strong id="metric-attempts">—</strong><small>Excludes queue rejections</small></div>
+          <div class="metric"><span>Nonstream complete</span><strong id="metric-complete">—</strong><small>Successful nonstream outcomes</small></div>
+          <div class="metric"><span>Active inference</span><strong id="metric-active">—</strong><small>Current admitted work</small></div>
+          <div class="metric"><span>Gateway queue</span><strong id="metric-queue">—</strong><small>Currently waiting</small></div>
+          <div class="metric"><span>Rejected: queue full</span><strong id="metric-rejected">—</strong><small>Cumulative gateway rejections</small></div>
+          <div class="metric"><span>Queue wait timeouts</span><strong id="metric-timeouts">—</strong><small>Cumulative</small></div>
+          <div class="metric"><span>Pre-response failures</span><strong id="metric-failures">—</strong><small>Cumulative admitted failures</small></div>
+          <div class="metric"><span>Mean inference duration</span><strong id="metric-duration">—</strong><small>Post-admission only, not p95/TTFT</small></div>
+          <div class="metric"><span>Upstream failure events</span><strong id="metric-upstream">—</strong><small>Event counts, not failed requests</small></div>
+        </div>
+        <p class="metrics-disclaimer">Local process diagnostic counters, not throughput, p95 latency, TTFT, GPU utilization, uptime or a performance benchmark. Refreshes while connected and visible.</p>
+      </section>
       <footer>METRIQEN LOCAL MODEL CONTROL · Not a public deployment service</footer>
     </main>
   </div>
