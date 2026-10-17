@@ -279,10 +279,10 @@ class FourPhasePreflightGateTests(unittest.TestCase):
         with self.assertRaisesRegex(gate.PreflightEvidenceError, "64 KiB"):
             self.validate()
         saved.write_text('{"kind":"x","kind":"y"}')
-        with self.assertRaisesRegex(gate.PreflightEvidenceError, "invalid JSON"):
+        with self.assertRaisesRegex(gate.PreflightEvidenceError, "invalid preflight JSON"):
             self.validate()
         saved.write_text('{"kind": NaN}')
-        with self.assertRaisesRegex(gate.PreflightEvidenceError, "invalid JSON"):
+        with self.assertRaisesRegex(gate.PreflightEvidenceError, "invalid preflight JSON"):
             self.validate()
         saved.write_text(json.dumps({
             **self.expected_preflight("A1", 1), "PRIVATE_SECRET": "NEVER_EXPORT",
