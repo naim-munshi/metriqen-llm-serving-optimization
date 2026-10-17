@@ -119,6 +119,13 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 		case http.StatusForbidden, http.StatusNotFound:
 			denyProjectAuth(w, http.StatusForbidden)
 			return
+		case http.StatusTooManyRequests:
+			// Do not consume local scheduler capacity or forward the prompt.
+			// Fixed 60s budget intentionally ignores arbitrary upstream headers.
+			w.Header().Set("Retry-After", "60")
+			writeError(w, http.StatusTooManyRequests, "project_quota_exceeded",
+				"Project inference request quota exceeded")
+			return
 		case http.StatusOK:
 			// A 200 is only accepted with an exact, matching positive decision.
 		default:

@@ -61,6 +61,30 @@ class RedisAccountQuota:
                                 headers={"Retry-After": str(WINDOW_SECONDS)})
 
 
+def local_acl_redis_client(url: str):
+    """Validate a private ACL Redis endpoint without making a network call.
+
+    Used by independent account and project quotas. All connections remain
+    loopback-only and authenticate with a dedicated ACL identity.
+    """
+    if (not isinstance(url, str) or len(url) > 2048 or
+            any(ch in url for ch in "\r\n\t")):
+        raise ValueError("invalid local Redis configuration")
+    parsed = urlsplit(url)
+    if (parsed.scheme != "redis" or parsed.hostname != "127.0.0.1"
+            or parsed.port != 6379 or parsed.path != "/0"
+            or not parsed.username or not parsed.password
+            or len(parsed.password) < 16 or parsed.query or parsed.fragment):
+        raise ValueError("invalid local Redis configuration")
+    if not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", parsed.username):
+        raise ValueError("invalid local Redis ACL username")
+    return redis.Redis.from_url(
+        url, decode_responses=False,
+        socket_connect_timeout=1, socket_timeout=2,
+        socket_keepalive=True, retry_on_timeout=False,
+    )
+
+
 def load_account_quota(
     environ: Mapping[str, str] | None = None,
 ) -> RedisAccountQuota | None:
@@ -77,19 +101,7 @@ def load_account_quota(
             or len(secret.encode("utf-8")) > 512):
         raise ValueError("Redis quota configuration is invalid")
     try:
-        parsed = urlsplit(url)
-        if (parsed.scheme != "redis" or parsed.hostname != "127.0.0.1"
-                or parsed.port != 6379 or parsed.path != "/0"
-                or not parsed.username or not parsed.password
-                or len(parsed.password) < 16 or parsed.query or parsed.fragment):
-            raise ValueError("Redis quotas require an authenticated loopback redis:// URL")
-        if not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", parsed.username):
-            raise ValueError("invalid Redis ACL user")
-        connection = redis.Redis.from_url(
-            url, decode_responses=False,
-            socket_connect_timeout=1, socket_timeout=2,
-            socket_keepalive=True, retry_on_timeout=False,
-        )
+        connection = local_acl_redis_client(url)
         return RedisAccountQuota(connection, secret.encode("utf-8"))
     except (ValueError, TypeError, OverflowError):
         # Never leak a Redis password in startup errors.
