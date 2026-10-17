@@ -77,3 +77,36 @@ user_profiles = Table(
     CheckConstraint("length(trim(display_name)) >= 1",
                     name="ck_user_profiles_display_name"),
 )
+
+
+organization_invitations = Table(
+    "organization_invitations", metadata,
+    Column("id", Uuid(as_uuid=True), primary_key=True),
+    Column("organization_id", Uuid(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False),
+    Column("target_issuer", String(512), nullable=False),
+    Column("target_subject", String(255), nullable=False),
+    Column("role", String(32), nullable=False),
+    Column("inviter_issuer", String(512), nullable=False),
+    Column("inviter_subject", String(255), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("accepted_at", DateTime(timezone=True)),
+    CheckConstraint("role IN ('admin','ml_engineer','deployment_operator','developer','auditor','viewer')", name="ck_invitation_role"),
+    CheckConstraint("expires_at > created_at", name="ck_invitation_expiry"),
+)
+Index("ix_team_invitations_recipient", organization_invitations.c.target_issuer, organization_invitations.c.target_subject)
+team_audit_events = Table(
+    "team_audit_events", metadata,
+    Column("id", Uuid(as_uuid=True), primary_key=True),
+    Column("organization_id", Uuid(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False),
+    Column("actor_issuer", String(512), nullable=False),
+    Column("actor_subject", String(255), nullable=False),
+    Column("action", String(64), nullable=False),
+    Column("target_issuer", String(512), nullable=False),
+    Column("target_subject", String(255), nullable=False),
+    Column("role", String(32), nullable=False),
+    Column("invitation_id", Uuid(as_uuid=True)),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint("action IN ('invitation.created','invitation.accepted','membership.revoked')", name="ck_team_audit_action"),
+)
+Index("ix_team_audit_organization", team_audit_events.c.organization_id, team_audit_events.c.created_at)
