@@ -358,3 +358,59 @@ def test_real_postgres_new_org_is_atomic_and_project_writes_are_tenant_scoped(se
     assert membership[0].issuer == ISSUER
     assert membership[0].subject == "user-a"
     assert membership[0].role == "owner"
+
+
+def test_real_postgres_inference_authorization_checks_current_project_membership(seeded, signing_config):
+    """This uses the actual checked-in migration on ephemeral PostgreSQL 16."""
+    engine, store, _, signing = seeded
+    _, settings = signing_config
+    from app.security.gateway_authorization import SECRET_HEADER
+    secret = "synthetic-postgres-control-secret-0123456789abcdef"
+    client = TestClient(create_app(
+        settings, project_store=store, gateway_internal_token=secret,
+    ), client=("127.0.0.1", 45111))
+    uri = "/internal/gateway/authorize"
+    jwt_value = issue(signing, subject="user-a", role="owner",
+                      organization_id=str(ORG_B), permissions=["inference.invoke"])
+    request_headers = {
+        "Authorization": "Bearer " + jwt_value,
+        SECRET_HEADER: secret,
+    }
+
+    def post(target):
+        return client.post(uri, headers=request_headers, json={"project_id": str(target)})
+
+    # Viewer with project.read must NOT get inference.invoke.
+    assert post(PROJECT_A).status_code == 404
+    assert post(PROJECT_B).status_code == 404
+    with engine.begin() as conn:
+        conn.execute(update(organization_memberships).where(
+            organization_memberships.c.issuer == ISSUER,
+            organization_memberships.c.subject == "user-a",
+            organization_memberships.c.organization_id == ORG_A,
+        ).values(role=Role.DEVELOPER.value))
+    assert post(PROJECT_A).json() == {"authorized": True, "project_id": str(PROJECT_A)}
+    assert post(PROJECT_A2).status_code == 404
+    assert post(PROJECT_B).status_code == 404
+    with engine.begin() as conn:
+        conn.execute(delete(project_grants).where(
+            project_grants.c.organization_id == ORG_A,
+            project_grants.c.subject == "user-a",
+        ))
+    assert post(PROJECT_A).status_code == 404
+    with engine.begin() as conn:
+        conn.execute(update(organization_memberships).where(
+            organization_memberships.c.issuer == ISSUER,
+            organization_memberships.c.subject == "user-a",
+            organization_memberships.c.organization_id == ORG_A,
+        ).values(role=Role.OWNER.value))
+    assert post(PROJECT_A2).status_code == 200
+    assert post(PROJECT_B).status_code == 404
+    with engine.begin() as conn:
+        conn.execute(delete(organization_memberships).where(
+            organization_memberships.c.issuer == ISSUER,
+            organization_memberships.c.subject == "user-a",
+            organization_memberships.c.organization_id == ORG_A,
+        ))
+    assert post(PROJECT_A).status_code == 404
+    assert post(PROJECT_A2).status_code == 404

@@ -118,7 +118,16 @@ jobs:
           cache: false
       - name: Check formatting
         working-directory: services/inference-gateway
-        run: test -z "$(gofmt -l $(find . -name '*.go'))"
+        run: |
+          unformatted="$(gofmt -l $(find . -name '*.go'))"
+          if [ -n "$unformatted" ]; then
+            echo "Go source files require gofmt:"
+            echo "$unformatted"
+            while IFS= read -r file; do
+              gofmt -d "$file"
+            done <<< "$unformatted"
+            exit 1
+          fi
       - name: Run race-enabled Go tests
         working-directory: services/inference-gateway
         run: go test -race -v -timeout 90s ./...
