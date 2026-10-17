@@ -122,7 +122,7 @@ jobs:
           unformatted="$(gofmt -l $(find . -name '*.go'))"
           if [ -n "$unformatted" ]; then
             echo "Go source files require gofmt:"
-            printf '%s\\n' "$unformatted"
+            echo "$unformatted"
             while IFS= read -r file; do
               gofmt -d "$file"
             done <<< "$unformatted"
