@@ -35,6 +35,7 @@ from app.workspaces import WorkspaceInput, clean_workspace_name, canonical_org_i
 from app.storage.workspaces import SQLWorkspaceStore, WorkspaceNotFound, WorkspaceLimitReached
 from app.security.redis_quota import RedisAccountQuota
 from app.storage.team import SQLTeamStore
+from app.security.policy import Role
 from app.team_api import InviteInput, RevokeMemberInput, invitation_id, subject_value, team_safely, require_team
 
 FLOW_COOKIE = "metriqen_oidc_flow"
@@ -491,7 +492,7 @@ def browser_login_router(login: BrowserLogin, profiles: ProfileStore | None,
         principal = identity(record)
         if quota is not None:
             quota.enforce(principal)
-        return team_safely(lambda: team.invite(principal, parsed, target, payload.role))
+        return team_safely(lambda: team.invite(principal, parsed, target, Role(payload.role)))
 
     @router.get("/auth/organizations/{org_id}/members")
     def browser_members(request: Request, org_id: str):
