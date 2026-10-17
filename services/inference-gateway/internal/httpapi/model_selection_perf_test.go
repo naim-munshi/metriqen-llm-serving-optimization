@@ -66,7 +66,7 @@ func TestSinglePassModelSelectionPreservesCanonicalModelAndForwardedJSON(t *test
 		{"explicit model", string(selectionFixture)},
 		{"duplicate model last wins", `{"model":"wrong:model","model":"llama3.2:1b","messages":[{"role":"user","content":"test"}]}`},
 		{"duplicate model invalid last", `{"model":"llama3.2:1b","model":null,"messages":[{"role":"user","content":"test"}]}`},
-		{"escaped key and model", `{"\\u006dodel":"llama3.2:1b","messages":[{"role":"user","content":"test"}]}`},
+		{"escaped key and model", `{"\u006dodel":"llama3.2:1b","messages":[{"role":"user","content":"test"}]}`},
 		{"unicode in content", `{"model":"llama3.2:1b","messages":[{"role":"user","content":"日本語 বাংলা"}],"max_tokens":128}`},
 		{"boolean stream", `{"model":"llama3.2:1b","messages":[{"role":"user","content":"hi"}],"stream":false}`},
 		{"model header injection", `{"model":"llama3.2:1b\\nX-Forwarded","messages":[{"role":"user","content":"test"}]}`},
