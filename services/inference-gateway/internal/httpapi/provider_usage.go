@@ -43,18 +43,18 @@ type providerUsageCounters struct {
 }
 
 type providerUsageSnapshot struct {
-	SchemaVersion                     int    `json:"schema_version"`
-	ClassifiedTerminalAttemptsTotal   uint64 `json:"classified_terminal_attempts_total"`
-	NonstreamProviderPlausibleTotal   uint64 `json:"nonstream_provider_plausible_total"`
-	NonstreamProviderMissingTotal     uint64 `json:"nonstream_provider_missing_total"`
-	NonstreamProviderMalformedTotal   uint64 `json:"nonstream_provider_malformed_total"`
+	SchemaVersion                      int    `json:"schema_version"`
+	ClassifiedTerminalAttemptsTotal    uint64 `json:"classified_terminal_attempts_total"`
+	NonstreamProviderPlausibleTotal    uint64 `json:"nonstream_provider_plausible_total"`
+	NonstreamProviderMissingTotal      uint64 `json:"nonstream_provider_missing_total"`
+	NonstreamProviderMalformedTotal    uint64 `json:"nonstream_provider_malformed_total"`
 	NonstreamProviderInconsistentTotal uint64 `json:"nonstream_provider_inconsistent_total"`
-	NonstreamProviderAboveCapTotal    uint64 `json:"nonstream_provider_above_cap_total"`
-	NonstreamNoCompletionTotal        uint64 `json:"nonstream_no_completion_total"`
-	StreamNotMeasuredTotal            uint64 `json:"stream_not_measured_total"`
-	ProviderPromptTokensReportedTotal uint64 `json:"provider_prompt_tokens_reported_total"`
-	ProviderOutputTokensReportedTotal uint64 `json:"provider_output_tokens_reported_total"`
-	ProviderAllTokensReportedTotal    uint64 `json:"provider_all_tokens_reported_total"`
+	NonstreamProviderAboveCapTotal     uint64 `json:"nonstream_provider_above_cap_total"`
+	NonstreamNoCompletionTotal         uint64 `json:"nonstream_no_completion_total"`
+	StreamNotMeasuredTotal             uint64 `json:"stream_not_measured_total"`
+	ProviderPromptTokensReportedTotal  uint64 `json:"provider_prompt_tokens_reported_total"`
+	ProviderOutputTokensReportedTotal  uint64 `json:"provider_output_tokens_reported_total"`
+	ProviderAllTokensReportedTotal     uint64 `json:"provider_all_tokens_reported_total"`
 }
 
 func (c *providerUsageCounters) record(stream bool, outcome inferenceOutcome, observed providerUsageObservation) {
@@ -93,17 +93,17 @@ func (c *providerUsageCounters) snapshot() providerUsageSnapshot {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return providerUsageSnapshot{
-		SchemaVersion:                     1,
-		ClassifiedTerminalAttemptsTotal:   c.classified,
-		NonstreamProviderPlausibleTotal:   c.nonstreamPlausible,
-		NonstreamProviderMissingTotal:     c.nonstreamMissing,
-		NonstreamProviderMalformedTotal:   c.nonstreamMalformed,
+		SchemaVersion:                      1,
+		ClassifiedTerminalAttemptsTotal:    c.classified,
+		NonstreamProviderPlausibleTotal:    c.nonstreamPlausible,
+		NonstreamProviderMissingTotal:      c.nonstreamMissing,
+		NonstreamProviderMalformedTotal:    c.nonstreamMalformed,
 		NonstreamProviderInconsistentTotal: c.nonstreamInconsistent,
-		NonstreamProviderAboveCapTotal:    c.nonstreamExceedsCap,
-		NonstreamNoCompletionTotal:        c.nonstreamUnsuccessful,
-		StreamNotMeasuredTotal:            c.streamNotMeasured,
-		ProviderPromptTokensReportedTotal: c.reportedPrompt,
-		ProviderOutputTokensReportedTotal: c.reportedCompletion,
-		ProviderAllTokensReportedTotal:    c.reportedTotal,
+		NonstreamProviderAboveCapTotal:     c.nonstreamExceedsCap,
+		NonstreamNoCompletionTotal:         c.nonstreamUnsuccessful,
+		StreamNotMeasuredTotal:             c.streamNotMeasured,
+		ProviderPromptTokensReportedTotal:  c.reportedPrompt,
+		ProviderOutputTokensReportedTotal:  c.reportedCompletion,
+		ProviderAllTokensReportedTotal:     c.reportedTotal,
 	}
 }
