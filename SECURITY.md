@@ -75,6 +75,23 @@ live Redis validation on Mac, or production hardening is claimed.
 
 When both the control API's `METRIQEN_GATEWAY_INTERNAL_TOKEN` and gateway-side `METRIQEN_GATEWAY_PROJECT_AUTH_URL`/`METRIQEN_GATEWAY_PROJECT_AUTH_TOKEN` are operator-configured, direct chat inference is denied until an OIDC access JWT and a canonical project ID pass the current `inference.invoke` permission check on trusted PostgreSQL data. Untrusted JWT role/tenant claims are ignored; authorization happens before prompt decoding, queue admission or runtime forwarding. The gateway treats service errors and malformed decisions as 503 and never forwards credentials or the project header to Ollama. The legacy loopback-only mode stays unauthenticated unless guarded mode is explicitly enabled. Do not enable the legacy shared bearer token with project mode. The new unit/HTTP checks and disposable PostgreSQL CI tests are not real IdP/HTTPS, Mac or production load tests. See [project authorization runbook](docs/operations/project-inference-authorization.md).
 
+## Process-local provider-reported inference usage telemetry
+
+The local Go gateway's `GET /metrics/usage` endpoint records only
+bounded aggregate **provider-reported**, internally consistent
+`prompt_tokens` / `completion_tokens` / `total_tokens` for completed,
+fully written non-streaming HTTP responses. Missing, malformed, inconsistent
+and over-requested-cap claims are separately counted but excluded from
+token totals. Streaming is explicitly **unmeasured** (a terminal SSE
+marker is not token-usage evidence); failed/canceled/interrupted requests
+also cannot contribute token totals. No arbitrary response text, prompt,
+project or user identifiers, raw model metadata or per-request labels enter
+the process-local counters. The endpoint is read-only, no-store and must
+remain on loopback. **Self-reported data is not cryptographically verified,
+not actual/billable token usage and cannot settle or refund the conservative
+Redis output-cap budget.** See
+[provider usage observability](docs/operations/provider-usage-observability.md).
+
 ## Optional per-project requested output cap reservations
 
 An additional **explicitly opt-in** Redis 7 token-cap budgeting seam can
