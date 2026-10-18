@@ -73,6 +73,9 @@ class OptimizationSignalTests(unittest.TestCase):
         self.assertEqual(result["classification"],"target_gain_not_demonstrated")
 
     def test_predeclared_gain_and_regression_thresholds(self):
+        # Candidate at 0.8s offers a genuine *synthetic* +25% RPS
+        # rather than the fixture's exact +100% at 0.5s.
+        self.e.write_bundle(self.e.candidate, wall=0.8)
         self.assertEqual(self.review(min_rps_gain=5)["classification"],
                          "descriptive_guardrails_met_not_causal")
         self.assertEqual(self.review(min_rps_gain=100)["classification"],
