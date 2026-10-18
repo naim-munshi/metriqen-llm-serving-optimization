@@ -117,6 +117,7 @@ def _check_stream(raw: bytes) -> None:
         raise AcceptanceFailure("stream_missing_final_separator")
     done = 0
     deltas = 0
+    seen_final_usage = False
     for frame in text.split("\n\n"):
         if not frame:
             continue
@@ -130,9 +131,16 @@ def _check_stream(raw: bytes) -> None:
         if lines[0] == "[DONE]":
             done += 1
             continue
+        if seen_final_usage:
+            raise AcceptanceFailure("stream_data_after_usage")
         try:
             chunk = json.loads(lines[0])
             choices = chunk.get("choices") if isinstance(chunk, dict) else None
+            if choices == [] and isinstance(chunk.get("usage"), dict):
+                # Optional, UNTRUSTED final usage event. It has no text,
+                # must not be confused with the stream termination.
+                seen_final_usage = True
+                continue
             if not isinstance(choices, list) or not choices:
                 raise ValueError("missing delta choices")
             delta = choices[0].get("delta") if isinstance(choices[0], dict) else None
