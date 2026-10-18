@@ -48,12 +48,12 @@ class PortfolioDocumentationContracts(unittest.TestCase):
         for phrase in (
             "not causal", "OLLAMA_NUM_PARALLEL", "34.235%",
             "27.025%", "25,350 ns/op", "16,258 ns/op",
-            "not a real", "synthetic", "not",
+            "not a new Metriqen scheduling algorithm", "synthetic",
             "Portfolio v1.0 not released", "Apple M2",
         ):
             self.assertIn(phrase.lower(), body.lower())
         self.assertNotIn("production-ready SaaS", body)
-        self.assertIn("actual Mac tests in CI", body)
+        self.assertIn("real Mac tests in CI", body)
 
     def test_unreleased_changelog_has_no_synthetic_v1_release_or_license_claim(self):
         changes = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
