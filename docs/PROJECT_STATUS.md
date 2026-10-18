@@ -1,6 +1,8 @@
 # Metriqen — implementation and evidence status
 
-**As of October 14, 2026.** This is a local engineering prototype, not a production LLM deployment. Current statements distinguish implemented code, test coverage, operator observations, and planned components.
+**Historical snapshot — October 14, 2026.** This file documents the implementation and evidence state *as of that date*, not the newest feature inventory. In particular, it predates the optional guarded SQL project/deployment routing, distributed Redis request leases/output cap reservations, provider-reported SSE usage telemetry, the Portfolio v1.0 acceptance checker and three-console reviewer navigation. Do not interpret older rows saying "not implemented" as a statement about current `main`. Also do not confuse later opt-in implementation or synthetic CI with a real Mac/GPU/production deployment.
+
+For the current source-linked portfolio scope and release blockers, start with the [portfolio engineering case study](PORTFOLIO_CASE_STUDY.md), [P1–P6 acceptance gates](PORTFOLIO_V1_ACCEPTANCE.md) and the [unreleased changelog](../CHANGELOG.md). The system remains a local engineering research prototype.
 
 ## Scope matrix
 
