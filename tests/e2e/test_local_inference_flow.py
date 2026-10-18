@@ -299,7 +299,7 @@ class LocalInferenceE2ETests(unittest.TestCase):
 
             completed, body = chat("test-model", stream=True)
             self.assertEqual(completed, 200)
-            self.assertIn(b"data: [DONE]\\n\\n", body)
+            self.assertIn(b"data: [DONE]\n\n", body)
             self.assertNotIn(b"PRIVATE_OPERATOR_PROMPT", body)
 
             outcomes = metrics("/metrics/inference")
