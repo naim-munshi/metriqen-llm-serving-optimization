@@ -1,0 +1,102 @@
+# Metriqen Portfolio v1.0 — scope and release acceptance contract
+
+**Project category:** LLM Infrastructure / AI Platform Engineering portfolio.
+**Purpose:** prove the author can design, implement, measure, test and clearly
+explain a real, bounded open-weight model-serving system. This is **not** a
+promise to ship a public SaaS, a commercial multi-tenant provider, or a new
+inference kernel. This document is the single portfolio-v1 finish line.
+
+## One-sentence engineering story
+
+> I built a Go-based local LLM inference gateway with bounded scheduling,
+> streaming and failure controls; a Python/FastAPI management plane; and
+> repeatable, quality-aware serving experiments. I can demonstrate actual
+> Ollama inference and explain independently validated engineering changes
+> without mistaking synthetic CI results for real GPU performance.
+
+Any claim about a speedup must identify precisely **which component or
+configuration changed**. Setting `OLLAMA_NUM_PARALLEL=2` is an Ollama
+configuration experiment, not a new scheduling algorithm written by Metriqen.
+The repo's Linux hosted runner JSON-selection CPU microbenchmark is not a
+real Ollama/GPU serving improvement.
+
+## Required release gates (all must pass)
+
+| Gate | Acceptance evidence | Current known boundary |
+| --- | --- | --- |
+| **P1. Real-model inference and integrated operator path** | Operator-run real Ollama native chat, Go nonstream and streaming chat, installed/loaded pinned model digest, verified terminal SSE marker, gateway counters, and independent visual/browser approval/load/inference/stop/rollback demonstration | Synthetic zero-model demo already exists; operator's actual M2 live behavior cannot be verified by GitHub CI; operator-only registry and user account console are separate |
+| **P2. Reproducible before/after experimental evidence** | A1/B1/A2/B2 real-model repeats with timestamped phase preflights, AC/thermal/slot notes, pinned model digest, same workload/decoding, TTFT/RPS/p95/token throughput/failures and separate quality scores; independent consistency gates pass | Public Oct 13 1→2 Ollama parallelism comparison is descriptive, raw evidence private; no new prospective full four-phase real validation |
+| **P3. At least one engineering optimization with precise attribution** | Before/after controlled comparison of an identifiable **Metriqen-controlled** code/serving path with tests, same model quality, explicit regressions and reproducible reports; microbenchmark must not be marketed as LLM speedup | Existing Go JSON-selection single-pass CPU microbenchmark has isolated synthetic wins; real end-to-end improvement still unverified |
+| **P4. Coherent, usable reviewer demonstration** | One documented start/check path, simple model approval → invoke → metrics → rollback journey; browser screenshots from actual running UI, basic mobile/desktop and accessible keyboard checks; an offline mock fallback requiring no model download | Three local UIs and offline smoke exist; no fully exercised real browser cross-console journey or screenshot QA |
+| **P5. Engineering reliability and security acceptance** | Go race/vet, Python, actual ephemeral PG and Redis integration, SSE failure, cancellation, rate/lease limits, strict tenant opt-in negative tests all pass; verify on real operator configuration without exposing localhost services | 11/11 CI successful at reference commit; optional auth/quotas cannot be presumed enabled in a default developer environment; never expose services publicly |
+| **P6. Professional portfolio release** | Honest concise README with architecture, installation, feature/status matrix, reproducible public aggregate performance figures, caveats, license decision, versioned CHANGELOG, screenshot/video walkthrough, interview Q&A and tagged v1.0.0 release | README/PORTFOLIO/PROJECT_STATUS contain outdated descriptions of newer features; no verified screenshots, video, chosen license or published release |
+
+**Definition of done:** all P1–P6 acceptance evidence is linked from
+`README.md`; demo commands actually executed on the operator's Mac,
+reviewed and documented; every automated CI check green on the release
+commit. A green synthetic test alone **never marks P1–P3 complete**.
+
+## Engineering milestones and ownership
+
+1. **Integrate and demonstrate the local real model.** Build a bounded,
+   human-operated smoke command that checks both native Ollama and Go
+   gateway requests without restarting models/processes, reports only
+   aggregate evidence, and fails on invalid digest/missing SSE completion.
+   Then *the operator on Mac* must execute it and keep private evidence
+   under `reports/local/`. This repo's CI can test this command only with
+   synthetic transport fixtures.
+2. **Run controlled A/B/A/B measurements.** Use the checked-in phase
+   preflight binder and raw evidence/quality gates. Never manufacture
+   a real run by editing a synthetic report. Note runtime slots and power.
+3. **Make a real, attributable serving-path change.** Select one of
+   queue-admission behavior, Go request-path cost, caching policy,
+   batching runtime configuration, or quantization; define comparison
+   target before measuring and include quality/failure regressions.
+4. **Consolidate the existing UI without compromising security.** The
+   operator console and verified-user OIDC paths are separate security
+   roles; do **not** bypass project RBAC to offer a flashy unified chat.
+   Treat identity-provider provisioning as a requirement only for any
+   advertised authenticated workflow; local operator-only demo is
+   independently valid.
+5. **Release preparation.** Fix contradictory legacy docs, add credible
+   architecture diagram and actual screenshot/video once captured by
+   operator, choose an explicit LICENSE with owner consent, add CHANGELOG,
+   complete all checks and tag `v1.0.0` only when each gate has evidence.
+
+## Portfolio v1 versus later full platform
+
+**Not required for honest portfolio v1:** NVIDIA GPU or vLLM, paid hosted
+GPU infrastructure, Kubernetes, commercial billing, public signup,
+global traffic routing, production SLA, or multi-region high availability.
+They belong to optional v2 when the underlying model serving work is
+well-proven. They must not be advertised as present.
+
+**Always required for any public deployment:** verified hardened
+authentication, HTTPS/mTLS boundary where needed, protected secrets,
+tenant isolation, backups, rate limits and security review. The current
+repo defaults to loopback-only development. **Do not expose it online.**
+
+## Evidence provenance rules
+
+- `tests/e2e/test_real_ollama_acceptance.py` uses synthetic injected
+  HTTP fixtures. Its CI success is a contract check, not a local M2 run.
+- `python3 -m tools.demo.real_ollama --expected-digest <hex> --output
+  reports/local/real-ollama-smoke.json` issues three bounded actual
+  inference requests to already-running localhost services. It is an
+  operator-observed smoke, not proof of GPU execution/TTFT/p95, and must
+  never be presented as a benchmark.
+- Never publish private access tokens, raw model output, local user
+  data, unreviewed reports or model-license-restricted artifacts.
+- Public measurement claims link to a reproducible **sanitized** aggregate
+  report and name run date, model digest, quantization, hardware/runtime,
+  concurrency, run count, methodology, drawbacks and experimental limits.
+
+## Current starting point
+
+Repository main `6546a93` (2026-10-18 JST): Go gateway, optional
+tenant/project control, Redis quotas, bounded SSE and aggregate model
+usage observation, protected local model/deployment workflows, 11 CI
+jobs, offline mock demo, and operator-reported early parallelism
+study. This is a capable **local research prototype**, not yet P1–P6
+portfolio v1 release. Do not label a percentage as an automated,
+objective completion score.
