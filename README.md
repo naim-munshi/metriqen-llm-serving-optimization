@@ -4,6 +4,8 @@
 
 [![CI](https://github.com/naim-munshi/metriqen-llm-serving-optimization/actions/workflows/ci.yml/badge.svg)](https://github.com/naim-munshi/metriqen-llm-serving-optimization/actions/workflows/ci.yml)
 
+**Portfolio v1.0 release criteria:** [six objective gates](docs/PORTFOLIO_V1_ACCEPTANCE.md) · [real local Ollama acceptance checker](docs/operations/real-ollama-portfolio-acceptance.md). The existing [offline reviewer demo](docs/operations/offline-portfolio-demo.md) uses **synthetic** model replies; it is a CI contract test, not a real Ollama run. **Portfolio v1.0 is not released yet.**
+
 Metriqen is an **engineering research prototype** for understanding how concurrent requests, serving configuration, and workload design affect open-weight language model performance. It combines a Go inference gateway with Python benchmarking, answer-reference evaluation, and evidence-validation tools.
 
 **Current scope:** tested, **loopback-only** local inference with Ollama. Not a hosted API, a production service, a GPU batching engine, or a verified general-purpose inference optimizer.
