@@ -20,6 +20,12 @@ configuration experiment, not a new scheduling algorithm written by Metriqen.
 The repo's Linux hosted runner JSON-selection CPU microbenchmark is not a
 real Ollama/GPU serving improvement.
 
+**Operator handoff (Mac only):** The single ordered, no-skips checklist for
+real-model inference, protected deployments, A/B/A/B evidence, security
+recovery, original browser screenshots, license approval and the final
+release is [Portfolio final Mac handoff](operations/portfolio-final-mac-handoff.md).
+The CI/source-only `make portfolio-ci` gate does not satisfy this list.
+
 ## Required release gates (all must pass)
 
 | Gate | Acceptance evidence | Current known boundary |
