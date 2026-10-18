@@ -15,7 +15,7 @@ import threading
 import time
 import unittest
 from urllib.error import HTTPError, URLError
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -245,6 +245,83 @@ class LocalInferenceE2ETests(unittest.TestCase):
 
 
 
+
+    def test_gateway_recovers_after_upstream_rejection_protocol_error_and_truncated_stream(self):
+        """Real Go gateway process recovers using an isolated fake model.
+
+        This is a crash/recovery *contract*, not an actual Ollama, GPU,
+        production IdP, Redis or cloud failover exercise.
+        """
+        with live_gateway(self.binary, self.fake.server_port) as endpoint:
+            root = endpoint.removesuffix("/v1/chat/completions")
+
+            def chat(model, *, stream=False):
+                body = json.dumps({
+                    "model": model,
+                    "messages": [{"role": "user", "content": "PRIVATE_OPERATOR_PROMPT"}],
+                    "stream": stream, "max_tokens": 32, "temperature": 0,
+                }).encode()
+                request = Request(endpoint, data=body, method="POST",
+                                  headers={"Content-Type": "application/json"})
+                try:
+                    with urlopen(request, timeout=8) as response:
+                        return response.status, response.read(65537)
+                except HTTPError as exc:
+                    try:
+                        return exc.code, exc.read(65537)
+                    finally:
+                        exc.close()
+
+            def metrics(path):
+                with urlopen(root + path, timeout=3) as response:
+                    self.assertEqual(response.status, 200)
+                    return json.loads(response.read(16384))
+
+            initial = metrics("/metrics/inference")
+            self.assertEqual(initial["attempts_total"], 0)
+            self.assertEqual(initial["active_attempts"], 0)
+
+            rejected, body = chat("reject")
+            self.assertEqual(rejected, 429)
+            self.assertNotIn(b"confidential fake error", body)
+
+            malformed, body = chat("invalid-completion")
+            self.assertEqual(malformed, 502)
+            self.assertNotIn(b"DO_NOT_LEAK_FIXTURE", body)
+
+            recovered, body = chat("test-model")
+            self.assertEqual(recovered, 200)
+            self.assertTrue(json.loads(body)["choices"][0]["message"]["content"])
+
+            interrupted, body = chat("stream-truncated", stream=True)
+            self.assertEqual(interrupted, 200)
+            self.assertNotIn(b"data: [DONE]", body)
+
+            completed, body = chat("test-model", stream=True)
+            self.assertEqual(completed, 200)
+            self.assertIn(b"data: [DONE]\\n\\n", body)
+            self.assertNotIn(b"PRIVATE_OPERATOR_PROMPT", body)
+
+            outcomes = metrics("/metrics/inference")
+            admission = metrics("/metrics/admission")
+            upstream = metrics("/metrics/upstream")
+            self.assertEqual(outcomes["attempts_total"], 5)
+            self.assertEqual(outcomes["active_attempts"], 0)
+            self.assertEqual(outcomes["nonstream_complete_total"], 1)
+            self.assertEqual(outcomes["pre_response_failure_total"], 2)
+            self.assertEqual(outcomes["stream_done_total"], 1)
+            self.assertEqual(outcomes["stream_missing_done_total"], 1)
+            self.assertEqual(outcomes["duration_observations_total"], 5)
+            self.assertEqual(admission["active_requests"], 0)
+            self.assertEqual(admission["waiting_requests"], 0)
+            self.assertEqual(admission["admitted_immediate_total"], 5)
+            self.assertGreaterEqual(upstream["http_rejected_total"], 1)
+            self.assertGreaterEqual(upstream["protocol_errors_total"], 1)
+            for counters in (outcomes, admission, upstream):
+                serialized = json.dumps(counters)
+                for secret in ("PRIVATE_OPERATOR_PROMPT", "PRIVATE_UPSTREAM_ERROR",
+                               "confidential fake error", "DO_NOT_LEAK_FIXTURE"):
+                    self.assertNotIn(secret, serialized)
 
     def test_nlp_quality_cli_uses_live_go_gateway(self):
         """Reference scoring uses the real gateway process, not direct fixture calls."""
