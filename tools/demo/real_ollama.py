@@ -136,6 +136,8 @@ def _check_stream(raw: bytes) -> None:
         try:
             chunk = json.loads(lines[0])
             choices = chunk.get("choices") if isinstance(chunk, dict) else None
+            if isinstance(chunk.get("error"), (str, dict)):
+                raise ValueError("in-band model error")
             if choices == [] and isinstance(chunk.get("usage"), dict):
                 # Optional, UNTRUSTED final usage event. It has no text,
                 # must not be confused with the stream termination.
@@ -146,8 +148,6 @@ def _check_stream(raw: bytes) -> None:
             delta = choices[0].get("delta") if isinstance(choices[0], dict) else None
             if isinstance(delta, dict) and isinstance(delta.get("content"), str) and delta["content"].strip():
                 deltas += 1
-            if isinstance(chunk.get("error"), (str, dict)):
-                raise ValueError("in-band model error")
         except (ValueError, TypeError, KeyError, AttributeError):
             raise AcceptanceFailure("stream_invalid_event") from None
     if done != 1:
