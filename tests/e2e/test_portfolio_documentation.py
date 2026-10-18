@@ -99,7 +99,7 @@ class PortfolioDocumentationContracts(unittest.TestCase):
             encoding="utf-8")
         self.assertIn('router.get("/auth/login")', login)
         self.assertIn('router.post("/auth/logout")', login)
-        self.assertIn("optional localhost-only browser OIDC", security.lower())
+        self.assertIn("optional localhost-only browser oidc", security.lower())
         self.assertIn("not been connected and accepted", security.lower())
         self.assertIn("no local password signup", roadmap.lower())
         self.assertIn("not itself", readme.lower())
