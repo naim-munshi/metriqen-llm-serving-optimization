@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/naim-munshi/metriqen-llm-serving-optimization/actions/workflows/ci.yml/badge.svg)](https://github.com/naim-munshi/metriqen-llm-serving-optimization/actions/workflows/ci.yml)
 
-**Portfolio v1.0 release criteria:** [six objective gates](docs/PORTFOLIO_V1_ACCEPTANCE.md) · [real local Ollama acceptance checker](docs/operations/real-ollama-portfolio-acceptance.md). The existing [offline reviewer demo](docs/operations/offline-portfolio-demo.md) uses **synthetic** model replies; it is a CI contract test, not a real Ollama run. **Portfolio v1.0 is not released yet.**
+**Portfolio v1.0 release criteria:** [six objective gates](docs/PORTFOLIO_V1_ACCEPTANCE.md) · [real local Ollama acceptance checker](docs/operations/real-ollama-portfolio-acceptance.md) · [three-console reviewer tour](docs/operations/portfolio-local-reviewer-journey.md). The existing [offline reviewer demo](docs/operations/offline-portfolio-demo.md) uses **synthetic** model replies; it is a CI contract test, not a real Ollama run. **Portfolio v1.0 is not released yet.**
 
 Metriqen is an **engineering research prototype** for understanding how concurrent requests, serving configuration, and workload design affect open-weight language model performance. It combines a Go inference gateway with Python benchmarking, answer-reference evaluation, and evidence-validation tools.
 
@@ -14,11 +14,13 @@ Metriqen is an **engineering research prototype** for understanding how concurre
 
 | Area | Implemented today | Boundary |
 | --- | --- | --- |
-| **Serving** | Go `/v1/chat/completions` gateway; streaming SSE and non-streaming JSON; bounded validation, cancellation and sanitized errors | Local upstream only; optional static **loopback bearer token** on chat requests, not production identity |
-| **Admission control** | Four active gateway requests; opt-in FIFO wait queue (depth 0–32), wait timeout, backpressure and versioned `GET /metrics/admission` diagnostics and independent `GET /metrics/inference` outcome counters with fixed queue-wait duration buckets; optional exact model-tag allowlist | No continuous batching, model-digest enforcement or tenant-level scheduling |
-| **Measurement** | Versioned workloads, repeated rotating-order sweeps, TTFT, latency, throughput, token-usage coverage and run-timing diagnostics | Primarily single-machine local experiments |
-| **Evaluation** | Separate exact and normalized answer-reference checks; matched-report comparison, evidence bundles and A/B/A/B drift-review tooling | String matching is **not** semantic/factual quality evaluation |
-| **Control plane / Accounts** | FastAPI health, pinned-JWKS access-token verification, scoped project-read RBAC and opt-in local PostgreSQL **current-user profile** create/read/update | No hosted login/signup/session, multi-tenant account administration, tenant API keys or real IdP |
+| **Serving** | Go `/v1/chat/completions` gateway, streaming SSE/nonstream JSON, bounded validation, cancellation and sanitized errors | Local upstream only; legacy developer mode may be **unguarded**; optional JWT/project checks are **not** production identity |
+| **Admission control** | Four local active slots, opt-in FIFO waiting queue, Redis-backed project request quotas and in-flight leases, conservative output-cap reservations | Project guards must be explicitly enabled on all replicas; no continuous batching or GPU token-level scheduling |
+| **Model management** | Operator-only local Ollama registry, digest approvals, preload/unload, named deployments/rollback; opt-in SQL deployment-ready project routing | Approval in operator UI does not itself block unguarded direct Go inference; runtime digest/tag races remain |
+| **Measurement** | Versioned workloads, repeated sweeps, TTFT/p95/RPS, quality and evidence gates; aggregate provider-reported token counters | Mostly single-machine tests; provider usage is untrusted and **not billable**; no verified causal serving speedup |
+| **Evaluation** | Exact/normalized reference-answer checks, matched evidence and A/B/A/B drift review | String matching is **not** semantic/factual quality evaluation |
+| **Control plane / Accounts** | FastAPI pinned-JWKS access token validation, opt-in local OIDC browser sessions/Redis, PostgreSQL org/project RBAC and durable deployments | Requires operator-supplied IdP/config; no hosted production tenant service |
+| **Reviewer interface** | Go read-only operations console + separate FastAPI model manager and optional OIDC account console, with fixed local navigation | Not one shared login/session; real Mac browser and accessibility/screenshots still unverified |
 
 **Stack:** Go · Python · FastAPI · Ollama / llama.cpp · PostgreSQL / SQLAlchemy (optional) · Docker Compose (local) · GitHub Actions.
 
@@ -27,15 +29,17 @@ Metriqen is an **engineering research prototype** for understanding how concurre
 ```mermaid
 flowchart LR
     Client[Local chat client] --> Gateway[Go inference gateway]
-    Gateway --> Admission[Validation and FIFO admission control]
+    Gateway --> Admission[Validation and bounded admission]
     Admission --> Ollama[Local Ollama / open-weight model]
-    Runner[Python benchmark and NLP tools] --> Gateway
-    Runner --> Evidence[Private reports and evidence checks]
-    Admin[Local control-plane client] --> API[FastAPI control API]
-    API -. opt-in .-> DB[(PostgreSQL membership adapter)]
+    Runner[Python benchmark and evaluation] --> Gateway
+    Runner --> Evidence[Private evidence bundles]
+    Operator[Local model manager] --> API[FastAPI control plane]
+    API -. optional .-> DB[(PostgreSQL / Redis)]
+    Gateway -. optional JWT and SQL project grants .-> API
+    Reviewer[Read-only reviewer console] --> Gateway
 ```
 
-The inference route is **not** protected by the control-plane identity code. Dashed infrastructure is opt-in and not part of a production deployment. See [architecture decisions](docs/architecture/adr/) and [current engineering status](docs/PROJECT_STATUS.md).
+The Go gateway has an explicitly opt-in pinned-local Control API authorization seam that can check current JWT/SQL project permission and deployment-ready model identity, but **default unguarded local inference does not use it**. Dashed connections are opt-in, not a production security boundary. See [security constraints](SECURITY.md), [architecture decisions](docs/architecture/adr/), and [current engineering status](docs/PROJECT_STATUS.md).
 
 ## Reproducible evidence: an observed local experiment
 

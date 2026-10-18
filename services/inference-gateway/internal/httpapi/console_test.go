@@ -99,3 +99,75 @@ func TestOperationsConsoleDoesNotConsumeAdmissionOrOutcomes(t *testing.T) {
 		t.Fatalf("dashboard assets consumed inference admission: %+v %+v", admission, inference)
 	}
 }
+
+func TestPortfolioReviewerJourneyUsesOnlyFixedLocalLinksAndSafeUsageMetrics(t *testing.T) {
+	handler := newGateway(t, "http://127.0.0.1:11434")
+	request := func(path string) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
+		if w.Code != http.StatusOK {
+			t.Fatalf("unexpected %s response: %d", path, w.Code)
+		}
+		return w
+	}
+	html := request("/console").Body.String()
+	script := request("/console/app.js").Body.String()
+	css := request("/console/app.css").Body.String()
+	for _, fragment := range []string{
+		`id="usage"`, `id="usage-state"`, `id="usage-prompt"`,
+		`id="usage-output"`, `id="usage-total"`,
+		`id="usage-nonstream"`, `id="usage-stream"`,
+		`id="usage-unmeasured"`, `id="reviewer"`,
+		`href="http://127.0.0.1:8000/console/models"`,
+		`href="http://127.0.0.1:8000/console/account"`,
+		`href="#admission"`, `rel="noopener noreferrer"`,
+		"not a shared authenticated session", "not a bill",
+	} {
+		if !strings.Contains(html, fragment) {
+			t.Fatalf("missing exact reviewer/usage HTML invariant %q", fragment)
+		}
+	}
+	for _, fragment := range []string{
+		`usage: "/metrics/usage"`, "data?.schema_version === 2",
+		"Number.isSafeInteger", "textContent = String(value)",
+		`credentials: "omit"`, `redirect: "error"`,
+		"Provider usage unavailable or unsupported schema",
+		"provider_all_tokens_reported_total",
+		"stream_not_measured_total",
+	} {
+		if !strings.Contains(script, fragment) {
+			t.Fatalf("missing safe usage client behavior %q", fragment)
+		}
+	}
+	if strings.Contains(script, "innerHTML") || strings.Contains(script, "localStorage") ||
+		strings.Contains(script, "sessionStorage") || strings.Contains(script, "127.0.0.1:8000") ||
+		strings.Contains(script, "Authorization") {
+		t.Fatal("telemetry browser script gained a risky cross-origin, secret or HTML operation")
+	}
+	for _, fragment := range []string{".usage-grid", ".reviewer-steps", ".step-content", "@media(max-width:600px)"} {
+		if !strings.Contains(css, fragment) {
+			t.Fatalf("missing responsive portfolio styling %q", fragment)
+		}
+	}
+
+	// Read-only provider metrics are anonymous, idle and not inference traffic.
+	m := request("/metrics/usage")
+	if !strings.Contains(m.Body.String(), `"schema_version":2`) ||
+		!strings.Contains(m.Body.String(), `"provider_all_tokens_reported_total":0`) {
+		t.Fatalf("provider metrics schema unexpectedly changed: %s", m.Body)
+	}
+	admission, _ := readAdmissionMetrics(t, handler)
+	inference, _ := readInferenceMetrics(t, handler)
+	if admission.AdmittedImmediateTotal != 0 || inference.AttemptsTotal != 0 {
+		t.Fatal("reviewer console route or usage metrics unexpectedly generated inference")
+	}
+
+	// These routes do not become writable or publicly served by enabling the reviewer UI.
+	for _, path := range []string{"/console", "/console/app.js", "/metrics/usage"} {
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, httptest.NewRequest(http.MethodPost, path, nil))
+		if w.Code != http.StatusMethodNotAllowed {
+			t.Fatalf("unexpected POST capability on %s: %d", path, w.Code)
+		}
+	}
+}

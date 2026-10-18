@@ -8,7 +8,8 @@ const paths = Object.freeze({
   upstream: "/health/upstream",
   admission: "/metrics/admission",
   inference: "/metrics/inference",
-  failures: "/metrics/upstream"
+  failures: "/metrics/upstream",
+  usage: "/metrics/usage"
 });
 const $ = id => document.getElementById(id);
 const text = (id, value) => {
@@ -115,6 +116,32 @@ function showFailures(data) {
   };
   for (const [id, key] of Object.entries(keys)) metric(id, data, key);
 }
+// Untrusted provider reports: only fixed, nonnegative safe integer aggregates
+// are rendered. Do not infer actual generated-token usage or per-project billing.
+function showUsage(data) {
+  const keys = [
+    ["usage-prompt", "provider_prompt_tokens_reported_total"],
+    ["usage-output", "provider_output_tokens_reported_total"],
+    ["usage-total", "provider_all_tokens_reported_total"],
+    ["usage-nonstream", "nonstream_provider_plausible_total"],
+    ["usage-stream", "stream_provider_plausible_total"],
+    ["usage-unmeasured", "stream_not_measured_total"]
+  ];
+  const valid = data?.schema_version === 2 && keys.every(([, key]) =>
+    typeof data[key] === "number" && Number.isSafeInteger(data[key]) && data[key] >= 0);
+  // Independently check the two defining invariants before displaying
+  // usage figures. A malformed/incompatible process snapshot is not zero.
+  const consistent = valid &&
+    data.provider_prompt_tokens_reported_total + data.provider_output_tokens_reported_total
+      === data.provider_all_tokens_reported_total &&
+    data.classified_terminal_attempts_total >=
+      data.nonstream_provider_plausible_total + data.stream_provider_plausible_total
+      + data.stream_not_measured_total;
+  for (const [id, key] of keys) metric(id, consistent ? data : null, key);
+  text("usage-state", consistent
+    ? "Provider-reported aggregates · local process · not verified billing"
+    : "Provider usage unavailable or unsupported schema");
+}
 let inFlight = null;
 async function refresh() {
   if (inFlight) return;
@@ -122,13 +149,14 @@ async function refresh() {
   inFlight = controller;
   $("refresh").disabled = true;
   try {
-    const [gateway, upstream, admission, inference, failures] =
+    const [gateway, upstream, admission, inference, failures, usage] =
       await Promise.all(Object.values(paths).map(p => snapshot(p, controller.signal)));
     health("gateway-label", "gateway-badge", gateway, "ready");
     health("upstream-label", "upstream-badge", upstream, "reachable");
     showAdmission(admission.ok ? admission.value : null);
     showInference(inference.ok ? inference.value : null);
     showFailures(failures.ok ? failures.value : null);
+    showUsage(usage.ok ? usage.value : null);
     const available = [gateway, admission, inference, failures].every(item => item.ok);
     if (!available) {
       indicator("Some diagnostics unavailable", "bad");

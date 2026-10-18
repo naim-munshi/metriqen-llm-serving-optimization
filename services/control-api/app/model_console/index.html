@@ -20,10 +20,16 @@
       <nav aria-label="Model manager sections">
         <a class="nav-active" href="#inventory">Model inventory</a>
         <a href="#registry">Registry and approval</a>
+        <a href="#deployments">Local deployments</a>
+      </nav>
+      <div class="nav-section">PORTFOLIO WORKFLOW</div>
+      <nav aria-label="Other local tools">
+        <a href="http://127.0.0.1:8081/console" target="_blank" rel="noopener noreferrer">Inference operations ↗</a>
+        <a href="/console/account" target="_blank" rel="noopener noreferrer">Optional OIDC account ↗</a>
       </nav>
       <div class="sidebar-bottom">
         <span class="local-pill"><span class="status-dot"></span>LOCAL OPERATOR MODE</span>
-        <p>Development only. The separate Go gateway does not enforce these approvals.</p>
+        <p>Development only. Model approval on this console does not itself authorize direct Go gateway requests; separate guarded project routing is opt-in. Links do not share credentials.</p>
       </div>
     </aside>
     <main class="content">
