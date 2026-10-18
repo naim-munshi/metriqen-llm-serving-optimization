@@ -87,3 +87,45 @@ test("inconsistent usage observations fail closed instead of showing stale value
     assert.equal(app.element("usage-total").textContent,"—");
   }
 });
+
+test("upstream and telemetry outages recover on a later refresh",async()=>{
+  const app=fixture();await app.flush();
+  app.data["/health/upstream"]={status:"unreachable"};
+  delete app.data["/metrics/usage"];
+  await app.refresh();
+  assert.equal(app.element("upstream-label").textContent,"Unavailable");
+  assert.equal(app.element("usage-total").textContent,"—");
+  assert.equal(app.element("data-state").textContent,
+    "Gateway responding · upstream unavailable");
+  app.data["/health/upstream"]={status:"reachable"};
+  app.data["/metrics/usage"]=usage();
+  await app.refresh();
+  assert.equal(app.element("upstream-label").textContent,"Reachable");
+  assert.equal(app.element("usage-total").textContent,"15");
+  assert.equal(app.element("data-state").textContent,"Gateway & upstream responding");
+});
+test("hidden dashboard never polls or consumes inference slots",async()=>{
+  const app=fixture();await app.flush();
+  const start=app.calls.length;
+  app.context.document.visibilityState="hidden";
+  app.events.get("poll")();
+  app.events.get("document:visibilitychange")();
+  await app.flush();
+  assert.equal(app.calls.length,start);
+  app.context.document.visibilityState="visible";
+  app.events.get("poll")();
+  await app.flush();
+  assert.equal(app.calls.length,start+6);
+  assert.equal(app.element("refresh").disabled,false);
+  assert.equal(app.calls.some(x=>x.url.includes("chat")),false);
+});
+test("missing report means unknown, while a measured missing stream remains explicit",async()=>{
+  const app=fixture();await app.flush();
+  app.render(usage({classified_terminal_attempts_total:6,
+    stream_not_measured_total:2,stream_provider_missing_total:1,
+    stream_incomplete_total:1}));
+  assert.equal(app.element("usage-unmeasured").textContent,"2");
+  app.render(null);
+  assert.equal(app.element("usage-unmeasured").textContent,"—");
+  assert.equal(app.element("usage-total").textContent,"—");
+});
