@@ -316,6 +316,9 @@ def test_account_console_asset_security_and_browser_token_hygiene(fixture):
     assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
     assert response.headers["cache-control"] == "no-store"
     assert 'href="/console/account/app.css"' in response.text
+    assert 'href="http://127.0.0.1:8081/console"' in response.text
+    assert 'rel="noopener noreferrer"' in response.text
+    assert 'does not share this browser session' in response.text
     script = client.get("/console/account/app.js").text
     assert "localStorage" not in script
     assert "sessionStorage" not in script
