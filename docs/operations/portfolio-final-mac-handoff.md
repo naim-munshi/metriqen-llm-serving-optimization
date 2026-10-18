@@ -1,0 +1,150 @@
+# Portfolio v1.0 — final operator handoff (Mac tasks only)
+
+**Source code and synthetic CI are not a portfolio release.** This is the
+short, ordered checklist that must be completed on the actual operator
+Mac before the recruiter-facing `v1.0.0` tag can truthfully be created.
+
+The fixed scope/definition of done is
+[Portfolio acceptance P1–P6](../PORTFOLIO_V1_ACCEPTANCE.md);
+the tracking issue is
+[GitHub #81](https://github.com/naim-munshi/metriqen-llm-serving-optimization/issues/81).
+Do not silently expand the v1 scope into public SaaS/GPU/vLLM/Kubernetes
+or claim memory/quality/GPU metrics that were not measured.
+
+## A. Before enabling any service
+
+1. On the Mac, `git pull --ff-only origin main` and record the exact
+   `git rev-parse HEAD` commit. Check `go version`, `python3 --version`,
+   `ollama --version` and available disk/RAM.
+2. Run `make portfolio-ci` if the Mac has Python dependencies, Go and
+   Node installed. PostgreSQL/Redis CI jobs on GitHub use ephemeral
+   isolated services; local `make` alone does **not** recreate those
+   integrations unless the operator starts them separately.
+3. Inspect repository `SECURITY.md` and keep all UIs, APIs, Ollama,
+   PostgreSQL and Redis bound to **localhost**. **Never expose this
+   development platform through tunnels or open public ports.**
+4. Confirm the local model's software license before publicizing
+   screenshots/output. Never put user prompts, JWTs, operator tokens,
+   browser session cookies, DSNs, screenshots with identities or
+   full private benchmark logs in Git commits.
+
+## B. P1 — real inference and model-management acceptance
+
+With Ollama and the Go inference gateway already running locally
+per [local inference](local-inference.md):
+
+```sh
+# Replace with actual digest obtained from /api/tags, never a fake SHA.
+curl -fsS http://127.0.0.1:11434/api/tags
+python3 -m tools.demo.real_ollama \
+  --model llama3.2:1b \
+  --expected-digest YOUR_REAL_LOWERCASE_64_CHAR_MODEL_DIGEST \
+  --output reports/local/real-ollama-smoke.json
+```
+
+**Operator acceptance:** inspected the actual processes, verified nonempty
+native Ollama generation, gateway nonstream/SSE, exactly matched loaded
+digest, clean terminal [DONE], the gateway metrics and returned
+`passed: true`. The checker is three bounded requests and **not** a
+real throughput/p95 benchmark, GPU/Metal verification or proof of
+runtime/model attestation.
+
+Complete the separate **operator-only** model-management steps in the
+actual browser and note each result: installed model → pin digest →
+approve → load → invoke → promote → stop/start → rollback. Local model
+approval alone is **not** project-scoped Go gateway authorization.
+
+## C. P2/P3 — controlled, falsifiable optimization evidence
+
+Use [preflight/phase-binding](../benchmarks/phase-preflight-binding.md),
+[the 4-phase A/B/A/B protocol](../benchmarks/abab-replication.md),
+[raw evidence generation](../benchmarks/real-model-evidence-bundle.md)
+and [matched comparison](../benchmarks/controlled-comparison.md).
+Run four separate A1/B1/A2/B2 phases with explicitly recorded
+`OLLAMA_NUM_PARALLEL`, actual logs/slots, AC power and thermal notes;
+keep pinned model digest and exact dataset/generation settings.
+
+**Do not modify raw outputs to pass tests.** Private run reports belong in
+`reports/local/`, ignored by Git; aggregate reports must be
+sanitized and explicitly attributed to the observed hardware, run date,
+model revision, quantization, software versions and number of repeats.
+
+For any separate **Metriqen-controlled** optimization, run the
+[conservative tradeoff screen](../benchmarks/portfolio-optimization-signal.md):
+
+```sh
+python3 -m tools.benchmark.optimization_signal \
+  --baseline reports/local/baseline/evidence-manifest.json \
+  --candidate reports/local/candidate/evidence-manifest.json \
+  --change "Exact Metriqen Go code or serving policy changed" \
+  --target-concurrency 2 --min-rps-gain 5 --max-regression 5 \
+  --output reports/local/optimization-signal.json
+```
+
+This is **descriptive**, not causal/attested. Show all concurrency 1/2/4
+regressions; include quality results, p95 latency, TTFT, RPS, token
+coverage and memory/power notes where genuinely available. A Go CPU
+microbenchmark improvement is distinct from an end-to-end LLM throughput
+speedup. The previous Ollama parallelism test is a *configuration*
+experiment, not a newly implemented Metriqen serving algorithm.
+
+## D. P4 — actual browser review and demo capture
+
+Follow [the 3-console reviewer journey](portfolio-local-reviewer-journey.md)
+in Safari/Chrome at desktop and mobile widths. Verify labels, keyboard
+focus/Tab navigation, readable tables, loading/unavailable/error states,
+read-only interactions and no cross-console credential sharing.
+Use the model-manager/deployment controls with actual installed model
+only after local operator approval.
+
+Capture authentic screenshots and a short video (e.g. 2–3 minutes)
+showing legitimate real operations: dashboard, approved model, actual
+chat result, monitoring, and a successful rollback. **Redact all secrets,
+personal data, prompts/model output unless permissioned.** Never
+generate fabricated "real Mac" screenshots based on synthetic mock tests.
+Link the sanitized assets in the final README only after human review.
+
+## E. P5 — local reliability/security and recovery
+
+Read [Security](../../SECURITY.md),
+[distributed request leases](distributed-project-inflight.md),
+[local JWT/digest authorization](project-inference-authorization.md),
+and [operator recovery checklist](local-inference.md).
+
+- Verify unavailable Ollama results in bounded, sanitized errors and
+  automatic gateway admission release. Restart Ollama **manually** only
+  after preserving relevant logs; ensure subsequent request succeeds
+  without restarting the Go gateway.
+- Verify streaming cancellation/missing [DONE] fails cleanly and the
+  next request succeeds. The Go synthetic process recovery test exercises
+  this contract in CI; **Mac is not tested by CI**.
+- If running a guarded project mode: test signed identities, revoked
+  membership, wrong project and mismatched model digest. If OIDC,
+  PostgreSQL, Redis or service-to-service secrets are absent, state
+  that those particular operator validations were not run; do not
+  claim production security or publicly expose the service.
+- Record gateway runtime/version, component settings actually enabled,
+  data redaction review, CI SHA and the recovery observations.
+
+## F. P6 — release review and license decision
+
+1. Update `README.md`, [engineering case study](../PORTFOLIO_CASE_STUDY.md)
+   and `CHANGELOG.md` with only verified operator evidence, actual
+   screenshots and versioned benchmark aggregate reports.
+2. The repository owner decides the licensing strategy (**MIT, Apache-2.0,
+   another eligible license, or keep proprietary**). Do **not** add a
+   license or claim permission without the owner's decision; check
+   dependencies, original datasets and model redistribution restrictions.
+3. Re-run full GitHub CI on the *actual release candidate commit*;
+   check that all jobs pass and GitHub Issue #81 has verifiable direct
+   evidence links for **every** P1–P6 condition.
+4. Only after independent human review and all gates pass:
+   tag `v1.0.0` and publish a GitHub release with a concise change
+   summary, actual limitations and demo links. No published release
+   is implied by a passing source-only CI run.
+
+**Current state:** source-only GitHub work can be advanced without the
+Mac, but these operator-only evidence steps are intentionally **not
+auto-completed**. Once evidence is available, the README and tracker
+can be updated accurately. No release date or performance result is
+promised in advance.
