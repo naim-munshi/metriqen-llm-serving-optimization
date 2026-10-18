@@ -1,0 +1,89 @@
+"use strict";
+const { test } = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const vm = require("node:vm");
+
+const script = fs.readFileSync(path.join(__dirname, "../../services/inference-gateway/internal/httpapi/console/app.js"), "utf8");
+function usage(overrides={}) {
+  return {
+    schema_version: 2, classified_terminal_attempts_total: 4,
+    nonstream_provider_plausible_total: 2, nonstream_provider_missing_total: 1,
+    nonstream_provider_malformed_total: 0, nonstream_provider_inconsistent_total: 0,
+    nonstream_provider_above_cap_total: 0, nonstream_no_completion_total: 0,
+    stream_not_measured_total: 0, stream_provider_plausible_total: 1,
+    stream_provider_missing_total: 0, stream_provider_malformed_total: 0,
+    stream_provider_inconsistent_total: 0, stream_provider_above_cap_total: 0,
+    stream_incomplete_total: 0, provider_prompt_tokens_reported_total: 10,
+    provider_output_tokens_reported_total: 5, provider_all_tokens_reported_total: 15,
+    ...overrides
+  };
+}
+function fixture() {
+  const nodes = new Map();
+  const events = new Map();
+  const calls = [];
+  const data = {
+    "/health/ready": {status: "ready"},
+    "/health/upstream": {status: "reachable"},
+    "/metrics/admission": {active_requests: 0, max_active_requests: 4},
+    "/metrics/inference": {attempts_total: 0},
+    "/metrics/upstream": {},
+    "/metrics/usage": usage()
+  };
+  const element = id => {
+    if (!nodes.has(id)) nodes.set(id,{
+      textContent: "", className: "", disabled: false, style: {}, attributes: {},
+      setAttribute(name,value){this.attributes[name]=value;},
+      addEventListener(name,fn){events.set(id+":"+name,fn);}
+    });
+    return nodes.get(id);
+  };
+  const document = {
+    visibilityState: "visible", getElementById: element,
+    addEventListener(name,fn){events.set("document:"+name,fn);}
+  };
+  const fetch = async (url, options) => {
+    calls.push({url,options});
+    assert.ok(url.startsWith("/health/") || url.startsWith("/metrics/"));
+    assert.equal(options.credentials,"omit");
+    if (!(url in data)) throw new Error("simulated unavailable");
+    const status = url === "/health/upstream" && data[url].status !== "reachable" ? 503 : 200;
+    return {ok:status===200,status,json:async()=>data[url]};
+  };
+  const context=vm.createContext({
+    document,fetch,AbortController,Date,
+    setTimeout(){return 1;},clearTimeout(){},
+    setInterval(fn,interval){assert.equal(interval,5000);events.set("poll",fn);}
+  });
+  vm.runInContext(script,context,{timeout:2000});
+  return {element,events,calls,data,context,
+    render:x=>vm.runInContext("showUsage("+JSON.stringify(x)+")",context),
+    refresh:()=>vm.runInContext("refresh()",context),
+    flush:()=>new Promise(done=>setImmediate(done))
+  };
+}
+test("valid provider telemetry and same-origin requests",async()=>{
+  const app=fixture();await app.flush();app.render(usage());
+  assert.equal(app.element("usage-total").textContent,"15");
+  assert.equal(app.element("usage-prompt").textContent,"10");
+  assert.match(app.element("usage-state").textContent,/not verified billing/);
+  assert.equal(app.calls.length,6);
+  assert.equal(app.calls.some(x=>x.url.includes("chat/completions")),false);
+});
+test("inconsistent usage observations fail closed instead of showing stale values",async()=>{
+  const app=fixture();await app.flush();
+  for(const item of [
+    usage({schema_version:1}),
+    usage({classified_terminal_attempts_total:3}),
+    usage({stream_not_measured_total:2}),
+    usage({provider_all_tokens_reported_total:14}),
+    usage({provider_prompt_tokens_reported_total:Number.MAX_SAFE_INTEGER}),
+    usage({stream_incomplete_total:null})
+  ]) {
+    app.render(usage());
+    app.render(item);
+    assert.equal(app.element("usage-total").textContent,"—");
+  }
+});
