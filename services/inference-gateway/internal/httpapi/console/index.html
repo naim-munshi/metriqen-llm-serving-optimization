@@ -22,6 +22,8 @@
         <a class="nav-link" href="#admission"><span class="nav-indicator"></span>Admission control</a>
         <a class="nav-link" href="#outcomes"><span class="nav-indicator"></span>Inference outcomes</a>
         <a class="nav-link" href="#failures"><span class="nav-indicator"></span>Failure diagnostics</a>
+        <a class="nav-link" href="#usage"><span class="nav-indicator"></span>Provider token usage</a>
+        <a class="nav-link" href="#reviewer"><span class="nav-indicator"></span>Reviewer workflow</a>
       </nav>
       <div class="sidebar-bottom">
         <span class="mode-pill"><span class="signal-dot"></span>LOCAL DEVELOPMENT</span>
@@ -120,6 +122,59 @@
           <div class="failure-stat"><span>Stream size limit</span><strong id="stream-limit" class="mono">—</strong></div>
         </div>
       </section>
+      <section id="usage" class="panel usage-panel" aria-labelledby="usage-title">
+        <div class="panel-head">
+          <div><div class="mini-label">04 / PROVIDER TELEMETRY</div><h2 id="usage-title">Reported token usage</h2></div>
+          <span class="panel-tag">UNTRUSTED SELF-REPORT</span>
+        </div>
+        <p class="section-explainer">Aggregates reported by the model provider for internally consistent, complete responses. Missing or inconsistent reports are <strong>not zero tokens</strong>. This is not measured generation, per-project billing, or the separately enforced Redis output-cap budget.</p>
+        <div class="usage-grid" aria-label="Aggregate provider-reported usage metrics">
+          <div class="usage-stat"><span>Reported input tokens</span><strong id="usage-prompt" class="mono">—</strong><small>From plausible provider claims only</small></div>
+          <div class="usage-stat"><span>Reported output tokens</span><strong id="usage-output" class="mono">—</strong><small>From plausible provider claims only</small></div>
+          <div class="usage-stat"><span>Reported total tokens</span><strong id="usage-total" class="mono">—</strong><small>Input + output; not a bill</small></div>
+          <div class="usage-stat"><span>Accepted nonstream reports</span><strong id="usage-nonstream" class="mono">—</strong><small>Complete nonstream responses</small></div>
+          <div class="usage-stat"><span>Accepted stream reports</span><strong id="usage-stream" class="mono">—</strong><small>Clean [DONE] + final usage event</small></div>
+          <div class="usage-stat"><span>Streams without valid report</span><strong id="usage-unmeasured" class="mono">—</strong><small>Missing, malformed, inconsistent, or incomplete</small></div>
+        </div>
+        <div class="usage-signal" id="usage-state" role="status" aria-live="polite">Provider usage metrics not sampled yet.</div>
+        <p class="panel-note">These counters reset when the Go gateway restarts. The upstream can misreport token counts. Model names, prompts, outputs and user/project IDs are not included.</p>
+      </section>
+
+      <section id="reviewer" class="panel reviewer-panel" aria-labelledby="reviewer-title">
+        <div class="panel-head">
+          <div><div class="mini-label">05 / PORTFOLIO V1.0</div><h2 id="reviewer-title">Explore the local platform</h2></div>
+          <span class="panel-tag">OPERATOR-GUIDED</span>
+        </div>
+        <p class="section-explainer">Follow an end-to-end reviewer journey. The control-plane UIs run separately on port 8000, and the gateway console runs on port 8081. These are <strong>not a shared authenticated session</strong>. All links use fixed local addresses and send no credentials.</p>
+        <ol class="reviewer-steps">
+          <li>
+            <span class="step-index">01</span>
+            <div class="step-content">
+              <h3>Register and approve a model</h3>
+              <p>Use the separate operator-only model manager to inspect installed Ollama models, pin a digest, approve and load a revision. A configured local operator token is required.</p>
+              <a href="http://127.0.0.1:8000/console/models" target="_blank" rel="noopener noreferrer">Open Model Manager <span aria-hidden="true">↗</span></a>
+            </div>
+          </li>
+          <li>
+            <span class="step-index">02</span>
+            <div class="step-content">
+              <h3>Invoke, observe, and roll back</h3>
+              <p>Run the approved model's single-turn playground on the control plane; inspect gateway admission, outcomes and provider-reported usage here. Use the model manager's deployment section for version changes and rollback.</p>
+              <a href="#admission">Review live inference metrics <span aria-hidden="true">↓</span></a>
+            </div>
+          </li>
+          <li>
+            <span class="step-index">03</span>
+            <div class="step-content">
+              <h3>Optional user identity workflow</h3>
+              <p>Explore OIDC sign-in, organizations and projects only if a real identity provider, PostgreSQL and Redis have been configured. This identity is separate from the local operator token.</p>
+              <a href="http://127.0.0.1:8000/console/account" target="_blank" rel="noopener noreferrer">Open Account Console <span aria-hidden="true">↗</span></a>
+            </div>
+          </li>
+        </ol>
+        <p class="panel-note">A dashboard visit alone does not prove a Mac/Ollama run, authenticated deployment, quality parity or an inference speedup. Portfolio v1.0 requires real operator evidence and controlled benchmarks.</p>
+      </section>
+
       <footer class="footer"><span>METRIQEN / LOCAL OPERATIONS CONSOLE</span><span>Last sampled <time id="last-sample">—</time> · Counters reset on gateway restart</span></footer>
     </main>
   </div>
