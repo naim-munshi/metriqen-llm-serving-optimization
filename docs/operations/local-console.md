@@ -38,16 +38,37 @@ The page displays only:
 - admitted attempt outcomes, including standalone SSE terminal marker
   versus missing marker, plus a mean admitted-handler duration across all
   completed outcomes excluding queue wait, from `/metrics/inference`;
-- fixed upstream failure reason counters from `/metrics/upstream`.
+- fixed upstream failure reason counters from `/metrics/upstream`;
+- bounded, untrusted provider-reported prompt/output/total token aggregates,
+  valid nonstream and stream provider claims, and unmeasured streams
+  from `/metrics/usage` (schema v2);
+- an **operator-guided, read-only reviewer journey** linking the separate
+  Model Manager and optional OIDC Account Console on loopback port 8000.
+  Navigation carries no credentials or cookies across origins.
 
 The three sets of counters have **different denominators and meanings**.
 Process-local counters reset on gateway restart. A clean upstream SSE
 terminal marker is not verification of model answer correctness or
 full JSON event validity, and green health status is not a success-rate
 or uptime guarantee. No GPU utilization, TTFT, p95, throughput, model
-memory pressure, costs, or financial metrics are implied. The displayed
+memory pressure, costs, or financial metrics are implied. Reported
+token aggregates are provider-supplied, *not independently verified
+tokenization or billable usage*. A missing or inconsistent usage report
+does not imply zero actual generated tokens. The displayed
 handler duration is not TTFT or GPU execution time and does not establish
 model performance; it includes failed and canceled admitted requests.
+
+## Reviewer navigation
+
+The operations page now includes a responsive **Explore the local
+platform** section linking to exact, fixed local addresses:
+`http://127.0.0.1:8000/console/models` (operator token required)
+and `http://127.0.0.1:8000/console/account` (separate opt-in OIDC
+provider required). Both links open new tabs and send no tokens in
+URLs, JavaScript calls or query parameters. They may be unavailable
+when optional control API features are disabled. The actual three-console
+tour, security boundary and operator screenshot requirements are in
+[Portfolio local reviewer journey](portfolio-local-reviewer-journey.md).
 
 ## Security boundary and privacy
 
@@ -101,7 +122,10 @@ visual layout in a browser** or real model inference. See the
 To verify dashboard routes directly, Go regression tests cover bundled
 asset responses, read-only GET-only methods, CSP/security headers,
 unavailable routes when upstream is disabled and zero inference
-admission impact. CI still has no browser screenshot or external UI test.
+admission impact. The new reviewer journey tests also check static
+loopback-only navigation links, schema-v2 provider metrics,
+numeric data rendering via `textContent` and lack of cross-origin
+fetch or shared browser secrets. CI still has no browser screenshot or external UI test.
 
 If the console shows `Unavailable`, verify
 `GET /health/ready`, `GET /health/upstream`, and the metrics endpoints
