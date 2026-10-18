@@ -1,6 +1,8 @@
-.PHONY: test test-python test-go test-e2e test-benchmark test-nlp format-check
+.PHONY: test test-python test-go test-e2e test-benchmark test-nlp test-ui format-check portfolio-ci
 
-test: test-python test-go test-e2e test-benchmark test-nlp
+# Source/CI gate only: this cannot replace real local Ollama, Mac, identity
+# provider, screenshot or hardware-performance acceptance.
+test: test-python test-go test-e2e test-benchmark test-nlp test-ui
 
 test-python:
 	cd services/control-api && python -m pytest -q
@@ -17,5 +19,11 @@ test-benchmark:
 test-nlp:
 	python -m unittest discover -s tools/nlp_eval/tests -v
 
+test-ui:
+	node --test tests/ui/*.test.cjs
+
 format-check:
-	cd services/inference-gateway && test -z "$$(gofmt -l $(find . -name '*.go'))"
+	cd services/inference-gateway && test -z "$$(find . -name '*.go' -exec gofmt -l {} +)"
+
+portfolio-ci: format-check test
+	@echo "Source tests complete; actual Mac/Ollama inference, benchmarks and browser visual checks remain operator-only."
