@@ -242,6 +242,10 @@ jobs:
           cache: false
       - name: Exercise Go gateway through benchmark CLI
         run: python -m unittest discover -s tests/e2e -v
+      - name: Exercise actual read-only browser dashboard JavaScript
+        run: |
+          node --version
+          node --test tests/ui/*.test.cjs
 
   nlp-evaluation-tests:
     runs-on: ubuntu-latest
