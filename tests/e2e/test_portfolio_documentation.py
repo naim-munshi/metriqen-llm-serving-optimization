@@ -18,6 +18,7 @@ KEY_DOCUMENTS = (
     "docs/operations/portfolio-local-reviewer-journey.md",
     "docs/operations/real-ollama-portfolio-acceptance.md",
     "docs/operations/local-console.md",
+    "docs/operations/portfolio-final-mac-handoff.md",
 )
 
 INLINE_LINK = re.compile(r"(?<!!)\[[^\]]+\]\(([^\s)]+)(?:\s+[^)]*)?\)")
@@ -76,6 +77,19 @@ class PortfolioDocumentationContracts(unittest.TestCase):
         self.assertIn("PORTFOLIO_V1_ACCEPTANCE.md", status)
         self.assertIn("opt-in", status)
 
+
+
+    def test_operator_handoff_preserves_all_six_release_gates(self):
+        guide = (ROOT / "docs/operations/portfolio-final-mac-handoff.md").read_text(
+            encoding="utf-8")
+        for item in ("P1", "P2", "P3", "P4", "P5", "P6",
+                     "real-ollama-smoke.json", "OLLAMA_NUM_PARALLEL",
+                     "optimization_signal", "rollback", "screenshots",
+                     "LICENSE", "v1.0.0", "reports/local/",
+                     "Mac is not tested by CI"):
+            self.assertIn(item.lower(), guide.lower())
+        self.assertIn("make portfolio-ci", guide)
+        self.assertIn("operator-only", guide.lower())
 
 if __name__ == "__main__":
     unittest.main()
