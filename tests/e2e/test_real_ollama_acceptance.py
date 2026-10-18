@@ -139,15 +139,15 @@ class LocalRealModelAcceptanceTests(unittest.TestCase):
                 with self.assertRaisesRegex(smoke.AcceptanceFailure, error):
                     smoke._check_stream(sse)
         smoke._check_stream(
-            b'data: {"choices":[{"delta":{"content":"hi"}}]}\\n\\n'
-            b'data: {"choices":[],"usage":{"prompt_tokens":2,"completion_tokens":1,"total_tokens":3}}\\n\\n'
-            b'data: [DONE]\\n\\n')
+            b'data: {"choices":[{"delta":{"content":"hi"}}]}\n\n'
+            b'data: {"choices":[],"usage":{"prompt_tokens":2,"completion_tokens":1,"total_tokens":3}}\n\n'
+            b'data: [DONE]\n\n')
         with self.assertRaisesRegex(smoke.AcceptanceFailure, "stream_data_after_usage"):
             smoke._check_stream(
-                b'data: {"choices":[{"delta":{"content":"hi"}}]}\\n\\n'
-                b'data: {"choices":[],"usage":{}}\\n\\n'
-                b'data: {"choices":[{"delta":{"content":"late"}}]}\\n\\n'
-                b'data: [DONE]\\n\\n')
+                b'data: {"choices":[{"delta":{"content":"hi"}}]}\n\n'
+                b'data: {"choices":[],"usage":{}}\n\n'
+                b'data: {"choices":[{"delta":{"content":"late"}}]}\n\n'
+                b'data: [DONE]\n\n')
         smoke._check_stream(b': keepalive\r\n\r\n'
                             b'data: {"choices":[{"delta":{"content":"ok"}}]}\r\n\r\n'
                             b'data: [DONE]\r\n\r\n')
