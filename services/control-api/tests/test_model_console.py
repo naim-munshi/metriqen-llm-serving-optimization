@@ -62,6 +62,15 @@ def test_console_assets_and_local_auth_contract(tmp_path):
     assert 'id="deployment-form"' in html
     assert 'id="deployment-model"' in html
     assert 'id="deployment-list"' in html
+    # Fixed loopback reviewer navigation never carries the operator token
+    # in query parameters and never shares the browser's credentials.
+    assert 'href="http://127.0.0.1:8081/console"' in html
+    assert 'href="/console/account"' in html
+    assert 'rel="noopener noreferrer"' in html
+    assert 'PORTFOLIO WORKFLOW' in html
+    assert 'id="deployments"' in html
+    assert 'localStorage' not in html
+    assert 'operatorToken=' not in html
     assert '"/deployments"' in javascript
     assert '"/rollback"' in javascript
     assert '"/promote"' in javascript
