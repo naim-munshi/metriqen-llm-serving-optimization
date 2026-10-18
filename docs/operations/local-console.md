@@ -131,3 +131,26 @@ If the console shows `Unavailable`, verify
 `GET /health/ready`, `GET /health/upstream`, and the metrics endpoints
 directly using the existing operations runbooks. Browser fetch failure
 does not by itself prove Ollama crashed.
+
+
+## Dashboard browser-JavaScript behavior tests
+
+In addition to existing Go asset/CSP/route tests, portfolio CI now
+**executes the actual embedded `console/app.js`** with an isolated,
+network-free fake DOM using Node's built-in `node:test` and `vm`.
+Run `node --test tests/ui/*.test.cjs` from the repository root.
+These deterministic tests verify correct rendering of complete schema-v2
+self-reported usage counters, strict arithmetic/partition consistency,
+rejection of unsafe JavaScript integers, clearing of previously visible
+values when usage goes missing, gateway/upstream outage recovery,
+fixed same-origin read-only fetch paths, and no polling when the
+page is hidden. None sends an inference request or captures real
+model-generated data.
+
+The dashboard deliberately displays **unavailable**, not zero, if any
+required counter is absent, malformed, over JavaScript's exact-integer
+range or inconsistent with the other usage counters. The `/metrics/usage`
+response is a self-reported process-local observation, **not billing**.
+These tests are not a substitute for operator-run real browser visual,
+keyboard, mobile layout or accessibility checks required by
+Portfolio v1.0 P4.
