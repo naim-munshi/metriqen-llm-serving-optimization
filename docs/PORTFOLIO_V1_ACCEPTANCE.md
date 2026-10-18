@@ -99,7 +99,7 @@ repo defaults to loopback-only development. **Do not expose it online.**
 
 ## Current starting point
 
-Repository main `6546a93` (2026-10-18 JST): Go gateway, optional
+Historical starting reference `6546a93` (2026-10-18 JST), **not the current `main` HEAD**: Go gateway, optional
 tenant/project control, Redis quotas, bounded SSE and aggregate model
 usage observation, protected local model/deployment workflows, 11 CI
 jobs, offline mock demo, and operator-reported early parallelism
