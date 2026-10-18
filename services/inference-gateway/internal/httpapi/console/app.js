@@ -127,16 +127,40 @@ function showUsage(data) {
     ["usage-stream", "stream_provider_plausible_total"],
     ["usage-unmeasured", "stream_not_measured_total"]
   ];
-  const valid = data?.schema_version === 2 && keys.every(([, key]) =>
-    typeof data[key] === "number" && Number.isSafeInteger(data[key]) && data[key] >= 0);
-  // Independently check the two defining invariants before displaying
-  // usage figures. A malformed/incompatible process snapshot is not zero.
-  const consistent = valid &&
-    data.provider_prompt_tokens_reported_total + data.provider_output_tokens_reported_total
-      === data.provider_all_tokens_reported_total &&
-    data.classified_terminal_attempts_total >=
-      data.nonstream_provider_plausible_total + data.stream_provider_plausible_total
-      + data.stream_not_measured_total;
+  const partitions = [
+    "nonstream_provider_missing_total", "nonstream_provider_malformed_total",
+    "nonstream_provider_inconsistent_total", "nonstream_provider_above_cap_total",
+    "nonstream_no_completion_total", "stream_provider_missing_total",
+    "stream_provider_malformed_total", "stream_provider_inconsistent_total",
+    "stream_provider_above_cap_total", "stream_incomplete_total"
+  ];
+  const safe = value => Number.isSafeInteger(value) && value >= 0;
+  const valid = data?.schema_version === 2 && [...keys.map(([, key]) => key),
+    ...partitions, "classified_terminal_attempts_total"].every(key => safe(data[key]));
+  // Validate *all* partition counters and safe integer arithmetic before
+  // presenting provider claims. Missing fields and >2^53 totals are UNKNOWN,
+  // never zero. A malicious/incompatible upstream must fail closed in UI.
+  const sum = values => values.every(safe) && Number.isSafeInteger(
+    values.reduce((acc, value) => acc + value, 0))
+    ? values.reduce((acc, value) => acc + value, 0) : null;
+  const expectedUnmeasured = valid ? sum([
+    data.stream_provider_missing_total, data.stream_provider_malformed_total,
+    data.stream_provider_inconsistent_total, data.stream_provider_above_cap_total,
+    data.stream_incomplete_total]) : null;
+  const expectedClassified = valid ? sum([
+    data.nonstream_provider_plausible_total,
+    data.nonstream_provider_missing_total, data.nonstream_provider_malformed_total,
+    data.nonstream_provider_inconsistent_total,
+    data.nonstream_provider_above_cap_total, data.nonstream_no_completion_total,
+    data.stream_provider_plausible_total, data.stream_not_measured_total]) : null;
+  const totalReported = valid ? sum([
+    data.provider_prompt_tokens_reported_total,
+    data.provider_output_tokens_reported_total]) : null;
+  const consistent = valid && expectedUnmeasured !== null
+    && expectedClassified !== null && totalReported !== null
+    && expectedUnmeasured === data.stream_not_measured_total
+    && expectedClassified === data.classified_terminal_attempts_total
+    && totalReported === data.provider_all_tokens_reported_total;
   for (const [id, key] of keys) metric(id, consistent ? data : null, key);
   text("usage-state", consistent
     ? "Provider-reported aggregates · local process · not verified billing"
