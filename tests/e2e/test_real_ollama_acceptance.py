@@ -126,7 +126,7 @@ class LocalRealModelAcceptanceTests(unittest.TestCase):
             (b'data: [DONE]\n\ndata: [DONE]\n\n', "stream_data_after_done"),
             (b'data: {"error":"PRIVATE_SSE_SECRET"}\n\ndata: [DONE]\n\n',
              "stream_invalid_event"),
-            (b'data: {"choices":[],"usage":{},"error":{"message":"PRIVATE_SSE_SECRET"}}\\n\\ndata: [DONE]\\n\\n',
+            (b'data: {"choices":[],"usage":{},"error":{"message":"PRIVATE_SSE_SECRET"}}\n\ndata: [DONE]\n\n',
              "stream_invalid_event"),
             (b'data: {"choices":[{"delta":{"content":"yes"}}]}\n\n',
              "stream_missing_done"),
