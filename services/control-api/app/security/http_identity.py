@@ -1,7 +1,8 @@
-"""Fail-closed HTTP access-token boundary with an operator-pinned public JWKS.
+"""Fail-closed HTTP access-token boundary with operator-pinned public JWKS.
 
-This deliberately supports one local identity-inspection route only. It does
-not grant organization/project membership, API keys, or inference privileges.
+This verifier is reused by optional profile, organization, team and project
+APIs. Authentication alone grants no organization membership, API keys, or
+inference privileges; each resource requires current server-side policy.
 """
 from __future__ import annotations
 

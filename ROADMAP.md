@@ -54,8 +54,8 @@ NLP quality measurement is not the same as runtime inference performance and mus
 
 ## Account authentication and scalable data platform
 
-- **Implemented (opt-in):** verified OIDC user-profile create/read/update through PostgreSQL; issuer-scoped identity and negative authorization tests. No user signup, login/logout or session issuance yet.
-- **Next functional gate:** an operator-selected OIDC provider with Authorization Code+PKCE, session cookie/CSRF controls, proper account UI and PostgreSQL-backed tenant CRUD.
+- **Implemented (opt-in):** verified OIDC user-profile create/read/update through PostgreSQL; issuer-scoped identity and negative authorization tests. A separate local-only OIDC Code+PKCE browser login/logout and short-lived Redis sessions now exist; these require a real compatible configured IdP, Redis and PostgreSQL and have **not** passed operator acceptance. No local password signup exists.
+- **Next functional gate:** operator acceptance of the existing Code+PKCE browser login against a compatible real IdP, Redis and PostgreSQL; verify existing account, session/CSRF, workspace/RBAC flows. Do not build a second login implementation just to satisfy portfolio v1.
 - **Next distributed-systems gate:** authenticated Redis for expiring session state and atomic per-identity quotas; protected load-balanced Go inference with SSE/health-aware routing. Neither Redis nor LB is claimed as deployed. [Security architecture](docs/architecture/identity-data-redis-load-balancing.md).
 
 **Implemented opt-in Redis increment:** Account POST/PATCH mutation quotas can use a bounded atomic Lua counter in an independently authenticated local Redis server with HMAC-obfuscated keys and fail-closed outage behavior. No Redis is deployed by default; Redis-backed BFF sessions, auth-entrance protection and distributed gateway quotas remain future milestones.

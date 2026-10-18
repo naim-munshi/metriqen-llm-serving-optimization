@@ -91,5 +91,29 @@ class PortfolioDocumentationContracts(unittest.TestCase):
         self.assertIn("make portfolio-ci", guide)
         self.assertIn("operator-only", guide.lower())
 
+    def test_login_release_docs_do_not_contradict_implemented_optional_oidc(self):
+        security = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
+        roadmap = (ROOT / "ROADMAP.md").read_text(encoding="utf-8")
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        login = (ROOT / "services/control-api/app/browser_auth.py").read_text(
+            encoding="utf-8")
+        self.assertIn('router.get("/auth/login")', login)
+        self.assertIn('router.post("/auth/logout")', login)
+        self.assertIn("optional localhost-only browser oidc", security.lower())
+        self.assertIn("not been connected and accepted", security.lower())
+        self.assertIn("no local password signup", roadmap.lower())
+        self.assertIn("not itself", readme.lower())
+        self.assertNotIn("There is still no actual browser OIDC login/session/logout", security)
+        self.assertNotIn("No user signup, login/logout or session issuance yet", roadmap)
+
+    def test_historical_status_and_starting_commit_are_not_current_release_claims(self):
+        status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+        contract = (ROOT / "docs/PORTFOLIO_V1_ACCEPTANCE.md").read_text(
+            encoding="utf-8")
+        self.assertNotIn(r"|\n|", status)
+        self.assertIn("Historical snapshot", status)
+        self.assertIn("not the current `main` HEAD", contract)
+        self.assertIn("all P1–P6", contract)
+
 if __name__ == "__main__":
     unittest.main()

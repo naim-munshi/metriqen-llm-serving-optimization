@@ -1,7 +1,9 @@
-"""Local-only Metriqen control API with explicit auth and project-read seams.
+"""Local-only Metriqen control plane with opt-in identity and policy checks.
 
-There is no configured membership database, user login, inference API-key
-system or production authorization. Do not deploy this API publicly.
+The default process has no user login, provisioned PostgreSQL membership store,
+or public/production authorization. Optional pinned-JWKS OIDC browser sessions,
+project RBAC, local operator management and Redis controls require independent
+trusted configuration. Never expose this development API publicly.
 """
 
 from fastapi import FastAPI, Request
