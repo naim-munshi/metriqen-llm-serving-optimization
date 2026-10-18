@@ -2,6 +2,9 @@
 
 Each item is a milestone; planned work must not appear in the README as implemented.
 
+**Portfolio release scope is now fixed independently from the full SaaS roadmap:**
+[Portfolio v1.0 gates P1–P6](docs/PORTFOLIO_V1_ACCEPTANCE.md). The job-portfolio finish line prioritizes a real-model operator demonstration, matched optimization evidence, an integrated reviewer journey, green tests and honest release artifacts. A production GPU/vLLM cluster, global SaaS billing and public launch are *optional later work*, not required for portfolio v1.0. Each gate requires observable evidence; synthetic CI alone does not mark real-model work complete.
+
 | Phase | Scope | Verification |
 | --- | --- | --- |
 | 01 | Health-check services, monorepo foundation, CI | Local tests; remote CI after PR |
