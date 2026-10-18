@@ -3,6 +3,8 @@
 **Role focus:** LLM Infrastructure / AI Platform / Backend Engineering  
 **Project type:** local open-weight inference research prototype, **not** a commercial production service
 
+**Current portfolio v1.0 definition of done:** [six evidence-based release gates](PORTFOLIO_V1_ACCEPTANCE.md). The original reviewer briefing below describes the historical foundation; newer opt-in JWT/project authorization, Redis quotas, deployment reconciliation and provider-observed streaming usage have since been added. They are **not** automatically active or production-tested. For a real Mac model smoke see [real Ollama acceptance](operations/real-ollama-portfolio-acceptance.md), distinct from the synthetic reviewer demo.
+
 ## 60-second explanation
 
 Metriqen is a small, testable LLM serving stack built around a **Go HTTP
