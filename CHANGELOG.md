@@ -16,8 +16,21 @@ independent hardware attestation or a production security audit.
   acceptance CLI and synthetic tests for real alias Stop → denied chat
   → Start → chat → Promote → chat → Rollback → chat. It uses only fixed
   loopback APIs, private operator-token file, controlled recovery and
-  owner-only private reports. This is **not** a real Mac run or an
-  independently verified browser workflow; P1 remains unchecked.
+  owner-only private reports. The operator later reported actual M2 native
+  Ollama/Go smoke, full sequential Stop/Start/Promote/Rollback inference
+  PASS, matching private evidence consistency PASS and authentic Safari
+  final-state screenshots. Those are **operator-sourced observations**;
+  independently published sanitized browser evidence and formal P1 sign-off
+  are still pending.
+
+### P2 prospective benchmark orchestration
+
+- Added a guarded one-phase operator CLI (`tools.benchmark.phase_run`) and
+  synthetic tests for AC/pinned-digest/configured-parallelism preflight,
+  9-run real local sweep, 36-sample reference-quality evaluation, and
+  separate explicit evidence finalization. It neither restarts Ollama nor
+  attests actual runtime slots, Mac/GPU execution or performance gains.
+  A fresh real A1/B1/A2/B2 four-phase result is **not yet claimed**.
 
 ### Operator demo and reviewer workflow
 
