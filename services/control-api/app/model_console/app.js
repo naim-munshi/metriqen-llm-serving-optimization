@@ -78,7 +78,12 @@ function setBusy(value) {
 async function call(path, method = "GET", payload = null) {
   if (!operatorToken) throw new Error("Connect with your local operator token first.");
   const controller = new AbortController();
-  const wait = method === "POST" && path.endsWith("/load") ? 130000 : 10000;
+  // Model loading and chat can legitimately take longer than a health/status
+  // GET. Go's local relay waits up to 125s for inference; keep a bounded
+  // browser margin rather than aborting a valid 10s+ generation.
+  const longRunning = method === "POST" &&
+    (path.endsWith("/load") || path.endsWith("/chat"));
+  const wait = longRunning ? 130000 : 10000;
   const timer = setTimeout(() => controller.abort(), wait);
   try {
     const response = await fetch(api + path, {
