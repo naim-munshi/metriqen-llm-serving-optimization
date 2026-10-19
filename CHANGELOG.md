@@ -53,6 +53,16 @@ independent hardware attestation or a production security audit.
   four timed phases, fresh local preflights and pinned operator-reported
   configuration. It does not attest real runtime slots.
 
+### P3 FIFO policy comparison preparation
+
+- Added strict offline `tools.benchmark.admission_tradeoff` analysis for
+  real, operator-produced queue depth 0 versus 2 overload sweeps. All four
+  offered concurrency levels include observed successes, HTTP 429s, goodput
+  and successful-only p95/TTFT changes. It revalidates raw observations,
+  rejects mismatched model/dataset/configuration, and never reports a
+  proven speedup, completed P3 or answer-quality parity. No real new Mac
+  FIFO A/B experiment is claimed.
+
 ### Inference integrity and telemetry
 
 - [#78](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/78):
