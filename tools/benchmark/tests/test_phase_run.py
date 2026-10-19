@@ -61,8 +61,11 @@ class PhaseRunTests(unittest.TestCase):
 
     def test_collect_uses_fixed_full_v1_sweep_and_quality_and_version(self):
         out = self.private / "A1"
+        def fake_sweep(args):
+            (out / "sweep").mkdir()
+            return 0
         with patch.object(phase.preflight, "collect", return_value=self.snapshot()) as preflight, \
-             patch.object(phase.sweep, "main", return_value=0) as sweep, \
+             patch.object(phase.sweep, "main", side_effect=fake_sweep) as sweep, \
              patch.object(phase.online, "main", return_value=0) as quality:
             phase.collect(phase="A1", digest=DIGEST, hardware="Apple M2 Metal", directory=out)
         preflight.assert_called_once_with(expected_model_digest=DIGEST, expected_parallelism=1)
@@ -86,10 +89,13 @@ class PhaseRunTests(unittest.TestCase):
         quality.assert_not_called()
 
     def test_collect_is_no_overwrite_and_private_root_only(self):
+        out = self.private / "A1"
+        def fake_sweep(args):
+            (out / "sweep").mkdir()
+            return 0
         with patch.object(phase.preflight, "collect", return_value=self.snapshot()), \
-             patch.object(phase.sweep, "main", return_value=0), \
+             patch.object(phase.sweep, "main", side_effect=fake_sweep), \
              patch.object(phase.online, "main", return_value=0):
-            out = self.private / "A1"
             phase.collect(phase="A1", digest=DIGEST, hardware="Apple M2 Metal", directory=out)
             with self.assertRaisesRegex(phase.PhaseError, "no_overwrite"):
                 phase.collect(phase="A1", digest=DIGEST, hardware="Apple M2 Metal", directory=out)
