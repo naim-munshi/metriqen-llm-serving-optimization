@@ -63,8 +63,12 @@ approval alone is **not** project-scoped Go gateway authorization.
 To reduce repetitive manual steps without compromising the prospective design,
 use the [P2 one-phase operator runner](../benchmarks/phase-runner.md).
 It calls the strict preflight, nine real benchmark runs and separate quality
-checks; model process configuration, slot verification, final human attestation
-and four-phase binding remain manual, and it will not modify Ollama settings.
+checks; model process configuration, slot verification and final human
+attestation remain manual, and it will not modify Ollama settings.
+After all four private phases succeed, `tools.benchmark.four_phase_review`
+can bind preflights, validate all raw reports and render three private
+aggregate reports in a single **offline** command. It does not attest
+actual Mac runtime slots or satisfy P2/P3 human acceptance.
 
 Use [preflight/phase-binding](../benchmarks/phase-preflight-binding.md),
 [the 4-phase A/B/A/B protocol](../benchmarks/abab-replication.md),
