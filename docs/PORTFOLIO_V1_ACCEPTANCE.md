@@ -22,6 +22,8 @@ real Ollama/GPU serving improvement.
 
 **P1 lifecycle helper (optional):** the [explicit local deployment acceptance CLI](operations/local-deployment-acceptance.md) can test real Stop/Start/Promote/Rollback with a read-only default. Synthetic CI of its fake API fixture is not Mac/Ollama proof; use human-reviewed private operator results and real browser QA to satisfy P1.
 
+**Cross-report P1 review (optional):** [private P1 evidence consistency reviewer](operations/p1-evidence-review.md) checks that real native JSON/SSE smoke and full deployment Promote/Rollback observations share the same pinned original model digest and contain all mandatory assertions. It never authenticates the operator or replaces browser screenshots; P1 stays unchecked until reviewed.
+
 **Operator handoff (Mac only):** The single ordered, no-skips checklist for
 real-model inference, protected deployments, A/B/A/B evidence, security
 recovery, original browser screenshots, license approval and the final
