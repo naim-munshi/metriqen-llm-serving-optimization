@@ -78,6 +78,23 @@ mouse interaction, confirm no unintended document-wide horizontal overflow,
 and inspect strong focus rings and legible health status. Capture only
 authentic, approved screenshots. Missing Mac/browser evidence keeps P4 open.
 
+## Control-plane keyboard parity
+
+The Model Manager and optional Account Console now expose their own
+first-focus **Skip to ... content** links with labelled main targets,
+matching the Go Operations console's keyboard shortcut. The Model
+Manager explicitly styles keyboard focus on native select/input fields
+and honors `prefers-reduced-motion` when scrolling. On small screens,
+the Account Console's three existing navigation links stay accessible in
+a horizontal scroll area with 44px-minimum touch targets. No sessions,
+credentials, or cross-origin behavior are changed.
+
+These static HTML/CSS contracts have Node tests but **are not evidence of
+actual Safari/Chrome rendering**. The operator must still test each
+real, configured surface with Tab/Shift+Tab/Enter and at 320–390px widths;
+optional OIDC login may legitimately be unavailable without a real IdP,
+PostgreSQL and Redis. Only release human-reviewed sanitized screenshots.
+
 ## Screenshot/video checklist
 
 Capture the **actual rendered Mac browser**, not synthetic CI HTML, after

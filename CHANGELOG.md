@@ -63,6 +63,14 @@ independent hardware attestation or a production security audit.
   gateway; real IdP acceptance and production security remain unverified.
   Added a source-only documentation regression contract.
 
+### P4 three-console keyboard access
+
+- Added skip-to-main keyboard links with visible focus to the Model Manager
+  and optional OIDC Account Console, explicit select/input focus in the
+  Model Manager, reduced-motion support, and horizontal mobile Account
+  navigation. Contract tests check all three consoles without asserting
+  any actual Mac browser verification or enabled identity provider.
+
 ### P4 responsive operations navigation fix
 
 - The Go Operations console previously hid the entire section nav at
