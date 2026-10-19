@@ -54,6 +54,10 @@ def endpoint(method: str, path: str) -> str:
             parts[:5] == ["", "api", "v1", "local", "deployments"] and
             NAME.fullmatch(parts[5]) and parts[6] in SAFE_ACTION):
         return ORIGIN + path
+    if method == "POST" and path.startswith(API + "/models/") and path.endswith("/load"):
+        tag = path[len(API + "/models/"):-len("/load")]
+        if TAG.fullmatch(tag):
+            return ORIGIN + path
     raise AcceptanceFailure("endpoint_not_allowlisted")
 
 
@@ -72,7 +76,7 @@ def fetch_local(method: str, path: str, *, token: str, payload: dict | None = No
     request = Request(url, method=method, headers=headers, data=data)
     try:
         try:
-            response = _OPENER.open(request, timeout=125 if path.endswith("/chat") else 8)
+            response = _OPENER.open(request, timeout=130 if path.endswith(("/chat", "/load")) else 8)
         except HTTPError as exc:
             if exc.code != 409:
                 exc.close()
@@ -130,7 +134,7 @@ def _deployment(fetch, token: str, name: str) -> dict:
     return found[0]
 
 
-def _model_ready(fetch, token: str, tag: str) -> str:
+def _model_ready(fetch, token: str, tag: str, *, require_loaded: bool = True) -> str:
     models = _ok(fetch, "GET", API + "/models", token=token).get("models")
     states = _ok(fetch, "GET", API + "/model-statuses", token=token).get("models")
     if not isinstance(models, list) or not isinstance(states, list):
@@ -144,10 +148,19 @@ def _model_ready(fetch, token: str, tag: str) -> str:
     if (not model.get("approved") or not isinstance(digest, str) or
             DIGEST.fullmatch(digest) is None or
             loaded.get("approved") is not True or
-            loaded.get("loaded") is not True or
+            (require_loaded and loaded.get("loaded") is not True) or
             loaded.get("digest_matches_loaded") is not True):
         raise AcceptanceFailure("approved_model_not_loaded")
     return digest
+
+
+def _load_exact(fetch, token: str, tag: str, digest: str) -> None:
+    # Explicitly requested only in the operator's sequential --execute mode.
+    result = _ok(fetch, "POST", API + f"/models/{tag}/load", token=token, payload={})
+    if (result.get("tag") != tag or result.get("digest") != digest or
+            result.get("loaded") is not True or
+            _model_ready(fetch, token, tag) != digest):
+        raise AcceptanceFailure("loaded_model_digest_unverified")
 
 
 def _chat(fetch, token: str, name: str, tag: str) -> None:
@@ -183,12 +196,15 @@ def _post(fetch, token: str, name: str, action: str, *, tag: str | None = None) 
 
 
 def collect(*, token: str, name: str, baseline: str, candidate: str | None,
-            execute: bool, fetch=fetch_local) -> dict:
+            execute: bool, sequential_load: bool = False, fetch=fetch_local) -> dict:
     if (not isinstance(name, str) or NAME.fullmatch(name) is None or
             not isinstance(baseline, str) or TAG.fullmatch(baseline) is None or
             candidate is not None and
             (not isinstance(candidate, str) or TAG.fullmatch(candidate) is None or candidate == baseline)):
         raise AcceptanceFailure("invalid_deployment_or_model_identifier")
+
+    if sequential_load and candidate is None:
+        raise AcceptanceFailure("sequential_load_requires_candidate")
 
     original = _deployment(fetch, token, name)
     original_digest = _model_ready(fetch, token, baseline)
@@ -197,19 +213,22 @@ def collect(*, token: str, name: str, baseline: str, candidate: str | None,
     # Never overwrite an existing rollback target without operator review.
     if original.get("previous_tag") is not None and candidate is not None:
         raise AcceptanceFailure("existing_rollback_history_requires_manual_review")
-    candidate_digest = (_model_ready(fetch, token, candidate)
+    candidate_digest = (_model_ready(fetch, token, candidate,
+                                     require_loaded=not sequential_load)
                         if candidate is not None else None)
     checks = ["deployment_active_revision_and_readiness",
               "original_approved_model_loaded"]
     if candidate is not None:
-        checks.append("candidate_approved_model_loaded")
+        checks.append("candidate_approved_revision_available" if sequential_load
+                      else "candidate_approved_model_loaded")
 
     if not execute:
         return {
             "schema_version": 1, "kind": "local_deployment_preflight",
             "passed": True, "executed_state_changes": False,
             "deployment": name, "original_tag": baseline,
-            "candidate_tag": candidate, "checks_passed": checks,
+            "candidate_tag": candidate, "sequential_model_load": sequential_load,
+            "checks_passed": checks,
             "portfolio_p1_complete": False,
         }
 
@@ -233,6 +252,9 @@ def collect(*, token: str, name: str, baseline: str, candidate: str | None,
         checks.append("started_alias_routes_real_inference")
 
         if candidate is not None:
+            if sequential_load:
+                _load_exact(fetch, token, candidate, candidate_digest)
+                checks.append("candidate_loaded_at_promotion")
             _post(fetch, token, name, "promote", tag=candidate)
             promoted = True
             _check(fetch, token, name, tag=candidate, digest=candidate_digest,
@@ -240,6 +262,9 @@ def collect(*, token: str, name: str, baseline: str, candidate: str | None,
                    previous_tag=baseline, previous_digest=original_digest)
             _chat(fetch, token, name, candidate)
             checks.append("promoted_alias_routes_candidate_inference")
+            if sequential_load:
+                _load_exact(fetch, token, baseline, original_digest)
+                checks.append("baseline_reloaded_before_rollback")
             _post(fetch, token, name, "rollback")
             promoted = False
             _check(fetch, token, name, tag=baseline, digest=original_digest,
@@ -255,6 +280,7 @@ def collect(*, token: str, name: str, baseline: str, candidate: str | None,
             "schema_version": 1, "kind": "operator_local_deployment_lifecycle_observation",
             "timestamp_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "passed": True, "executed_state_changes": True,
+            "sequential_model_load": sequential_load,
             "deployment": name, "original_tag": baseline,
             "original_digest": original_digest, "candidate_tag": candidate,
             "candidate_digest": candidate_digest,
@@ -277,11 +303,17 @@ def collect(*, token: str, name: str, baseline: str, candidate: str | None,
                     and current.get("active_digest") == candidate_digest
                     and current.get("previous_tag") == baseline
                     and current.get("previous_digest") == original_digest):
+                if sequential_load:
+                    _load_exact(fetch, token, baseline, original_digest)
                 _post(fetch, token, name, "rollback")
-            elif stopped and current.get("active_tag") == baseline and (
-                    current.get("active_digest") == original_digest and
-                    current.get("enabled") is False):
-                _post(fetch, token, name, "start")
+            elif (current.get("active_tag") == baseline and
+                  current.get("active_digest") == original_digest):
+                if sequential_load:
+                    # Candidate preload can evict baseline even before the
+                    # atomic alias promotion. Restore only the known revision.
+                    _load_exact(fetch, token, baseline, original_digest)
+                if current.get("enabled") is False and stopped:
+                    _post(fetch, token, name, "start")
         except Exception:
             pass
         raise
@@ -293,6 +325,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--baseline", default="llama3.2:1b")
     parser.add_argument("--candidate", help="Other already approved and loaded model; required for Promote/Rollback")
     parser.add_argument("--execute", action="store_true", help="Explicitly authorize Stop/Start and optional Promote/Rollback")
+    parser.add_argument("--sequential-load", action="store_true",
+                        help="Allow one Ollama model resident at a time; with --execute, load target before each switch")
     parser.add_argument("--token-file", type=Path,
                         default=ROOT / "reports/local/.model-operator-token")
     parser.add_argument("--output", type=Path, help="New private JSON report under reports/local/")
@@ -300,7 +334,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         token = operator_token(args.token_file)
         result = collect(token=token, name=args.name, baseline=args.baseline,
-                         candidate=args.candidate, execute=args.execute)
+                         candidate=args.candidate, execute=args.execute,
+                         sequential_load=args.sequential_load)
         if args.output:
             private_report(args.output, result)
         print("P1 local deployment " + ("lifecycle" if args.execute else "preflight") + ": PASS")
