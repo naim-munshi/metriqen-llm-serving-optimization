@@ -218,6 +218,7 @@ class OperatorLifecycleTests(unittest.TestCase):
         self.assertTrue(report["passed"])
         self.assertTrue(report["sequential_model_load"])
         self.assertIn("candidate_loaded_at_promotion", report["checks_passed"])
+        self.assertIn("baseline_loaded_before_lifecycle", report["checks_passed"])
         self.assertIn("baseline_reloaded_before_rollback", report["checks_passed"])
         self.assertIn("rollback_restores_original_inference", report["checks_passed"])
         self.assertEqual(fake.alias["active_tag"], A)
@@ -226,11 +227,54 @@ class OperatorLifecycleTests(unittest.TestCase):
         self.assertFalse(fake.loaded[B])
         actions = [p.rsplit("/", 1)[-1] for method, p, _ in fake.calls if method == "POST"]
         self.assertEqual(actions, [
-            "stop", "chat", "start", "chat", "load", "promote", "chat",
-            "load", "rollback", "chat",
+            "load", "stop", "chat", "start", "chat", "load", "promote",
+            "chat", "load", "rollback", "chat",
         ])
         self.assertNotIn(TOKEN, json.dumps(report))
         self.assertNotIn("FIXTURE REPLY ONLY", json.dumps(report))
+
+    def test_sequential_execute_can_preload_an_expired_baseline(self):
+        fake = FakeLocalAPI()
+        fake.capacity_one = True
+        fake.loaded[A] = False
+        fake.loaded[B] = False
+        report = demo.collect(token=TOKEN, name=NAME, baseline=A, candidate=B,
+                              execute=True, sequential_load=True, fetch=fake)
+        self.assertTrue(report["passed"])
+        self.assertIn("baseline_loaded_before_lifecycle", report["checks_passed"])
+        self.assertIn("rollback_restores_original_inference", report["checks_passed"])
+        self.assertEqual(fake.alias["active_tag"], A)
+        self.assertTrue(fake.alias["enabled"])
+        self.assertTrue(fake.loaded[A])
+        writes = [p for method, p, _ in fake.calls if method == "POST"]
+        self.assertTrue(writes[0].endswith("/models/llama3.2:1b/load"))
+
+    def test_sequential_read_only_preflight_refuses_an_expired_baseline(self):
+        fake = FakeLocalAPI()
+        fake.loaded[A] = False
+        fake.loaded[B] = False
+        with self.assertRaisesRegex(demo.AcceptanceFailure, "approved_model_not_loaded"):
+            demo.collect(token=TOKEN, name=NAME, baseline=A, candidate=B,
+                         execute=False, sequential_load=True, fetch=fake)
+        self.assertTrue(all(m == "GET" for m, _, _ in fake.calls))
+
+    def test_sequential_preload_failure_reports_stage_and_never_stops_alias(self):
+        fake = FakeLocalAPI()
+        fake.capacity_one = True
+        fake.loaded[A] = False
+        fake.loaded[B] = False
+        original_call = fake.__call__
+        def fail_baseline(method, path, *, token, payload=None):
+            if method == "POST" and path.endswith("/models/llama3.2:1b/load"):
+                return 503, {"detail": "fixture only"}
+            return original_call(method, path, token=token, payload=payload)
+        with self.assertRaisesRegex(demo.AcceptanceFailure,
+                                    "baseline_preload:unexpected_local_api_status_503"):
+            demo.collect(token=TOKEN, name=NAME, baseline=A, candidate=B,
+                         execute=True, sequential_load=True, fetch=fail_baseline)
+        self.assertTrue(fake.alias["enabled"])
+        self.assertEqual(fake.alias["active_tag"], A)
+        self.assertFalse(any(path.endswith("/stop") for _, path, _ in fake.calls))
 
     def test_sequential_candidate_chat_failure_best_effort_restores_baseline(self):
         fake = FakeLocalAPI()

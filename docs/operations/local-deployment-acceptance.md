@@ -121,6 +121,20 @@ python3 -m tools.demo.local_deployment_acceptance \
   --output "reports/local/deployment-sequential-$(date +%Y%m%d-%H%M%S).json"
 ~~~
 
+The read-only preflight still requires the original baseline to be loaded.
+If Ollama's 5-minute keep-alive evicts the baseline **after** preflight,
+explicit `--sequential-load --execute` now first re-loads the exact
+registered/approved baseline model and checks its pinned digest, while
+confirming the alias is still enabled on that revision. This prevents
+false starts due solely to an idle eviction. No model is loaded during
+read-only preflight. Explicit execute may load the baseline **even before**
+the first Stop and can temporarily evict another model. Error codes
+generated after execution begins now identify the failed stage
+(e.g. `candidate_preload:approved_model_not_loaded`), but do not print
+private server responses. After *any* failure, always inspect the
+deployment's current `active_tag`, `previous_tag`, `enabled` and
+`ready` in the operator console before a retry.
+
 After Stop → denied Chat → Start → baseline Chat, it **preloads the
 approved candidate** through the existing operator-only API, checks the
 pinned digest, promotes, and requests candidate Chat. It then
