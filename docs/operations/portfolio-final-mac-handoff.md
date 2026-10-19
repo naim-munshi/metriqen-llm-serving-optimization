@@ -49,6 +49,8 @@ digest, clean terminal [DONE], the gateway metrics and returned
 real throughput/p95 benchmark, GPU/Metal verification or proof of
 runtime/model attestation.
 
+To reduce repetitive manual HTTP validation, the [P1 local deployment lifecycle checker](local-deployment-acceptance.md) offers a read-only preflight by default, with an explicit `--execute` option for Stop → denied chat → Start → chat and optional Promote → chat → Rollback → chat. It requires an already approved and loaded second model for the full test and stores only a private sanitized JSON under `reports/local/`. This tool **does not replace independent visual browser review**, may temporarily change routing state, and cannot guarantee restoration if model memory is evicted.
+
 Complete the separate **operator-only** model-management steps in the
 actual browser and note each result: installed model → pin digest →
 approve → load → invoke → promote → stop/start → rollback. Local model
