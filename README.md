@@ -65,6 +65,15 @@ Each setting had 9 runs (3 repeats at concurrency 1/2/4), **324/324 measured req
 
 **Next experimental protocol (not performance evidence):** the [FIFO admission overload comparison](docs/benchmarks/admission-overload.md) uses an independent local-only runner to record all successful and rejected requests at offered concurrency 4/6/8/12, plus process-local admission counter deltas, for queue depth 0 versus 2. This has **no published real-model scheduler benefit**; it does not modify the October 13 Ollama parallelism results or their historical private evidence.
 
+## P1 portfolio acceptance evidence (operator-run)
+
+Once the actual Mac has completed the native Ollama/Go smoke and full
+Stop/Start/Promote/Rollback lifecycle, use the [offline cross-report
+consistency checker](docs/operations/p1-evidence-review.md) to produce a
+private, sanitized review. Its result is **not** proof of GPU execution or
+completion of P1, P2 or P3; independently reviewed browser evidence is
+still required.
+
 ## Local deployment routes (opt-in)
 
 The operator Model Manager now supports **persistent named local deployment
