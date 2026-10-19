@@ -60,6 +60,24 @@ this is not evidence the Go gateway failed.
    on the operator Mac, and preserve the private report. Then perform
    [prospective A/B/A/B evidence validation](../benchmarks/phase-preflight-binding.md).
 
+## Keyboard and narrow-screen reviewer checks
+
+The Go Operations console now retains all six navigable section links at
+760–880px tablet widths and provides a horizontal, scrollable navigation row
+at 600px and below, instead of hiding most/all links. Its first keyboard
+focus is a visible-on-focus **Skip to main operations content** link, with
+an explicit `#overview` target. Status labels and long health text can
+wrap on a narrow phone. Static Node tests guard these DOM and CSS contracts,
+**not** actual Safari rendering, focus visibility or mobile touch comfort.
+
+**Operator acceptance still needed:** With real Mac data in Safari and/or
+Chrome, check desktop plus approximately 390px and 320px viewport widths,
+scroll the horizontal section nav to reach **Provider token usage** and
+**Reviewer workflow**, use Tab/Shift+Tab/Enter and the skip link without
+mouse interaction, confirm no unintended document-wide horizontal overflow,
+and inspect strong focus rings and legible health status. Capture only
+authentic, approved screenshots. Missing Mac/browser evidence keeps P4 open.
+
 ## Screenshot/video checklist
 
 Capture the **actual rendered Mac browser**, not synthetic CI HTML, after
