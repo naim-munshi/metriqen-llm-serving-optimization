@@ -30,7 +30,10 @@ independent hardware attestation or a production security audit.
   9-run real local sweep, 36-sample reference-quality evaluation, and
   separate explicit evidence finalization. It neither restarts Ollama nor
   attests actual runtime slots, Mac/GPU execution or performance gains.
-  A fresh real A1/B1/A2/B2 four-phase result is **not yet claimed**.
+  Added a separate four-phase offline reviewer to bind all timed
+  preflights, matched quality and raw reports, and write guarded private
+  aggregate evidence in one command. A fresh real A1/B1/A2/B2
+  four-phase result is **not yet claimed**.
 
 ### Operator demo and reviewer workflow
 

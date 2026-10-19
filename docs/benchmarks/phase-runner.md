@@ -97,11 +97,29 @@ reports/local/abab-A1-.../
     evidence-manifest.json
 ~~~
 
-Repeat with B1/A2/B2. Then provide **all eight absolute or relative
-paths** to the existing strict binder (`tools.benchmark.abab_preflight_gate`),
-followed by `tools.benchmark.abab_review`. Copy the invocation from
-[phase-preflight binding](phase-preflight-binding.md). No phase
-automatically marks A/B/A/B PASS.
+Repeat with B1/A2/B2. Once all four have been collected and explicitly
+finalized, review the entire set with **one offline command**:
+
+~~~sh
+python3 -m tools.benchmark.four_phase_review \
+  --a1-dir "$A1_DIR" --b1-dir "$B1_DIR" \
+  --a2-dir "$A2_DIR" --b2-dir "$B2_DIR" \
+  --output-dir "reports/local/abab-final-$(date +%Y%m%d-%H%M%S)"
+~~~
+
+Each `*_DIR` variable must refer to the unique phase directory from
+its own successful collection/finalization (shell variables must be
+restored in a new Terminal session). The command validates all nine
+raw runs/phase, quality reports, four fresh preflights, environment
+consistency and recorded chronology **before** making any output. It
+writes private owner-only `abab-preflight-binding.json`,
+`abab-analysis.json` and `abab-review.md` without overwriting
+anything. This is descriptive internal consistency, **not a Mac/GPU
+attestation, population confidence interval or causal improvement**.
+
+The underlying [phase-preflight binding](phase-preflight-binding.md) and
+[A/B/A/B review](abab-replication.md) are still supported separately.
+No phase automatically marks A/B/A/B PASS.
 
 **Caveats:** The binder checks the chronological and bounded **preflight
 timestamp** (at most 15 minutes before the first run), model/version/digest,
