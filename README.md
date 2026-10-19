@@ -6,7 +6,7 @@
 
 **Engineering case study:** [architecture, implementation decisions, measured results and trade-offs](docs/PORTFOLIO_CASE_STUDY.md) · [Unreleased changelog](CHANGELOG.md)
 
-**P1 deployment lifecycle acceptance:** [read-only preflight and explicit local Stop/Start/Promote/Rollback command](docs/operations/local-deployment-acceptance.md), with synthetic CI contract coverage. The operator has previously shown real deployment inference in Safari, but actual full rollback evidence is still pending.
+**P1 deployment lifecycle acceptance:** [read-only preflight and explicit local Stop/Start/Promote/Rollback command](docs/operations/local-deployment-acceptance.md), with synthetic CI contract coverage. The operator has now reported real Mac Stop/Start/Promote/Rollback and matching private smoke/lifecycle consistency PASS, with genuine Safari snapshots of the final `assistant` routing state; private evidence remains unpublished and release/browser accessibility sign-off is still pending.
 
 **Mac/operator final handoff:** [exact P1–P6 actions, recovery checks, screenshots, benchmark and release blockers](docs/operations/portfolio-final-mac-handoff.md). This is an operator checklist, not evidence that those tasks have already run.
 
@@ -62,6 +62,8 @@ Each setting had 9 runs (3 repeats at concurrency 1/2/4), **324/324 measured req
 **Interpretation:** these are sequential, operator-observed **descriptive** results. Concurrency 1 throughput regressed; the study was not randomized, raw files remain private, and CI cannot independently attest runtime slots or hardware. It establishes **neither a causal speedup nor a production performance claim**. Follow-up and newer private runs must not be conflated with the published October 13 comparison.
 
 [Full experiment and methodological limits](docs/benchmarks/experiments/2026-10-13-ollama-parallelism.md) · [Versioned performance workload](docs/benchmarks/workload.v1.jsonl) · [Versioned quality workload](docs/nlp-eval/workload.v1.jsonl) · [Benchmark protocols](docs/benchmarks/repeated-sweep.md)
+
+**Faster prospective P2 operator workflow:** [guarded single-phase collection and finalization](docs/benchmarks/phase-runner.md) generates a fresh AC/pinned-runtime preflight, nine actual concurrency runs and 36 reference-quality samples per manually configured A1/B1/A2/B2 phase, followed by explicit operator-reviewed evidence finalization. Nothing runs automatically in GitHub CI on the Mac; no full new four-phase study has been claimed.
 
 **Next experimental protocol (not performance evidence):** the [FIFO admission overload comparison](docs/benchmarks/admission-overload.md) uses an independent local-only runner to record all successful and rejected requests at offered concurrency 4/6/8/12, plus process-local admission counter deltas, for queue depth 0 versus 2. This has **no published real-model scheduler benefit**; it does not modify the October 13 Ollama parallelism results or their historical private evidence.
 
@@ -187,7 +189,7 @@ tests/e2e/                  Go gateway + Python client integration tests
 
 ## Security, limitations and license
 
-- **Development-only:** the inference gateway has no API-key authentication, user isolation, production quota enforcement or TLS termination. **Do not expose it publicly.**
+- **Development-only:** legacy local inference can be unauthenticated; an optional separate local bearer token and opt-in JWT/project guards exist but do not provide production-grade identity, tenant isolation, security audit or TLS termination. **Do not expose it publicly.**
 - The current implementation does **not** include vLLM GPU serving, production deployment, optimized GPU memory scheduling, cost accounting, model training, or validated throughput improvements caused by Metriqen's new FIFO queue.
 - Benchmark reports and prompt/response artifacts under `reports/local/` are intentionally Git-ignored. Human-attested evidence does not cryptographically prove execution.
 - **License:** no open-source license has been selected. Source visibility does not grant a general right to use, modify or redistribute this repository. See [CONTRIBUTING.md](CONTRIBUTING.md).

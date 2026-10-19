@@ -60,6 +60,12 @@ approval alone is **not** project-scoped Go gateway authorization.
 
 ## C. P2/P3 — controlled, falsifiable optimization evidence
 
+To reduce repetitive manual steps without compromising the prospective design,
+use the [P2 one-phase operator runner](../benchmarks/phase-runner.md).
+It calls the strict preflight, nine real benchmark runs and separate quality
+checks; model process configuration, slot verification, final human attestation
+and four-phase binding remain manual, and it will not modify Ollama settings.
+
 Use [preflight/phase-binding](../benchmarks/phase-preflight-binding.md),
 [the 4-phase A/B/A/B protocol](../benchmarks/abab-replication.md),
 [raw evidence generation](../benchmarks/real-model-evidence-bundle.md)
