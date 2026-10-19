@@ -53,6 +53,16 @@ independent hardware attestation or a production security audit.
   four timed phases, fresh local preflights and pinned operator-reported
   configuration. It does not attest real runtime slots.
 
+### P6 documentation consistency
+
+- Reconciled README, portfolio reviewer briefing and the longer SaaS
+  roadmap with **existing opt-in** guarded Go project/digest authorization,
+  Redis-backed sessions/quotas and PostgreSQL verified-subject team
+  invitations, cancellation, revocation and audit. Restored clear
+  distinction between implemented code and the default unguarded local
+  gateway; real IdP acceptance and production security remain unverified.
+  Added a source-only documentation regression contract.
+
 ### P4 responsive operations navigation fix
 
 - The Go Operations console previously hid the entire section nav at
