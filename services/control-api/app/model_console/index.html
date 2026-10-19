@@ -10,6 +10,7 @@
   <script src="/console/models/app.js" defer></script>
 </head>
 <body>
+  <a class="skip-link" href="#model-main">Skip to model manager content</a>
   <div class="layout">
     <aside class="sidebar">
       <a class="wordmark" href="/console/models" aria-label="Metriqen Model Manager">
@@ -32,7 +33,7 @@
         <p>Development only. Model approval on this console does not itself authorize direct Go gateway requests; separate guarded project routing is opt-in. Links do not share credentials.</p>
       </div>
     </aside>
-    <main class="content">
+    <main class="content" id="model-main" tabindex="-1">
       <header class="topbar"><span>METRIQEN / CONTROL PLANE / MODELS</span><span>localhost · read/write</span></header>
       <div class="heading">
         <div>
