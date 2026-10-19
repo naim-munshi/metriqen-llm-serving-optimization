@@ -20,6 +20,8 @@ configuration experiment, not a new scheduling algorithm written by Metriqen.
 The repo's Linux hosted runner JSON-selection CPU microbenchmark is not a
 real Ollama/GPU serving improvement.
 
+**P1 lifecycle helper (optional):** the [explicit local deployment acceptance CLI](operations/local-deployment-acceptance.md) can test real Stop/Start/Promote/Rollback with a read-only default. Synthetic CI of its fake API fixture is not Mac/Ollama proof; use human-reviewed private operator results and real browser QA to satisfy P1.
+
 **Operator handoff (Mac only):** The single ordered, no-skips checklist for
 real-model inference, protected deployments, A/B/A/B evidence, security
 recovery, original browser screenshots, license approval and the final
