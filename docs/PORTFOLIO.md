@@ -3,7 +3,7 @@
 **Role focus:** LLM Infrastructure / AI Platform / Backend Engineering  
 **Project type:** local open-weight inference research prototype, **not** a commercial production service
 
-**Current portfolio v1.0 definition of done:** [six evidence-based release gates](PORTFOLIO_V1_ACCEPTANCE.md). The original reviewer briefing below describes the historical foundation; newer opt-in JWT/project authorization, Redis quotas, deployment reconciliation and provider-observed streaming usage have since been added. They are **not** automatically active or production-tested. For a real Mac model smoke see [real Ollama acceptance](operations/real-ollama-portfolio-acceptance.md), distinct from the synthetic reviewer demo.
+**Current portfolio v1.0 definition of done:** [six evidence-based release gates](PORTFOLIO_V1_ACCEPTANCE.md). This briefing summarizes the fixed local-engineering scope; newer opt-in JWT/project authorization, Redis quotas, deployment reconciliation, verified-subject team invitations and provider-reported streaming usage exist in code but are **not** automatically active or production-tested. For a real Mac model smoke see [real Ollama acceptance](operations/real-ollama-portfolio-acceptance.md), distinct from the synthetic reviewer demo. Operator-provided real Mac native/Go smoke, full Stop/Start/Promote/Rollback and private digest consistency checks have passed, and actual Safari desktop snapshots showed final routing. Browser-wide QA and public evidence approval still remain pending.
 
 ## 60-second explanation
 
@@ -76,13 +76,13 @@ A synthetic CI test verifies bundled assets and restrictive CSP headers,
 
 | Layer | Implemented and verified | Important limitation |
 | --- | --- | --- |
-| Data plane | OpenAI-compatible Go chat relay, bounded JSON, incremental SSE, cancellation and deadlines | Optional static local bearer shared-secret, not JWT/RBAC or tenant isolation |
+| Data plane | OpenAI-compatible Go chat relay, bounded JSON, incremental SSE, cancellation, deadlines and optional guarded project inference authorization | Legacy default route is unguarded; opt-in JWT/SQL/digest checks are not production tenant isolation |
 | Admission | Four active requests; optional FIFO pending queue with five-second wait cap, early HTTP 429 | Not GPU batching, priority serving or per-tenant fairness |
 | Diagnostics | Process readiness, bounded Ollama API reachability, admission metrics, upstream failure reasons and admitted-attempt outcomes | In-memory, process-local; not full telemetry or persisted SLO evidence |
 | Test harness | Go race tests, deterministic mock backends, Python E2E and stand-alone reviewer demo | Synthetic upstream cannot validate actual GPU throughput |
 | Benchmark | Pinned-model experiments, workload hashes, rotating concurrency sweeps, TTFT/p50/p95 and token-use coverage | Real runs operator-attested; not independent hardware attestation |
 | Quality checks | Answer-reference exact/normalized matching with separate quality reports | Not semantic or hallucination evaluation |
-| Control plane | FastAPI identity/RBAC verification seams and optional PostgreSQL-targeted membership adapter | Not wired to Go serving auth; actual PostgreSQL 16 CI migration tests, but not deployed or live IdP-integrated |
+| Control plane | FastAPI verified JWT / OIDC browser sessions, PostgreSQL org/project grants and team invitations, local pinned-digest deployments and opt-in guarded Go authorization seam | Real PostgreSQL/Redis CI uses disposable services; a live IdP and production authentication boundary are not operator-verified |
 
 **Design tradeoffs:** The gateway accepts a fixed local upstream origin at
 startup (no caller-supplied URLs, redirects or environment proxies);
@@ -148,9 +148,11 @@ evidence. See [database CI runbook](operations/postgres-ci.md).
    warm-up configuration. Synthetic CI checks code contracts; real-model
    operator observations must be reported separately with limitations.
 5. **What blocks production exposure?**
-   End-to-end authentication at the Go inference route, tenant-scoped
-   quotas/isolation, immutable approved model revisions, operational
-   monitoring and deployment hardening are still planned.
+   Enforcement of configured identity, signed JWT/SQL project and digest
+   authorization on **every** inference path, production TLS/secure cookies,
+   tenant-scoped isolation, validated model revision guarantees, real IdP
+   acceptance, rate/lease recovery and operational hardening remain missing.
+   Existing opt-in localhost guards and synthetic CI do not provide these.
 
 ## Next evidence-driven engineering work
 
@@ -159,8 +161,10 @@ evidence. See [database CI runbook](operations/postgres-ci.md).
   workload and decoding parameters.
 - Decide on a validated SSE end-of-stream semantic contract and
   corresponding gateway-side instrumentation without breaking streaming.
-- Implement authenticated inference only after designing actual
-  control-plane → gateway identity and tenant quota enforcement.
+- Independently operator-verify the already implemented **opt-in**
+  gateway-to-control-plane JWT/project/digest authorization and Redis quotas
+  with live local PostgreSQL/Redis/IdP configuration. Never describe the
+  default unguarded developer route as authenticated.
 - Review migration-backed PostgreSQL 16 integration CI, then complete deployment,
   fault recovery, and later GPU-backed serving if suitable hardware is
   available.

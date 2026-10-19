@@ -106,6 +106,23 @@ class PortfolioDocumentationContracts(unittest.TestCase):
         self.assertNotIn("There is still no actual browser OIDC login/session/logout", security)
         self.assertNotIn("No user signup, login/logout or session issuance yet", roadmap)
 
+    def test_current_auth_team_and_gateway_docs_do_not_repeat_obsolete_missing_features(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        briefing = (ROOT / "docs/PORTFOLIO.md").read_text(encoding="utf-8")
+        roadmap = (ROOT / "ROADMAP.md").read_text(encoding="utf-8")
+        team = (ROOT / "docs/operations/team-invitations.md").read_text(encoding="utf-8")
+        self.assertIn("team invitation", readme.lower())
+        self.assertIn("guarded project inference authorization", briefing)
+        self.assertIn("opt-in", briefing.lower())
+        self.assertIn("verified-subject invitations", roadmap.lower())
+        self.assertIn("POST /api/v1/organizations/{org_id}/invitations", team)
+        self.assertNotIn("Not wired to Go serving auth", briefing)
+        self.assertNotIn("no Go gateway enforcement", roadmap)
+        self.assertNotIn("Missing: org/project update/delete, invitations", roadmap)
+        self.assertNotIn("Redis-backed BFF sessions, auth-entrance protection", roadmap)
+        self.assertIn("default developer gateway remains unguarded", roadmap)
+        self.assertIn("production", briefing.lower())
+
     def test_historical_status_and_starting_commit_are_not_current_release_claims(self):
         status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
         contract = (ROOT / "docs/PORTFOLIO_V1_ACCEPTANCE.md").read_text(
