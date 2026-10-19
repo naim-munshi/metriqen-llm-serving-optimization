@@ -93,6 +93,42 @@ Use new directories for every phase; do not overwrite historical evidence.
 Additional A/B/A/B sessions may illuminate temporal drift, but a fixed
 sequence alone is not causal evidence.
 
+## Offline P3 queue-policy tradeoff review (after real A and B phases)
+
+This is a **Metriqen-owned FIFO admission policy comparison**, not the
+Ollama `OLLAMA_NUM_PARALLEL` configuration study. After both
+**complete** three-repetition 36-request/level A (queue depth 0) and B
+(queue depth 2) runs exist, use the private strict offline reviewer:
+
+~~~sh
+python3 -m tools.benchmark.admission_tradeoff \
+  --baseline-dir "reports/local/admission-A-YOUR_ACTUAL_RUN" \
+  --candidate-dir "reports/local/admission-B-YOUR_ACTUAL_RUN" \
+  --output "reports/local/admission-tradeoff-$(date +%Y%m%d-%H%M%S).json"
+~~~
+
+Replace the phase directories with real recorded paths. It independently
+reads and validates **every raw request outcome**, HTTP 429 count,
+chronological run identity, per-run gateway admission-counter deltas and
+aggregate summary for all concurrency 4/6/8/12. It rejects differing
+model digests, dataset fingerprints, runtime/hardware labels, decoding
+profiles or any second changed experimental configuration. Its output
+compares successful goodput, total successes, HTTP 429s, and successful-
+request p95 latency/TTFT for **all four levels** and prominently exposes
+adverse tradeoffs. A 429 does not count as a successful request and is
+never quietly excluded from the acceptance-rate denominator. The output
+stays under ignored `reports/local/` and does not copy prompts or model
+responses.
+
+**A descriptive queue tradeoff, even if positive, cannot automatically
+satisfy P3.** The two phases are sequential and operator-sourced,
+not randomized or hardware-attested. Compare real n_slots, power, thermals,
+queue timeout/canceled counters, load-induced failures and separate matched
+36-query reference-answer quality; show losses as well as gains. The
+report unconditionally states `portfolio_p3_complete: false` and
+`causal_speedup_verified: false`. If the policy is worse, publish a
+qualified **negative result**, never an invented optimization percentage.
+
 ## Output semantics and limitations
 
 Each `repeat-XX-cN.json` stores every request status, success/failure,
