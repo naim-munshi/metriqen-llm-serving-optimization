@@ -34,6 +34,8 @@ class FakeLocalAPI:
         self.fail_candidate_chat = False
         self.fail_rollback = False
         self.force_external_change = False
+        self.capacity_one = False
+        self.fail_candidate_load = False
 
     def __call__(self, method, path, *, token, payload=None):
         if token != TOKEN:
@@ -62,6 +64,16 @@ class FakeLocalAPI:
             if not self.loaded[self.alias["active_tag"]]:
                 return 409, {"detail": "not loaded"}
             self.alias["enabled"] = True
+        elif action == "load":
+            target = path.split("/")[-2]
+            if self.fail_candidate_load and target == B:
+                return 503, {"detail": "simulated preload failure"}
+            if self.capacity_one:
+                for name in self.loaded:
+                    self.loaded[name] = False
+            self.loaded[target] = True
+            record = next(m for m in self.models if m["tag"] == target)
+            return 200, {"tag": target, "digest": record["digest"], "loaded": True}
         elif action == "chat":
             if not self.alias["enabled"]:
                 return 409, {"detail": "local deployment is stopped"}
@@ -186,6 +198,73 @@ class OperatorLifecycleTests(unittest.TestCase):
                          execute=True, fetch=fake)
         self.assertTrue(fake.alias["enabled"])
 
+    def test_sequential_preflight_does_not_need_concurrent_residency_or_mutate(self):
+        fake = FakeLocalAPI()
+        fake.capacity_one = True
+        fake.loaded[B] = False
+        result = demo.collect(token=TOKEN, name=NAME, baseline=A, candidate=B,
+                              execute=False, sequential_load=True, fetch=fake)
+        self.assertTrue(result["passed"])
+        self.assertTrue(result["sequential_model_load"])
+        self.assertIn("candidate_approved_revision_available", result["checks_passed"])
+        self.assertTrue(all(method == "GET" for method, _, _ in fake.calls))
+
+    def test_sequential_full_acceptance_reloads_each_revision_before_switch(self):
+        fake = FakeLocalAPI()
+        fake.capacity_one = True
+        fake.loaded[B] = False
+        report = demo.collect(token=TOKEN, name=NAME, baseline=A, candidate=B,
+                              execute=True, sequential_load=True, fetch=fake)
+        self.assertTrue(report["passed"])
+        self.assertTrue(report["sequential_model_load"])
+        self.assertIn("candidate_loaded_at_promotion", report["checks_passed"])
+        self.assertIn("baseline_reloaded_before_rollback", report["checks_passed"])
+        self.assertIn("rollback_restores_original_inference", report["checks_passed"])
+        self.assertEqual(fake.alias["active_tag"], A)
+        self.assertTrue(fake.alias["enabled"])
+        self.assertTrue(fake.loaded[A])
+        self.assertFalse(fake.loaded[B])
+        actions = [p.rsplit("/", 1)[-1] for method, p, _ in fake.calls if method == "POST"]
+        self.assertEqual(actions, [
+            "stop", "chat", "start", "chat", "load", "promote", "chat",
+            "load", "rollback", "chat",
+        ])
+        self.assertNotIn(TOKEN, json.dumps(report))
+        self.assertNotIn("FIXTURE REPLY ONLY", json.dumps(report))
+
+    def test_sequential_candidate_chat_failure_best_effort_restores_baseline(self):
+        fake = FakeLocalAPI()
+        fake.capacity_one = True
+        fake.loaded[B] = False
+        fake.fail_candidate_chat = True
+        with self.assertRaisesRegex(demo.AcceptanceFailure, "unexpected_local_api_status_503"):
+            demo.collect(token=TOKEN, name=NAME, baseline=A, candidate=B,
+                         execute=True, sequential_load=True, fetch=fake)
+        self.assertEqual(fake.alias["active_tag"], A)
+        self.assertTrue(fake.alias["enabled"])
+        self.assertTrue(fake.loaded[A])
+        self.assertTrue(any(path.endswith("/rollback") for _, path, _ in fake.calls))
+
+    def test_sequential_candidate_preload_failure_recovers_without_promoting(self):
+        fake = FakeLocalAPI()
+        fake.capacity_one = True
+        fake.loaded[B] = False
+        fake.fail_candidate_load = True
+        with self.assertRaisesRegex(demo.AcceptanceFailure, "unexpected_local_api_status_503"):
+            demo.collect(token=TOKEN, name=NAME, baseline=A, candidate=B,
+                         execute=True, sequential_load=True, fetch=fake)
+        self.assertEqual(fake.alias["active_tag"], A)
+        self.assertTrue(fake.alias["enabled"])
+        self.assertTrue(fake.loaded[A])
+        self.assertFalse(any(path.endswith("/promote") for _, path, _ in fake.calls))
+
+    def test_sequential_requires_candidate_before_any_network(self):
+        fake = FakeLocalAPI()
+        with self.assertRaisesRegex(demo.AcceptanceFailure, "sequential_load_requires_candidate"):
+            demo.collect(token=TOKEN, name=NAME, baseline=A, candidate=None,
+                         execute=True, sequential_load=True, fetch=fake)
+        self.assertEqual(fake.calls, [])
+
     def test_reject_bad_deployment_and_candidate_tag_without_network(self):
         for name, model, candidate in [
             ("../escape", A, B), ("Bad", A, B),
@@ -208,6 +287,8 @@ class OperatorLifecycleTests(unittest.TestCase):
             ("POST", "/api/v1/local/deployments/%2e%2e/chat"),
             ("GET", "/api/v1/local/deployments/a/chat"),
             ("POST", "/api/v1/local/deployments/assistant/chat/other"),
+            ("POST", "/api/v1/local/models/../load"),
+            ("POST", "/api/v1/local/models/model:latest/delete"),
         ]:
             with self.subTest(path=path):
                 with self.assertRaisesRegex(demo.AcceptanceFailure, "endpoint_not_allowlisted"):

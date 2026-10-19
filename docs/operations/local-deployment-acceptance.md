@@ -93,6 +93,59 @@ Without a second model, `--execute` **without** `--candidate` performs
 only Stop / blocked chat / Start / real chat. That is useful for local
 recovery but **does not** verify Promote/Rollback or satisfy full P1.
 
+## Memory-constrained Mac: sequential model-load mode
+
+On Apple Silicon or another low-memory machine, Ollama may evict
+`llama3.2:latest` when `llama3.2:1b` loads (or vice versa). Models also
+automatically unload after their keep-alive expires. **Do not repeatedly
+toggle Load hoping to keep both simultaneously.** The API only needs
+the *target* pinned revision loaded at each individual switch.
+
+For a registered and approved candidate, keep only the baseline loaded
+and run this **read-only** preflight (does not preload anything):
+
+~~~sh
+python3 -m tools.demo.local_deployment_acceptance \
+  --name assistant --baseline llama3.2:1b \
+  --candidate llama3.2:latest --sequential-load
+~~~
+
+Once the gateway's **currently running model allowlist** is known to
+permit *both* tags, the alias is idle and the operator agrees to
+temporary interruption, run this explicit sequential test:
+
+~~~sh
+python3 -m tools.demo.local_deployment_acceptance \
+  --name assistant --baseline llama3.2:1b \
+  --candidate llama3.2:latest --sequential-load --execute \
+  --output "reports/local/deployment-sequential-$(date +%Y%m%d-%H%M%S).json"
+~~~
+
+After Stop → denied Chat → Start → baseline Chat, it **preloads the
+approved candidate** through the existing operator-only API, checks the
+pinned digest, promotes, and requests candidate Chat. It then
+**preloads the original baseline** again, verifies its digest,
+rolls back and requests baseline Chat. Each preload can evict the other
+model. This intentionally tests **correct single-model-at-a-time local
+recovery**, NOT zero-downtime blue/green deployment.
+
+Sequential preflight verifies candidate registration/approval/digest
+and absence of loaded-digest mismatch, **not** candidate loaded
+readiness. An operator must explicitly opt into both flags before
+any preload happens. An error attempts guarded restoration of the
+baseline only if the current alias still matches the original exact
+tag/digest or previously promoted candidate with matching rollback
+history. Restoration can fail; check `04 / Model Routing` manually.
+
+**Important:** the Go gateway may have been started with
+`METRIQEN_ALLOWED_MODELS=llama3.2:1b`. A candidate inference will then
+be rejected even when Ollama has loaded it successfully. Check and
+authorize both exact model tags in the **running local gateway**
+configuration before `--execute`; restarting the gateway is a
+separate operator-controlled process action, and it will reset gateway
+process-local monitoring counters. Never change allowlists or restart
+services automatically from this acceptance tool.
+
 ## Step 3: browser acceptance and final P1 claim
 
 Still use Safari/Chrome to demonstrate the real model-management UX,
