@@ -53,6 +53,13 @@ independent hardware attestation or a production security audit.
   four timed phases, fresh local preflights and pinned operator-reported
   configuration. It does not attest real runtime slots.
 
+### CI toolchain upkeep
+
+- Updated GitHub CI to SHA-pinned official checkout v7.0.1,
+  setup-python v7.0.0 and setup-go v7.0.0 using Dependabot-proposed
+  commit digests. This is CI infrastructure maintenance, not model or
+  latency performance evidence; validate all 11 jobs on current main.
+
 ### P3 FIFO policy comparison preparation
 
 - Added strict offline `tools.benchmark.admission_tradeoff` analysis for
