@@ -83,6 +83,13 @@ keep pinned model digest and exact dataset/generation settings.
 sanitized and explicitly attributed to the observed hardware, run date,
 model revision, quantization, software versions and number of repeats.
 
+For a bounded Metriqen-controlled FIFO queue-policy overload candidate,
+see the [queue-depth 0 vs 2 protocol and strict offline tradeoff review](../benchmarks/admission-overload.md).
+It counts every HTTP 429, reports success and latency together, and does
+not substitute for human-reviewed independent model-quality and thermal
+observations. A negative result is valid engineering evidence; do not
+claim a queue speedup merely because Go unit tests pass.
+
 For any separate **Metriqen-controlled** optimization, run the
 [conservative tradeoff screen](../benchmarks/portfolio-optimization-signal.md):
 
