@@ -68,6 +68,18 @@ are implemented here. The separate Go gateway remains directly reachable
 on loopback and does not enforce these named aliases or registry approvals.
 Production inference should not use this local operator service.
 
+## Browser timeout behavior
+
+Local model preload and non-streaming inference through the fixed Go
+gateway may legitimately take longer than a typical status/API GET.
+The Model Manager allows up to **130 seconds** for these **specific**
+long-running operations, consistent with the gateway relay's 125-second
+upstream deadline. Status, model listing, approval, stop/start, promotion,
+rollback and routine monitoring retain **10-second** request bounds.
+This prevents Safari from aborting a valid inference solely because
+generation takes more than 10 seconds. It does **not** change Go admission,
+GPU scheduling, timeout guarantees or inference throughput.
+
 ## Validation
 
 The new CI tests use synthetic Ollama and gateway fixtures for:
