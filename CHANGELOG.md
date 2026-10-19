@@ -10,6 +10,15 @@ independent hardware attestation or a production security audit.
 
 ## Unreleased — Portfolio v1.0 preparation (2026-10)
 
+### P1 deployment acceptance preparation
+
+- Added a read-only-by-default, explicit-`--execute` local operator
+  acceptance CLI and synthetic tests for real alias Stop → denied chat
+  → Start → chat → Promote → chat → Rollback → chat. It uses only fixed
+  loopback APIs, private operator-token file, controlled recovery and
+  owner-only private reports. This is **not** a real Mac run or an
+  independently verified browser workflow; P1 remains unchecked.
+
 ### Operator demo and reviewer workflow
 
 - [#82](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/82):
