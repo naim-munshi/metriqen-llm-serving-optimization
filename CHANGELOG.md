@@ -53,6 +53,16 @@ independent hardware attestation or a production security audit.
   four timed phases, fresh local preflights and pinned operator-reported
   configuration. It does not attest real runtime slots.
 
+### P4 responsive operations navigation fix
+
+- The Go Operations console previously hid the entire section nav at
+  mobile widths and hid all inactive section links at tablet widths.
+  It now offers visible, keyboard-focusable tablet links, scrollable
+  mobile navigation with practical touch targets, and a first-focus
+  skip-to-content link; health descriptions wrap on phones. A static
+  Node regression test checks DOM and CSS invariants. Real Safari/Chrome
+  mobile/keyboard visual acceptance remains operator-only.
+
 ### CI toolchain upkeep
 
 - Updated GitHub CI to SHA-pinned official checkout v7.0.1,
