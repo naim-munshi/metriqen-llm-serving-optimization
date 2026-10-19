@@ -101,9 +101,9 @@ Repeat with B1/A2/B2. Once all four have been collected and explicitly
 finalized, review the entire set with **one offline command**:
 
 ~~~sh
-python3 -m tools.benchmark.four_phase_review \\
-  --a1-dir "$A1_DIR" --b1-dir "$B1_DIR" \\
-  --a2-dir "$A2_DIR" --b2-dir "$B2_DIR" \\
+python3 -m tools.benchmark.four_phase_review \
+  --a1-dir "$A1_DIR" --b1-dir "$B1_DIR" \
+  --a2-dir "$A2_DIR" --b2-dir "$B2_DIR" \
   --output-dir "reports/local/abab-final-$(date +%Y%m%d-%H%M%S)"
 ~~~
 
