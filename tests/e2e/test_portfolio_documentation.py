@@ -121,7 +121,7 @@ class PortfolioDocumentationContracts(unittest.TestCase):
         self.assertNotIn("Missing: org/project update/delete, invitations", roadmap)
         self.assertNotIn("Redis-backed BFF sessions, auth-entrance protection", roadmap)
         self.assertIn("default developer gateway remains unguarded", roadmap)
-        self.assertIn("no public", briefing.lower()) if "no public" in briefing.lower() else self.assertIn("production", briefing.lower())
+        self.assertIn("production", briefing.lower())
 
     def test_historical_status_and_starting_commit_are_not_current_release_claims(self):
         status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
