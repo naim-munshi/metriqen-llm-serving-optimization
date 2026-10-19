@@ -207,9 +207,14 @@ def collect(*, token: str, name: str, baseline: str, candidate: str | None,
         raise AcceptanceFailure("sequential_load_requires_candidate")
 
     original = _deployment(fetch, token, name)
-    original_digest = _model_ready(fetch, token, baseline)
+    # Read-only preflight stays strict. Explicit sequential execution may
+    # restore an idle-evicted baseline, but only after authenticating the
+    # pinned approved revision and matching original deployment identity.
+    reload_baseline = sequential_load and execute
+    original_digest = _model_ready(fetch, token, baseline,
+                                   require_loaded=not reload_baseline)
     _check(fetch, token, name, tag=baseline, digest=original_digest,
-           enabled=True, ready=True)
+           enabled=True, ready=None if reload_baseline else True)
     # Never overwrite an existing rollback target without operator review.
     if original.get("previous_tag") is not None and candidate is not None:
         raise AcceptanceFailure("existing_rollback_history_requires_manual_review")
@@ -235,15 +240,24 @@ def collect(*, token: str, name: str, baseline: str, candidate: str | None,
     # If a request fails mid-flight, restore only when the alias still points
     # at the exact known revision. No silent overwrite of concurrent edits.
     stopped, promoted = False, False
+    stage = "baseline_preload" if reload_baseline else "stop"
     try:
+        if reload_baseline:
+            _load_exact(fetch, token, baseline, original_digest)
+            _check(fetch, token, name, tag=baseline, digest=original_digest,
+                   enabled=True, ready=True)
+            checks.append("baseline_loaded_before_lifecycle")
+        stage = "stop"
         _post(fetch, token, name, "stop")
         stopped = True
+        stage = "stopped_alias"
         _check(fetch, token, name, tag=baseline, digest=original_digest, enabled=False)
         code, _ = fetch("POST", API + f"/deployments/{name}/chat",
                         token=token, payload={"prompt": PROMPT, "max_tokens": 48})
         if code != 409:
             raise AcceptanceFailure("stopped_deployment_allowed_inference")
         checks.append("stopped_alias_rejects_chat_409")
+        stage = "start"
         _post(fetch, token, name, "start")
         stopped = False
         _check(fetch, token, name, tag=baseline, digest=original_digest,
@@ -252,24 +266,30 @@ def collect(*, token: str, name: str, baseline: str, candidate: str | None,
         checks.append("started_alias_routes_real_inference")
 
         if candidate is not None:
+            stage = "candidate_preload"
             if sequential_load:
                 _load_exact(fetch, token, candidate, candidate_digest)
                 checks.append("candidate_loaded_at_promotion")
+            stage = "promote"
             _post(fetch, token, name, "promote", tag=candidate)
             promoted = True
             _check(fetch, token, name, tag=candidate, digest=candidate_digest,
                    enabled=True, ready=True,
                    previous_tag=baseline, previous_digest=original_digest)
+            stage = "candidate_inference"
             _chat(fetch, token, name, candidate)
             checks.append("promoted_alias_routes_candidate_inference")
             if sequential_load:
+                stage = "baseline_reload_for_rollback"
                 _load_exact(fetch, token, baseline, original_digest)
                 checks.append("baseline_reloaded_before_rollback")
+            stage = "rollback"
             _post(fetch, token, name, "rollback")
             promoted = False
             _check(fetch, token, name, tag=baseline, digest=original_digest,
                    enabled=True, ready=True,
                    previous_tag=candidate, previous_digest=candidate_digest)
+            stage = "rollback_inference"
             _chat(fetch, token, name, baseline)
             checks.append("rollback_restores_original_inference")
 
@@ -294,7 +314,7 @@ def collect(*, token: str, name: str, baseline: str, candidate: str | None,
                 "Local operator alias is not an OIDC project-scoped deployment",
             ],
         }
-    except Exception:
+    except Exception as exc:
         # Best-effort restoration; a concurrent operator may legitimately
         # change the deployment. Do not hide a failed acceptance or clobber.
         try:
@@ -316,6 +336,8 @@ def collect(*, token: str, name: str, baseline: str, candidate: str | None,
                     _post(fetch, token, name, "start")
         except Exception:
             pass
+        if isinstance(exc, AcceptanceFailure):
+            raise AcceptanceFailure(stage + ":" + str(exc)) from None
         raise
 
 
