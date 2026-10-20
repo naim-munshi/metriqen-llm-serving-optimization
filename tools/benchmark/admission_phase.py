@@ -104,6 +104,11 @@ def collect(*, phase: str, digest: str, parallelism: int,
     if online.main(quality_args) != 0 or not _report_is_present(quality):
         raise AdmissionPhaseError("quality_failed_partial_reports_retained")
 
+    # Confirm the same gateway admission policy remained in effect after
+    # both overload and quality traffic. Snapshot requires an idle gateway.
+    admission_load.admission_snapshot(
+        "http://127.0.0.1:8081/v1/chat/completions", depth,
+    )
     # This catches a power/config mismatch at the end, but does not
     # establish uninterrupted AC or independently verify active n_slots.
     end = preflight.collect(expected_model_digest=digest,
