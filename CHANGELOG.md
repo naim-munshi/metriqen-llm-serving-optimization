@@ -95,7 +95,7 @@ independent hardware attestation or a production security audit.
 
 ### P3 FIFO policy comparison preparation
 
-- Added strict offline `tools.benchmark.admission_tradeoff` analysis for
+- Added a guarded **operator-only** P3 A/B collector combining real Mac AC/model/digest/process-config preflight, live gateway queue-capacity check, 12-run overload sweep, separate 36-answer quality evaluation and postflight checks. It never changes processes, authenticates n_slots or asserts a speedup; offline synthetic tests cover battery/configuration blocks and private reports. Original A/B real-model execution and human P3 acceptance remain pending.\n- Added strict offline `tools.benchmark.admission_tradeoff` analysis for
   real, operator-produced queue depth 0 versus 2 overload sweeps. All four
   offered concurrency levels include observed successes, HTTP 429s, goodput
   and successful-only p95/TTFT changes. It revalidates raw observations,

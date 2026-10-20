@@ -27,7 +27,97 @@ conditions. Model revision/hardware passed on the CLI are operator supplied,
 not cryptographically attested. Separately inspect Ollama logs and run the
 existing `tools.benchmark.preflight` for each phase.
 
-## Step-by-step local execution
+## Guarded A/B operator collection (recommended)
+
+`python3 -m tools.benchmark.admission_phase` makes the protocol harder to
+misconfigure but **does not** change Ollama/Gateway process settings, inspect
+live n_slots, or authenticate model execution. In each phase it:
+
+1. Checks macOS **AC power**, exactly one configured Ollama process, pinned
+   installed model digest/version and Go gateway liveness **before inference**;
+   saves the private `preflight.json` or blocks on failure.
+2. Checks the live idle gateway's advertised **four active slots** and the
+   requested Go queue depth (A: 0, B: 2) before sending any requests.
+3. Collects 3 repeats × four concurrency levels (4/6/8/12) × 36 measured
+   requests (**432 offered requests per phase**), preserving successes,
+   HTTP 429s and all failed responses instead of discarding them.
+4. Collects a separate **36-answer reference-quality report** and checks
+   AC/model/process configuration again at the end (`postflight.json`).
+   This cannot establish uninterrupted AC or thermal stability.
+
+Keep both phases at the **same** manually verified Ollama parallelism, model
+digest, decoding, hardware and background-load conditions. For example, if the
+single existing Ollama server is already configured with two runtime slots
+(`OLLAMA_NUM_PARALLEL=2` and `n_slots=2` in contemporaneous startup logs),
+**leave it at 2 for both A and B**. If using 1, pass
+`--expected-parallelism 1` in **both** commands. Do not infer active slots
+from configured process environment or from this helper's PASS.
+
+**Operator Terminal 1:** Keep one loopback Ollama server running. Inspect
+fresh model-load logs showing actual `n_seq_max` and `n_slots`, power
+status and model quantization before A, and again before B as appropriate.
+
+**Operator Terminal 2:** Stop *only* the existing Go gateway gracefully
+and start baseline A with the same upstream. Confirm there is no duplicate
+gateway listening on `127.0.0.1:8081`:
+
+~~~sh
+cd ~/metriqen-llm-serving-optimization/services/inference-gateway
+METRIQEN_UPSTREAM_URL=http://127.0.0.1:11434 METRIQEN_QUEUE_DEPTH=0 go run ./cmd/server
+~~~
+
+**Operator Terminal 3, after AC/slot verification:**
+
+~~~sh
+cd ~/metriqen-llm-serving-optimization
+RUN_A="reports/local/admission-A-$(date +%Y%m%d-%H%M%S)"
+python3 -m tools.benchmark.admission_phase \
+  --phase A \
+  --expected-model-digest baf6a787fdffd633537aa2eb51cfd54cb93ff08e28040095462bb63daf552878 \
+  --expected-parallelism 2 \
+  --hardware "Apple M2 Metal" \
+  --output-dir "$RUN_A"
+~~~
+
+**Only after A is complete:** Stop and restart *only* the Go gateway with
+`METRIQEN_QUEUE_DEPTH=2` and otherwise unchanged settings. Confirm the live
+metrics endpoint now reports queue depth 2 and active cap 4. Repeat the
+slot/power review. Run candidate B, using the **same parallelism** as A:
+
+~~~sh
+RUN_B="reports/local/admission-B-$(date +%Y%m%d-%H%M%S)"
+python3 -m tools.benchmark.admission_phase \
+  --phase B \
+  --expected-model-digest baf6a787fdffd633537aa2eb51cfd54cb93ff08e28040095462bb63daf552878 \
+  --expected-parallelism 2 \
+  --hardware "Apple M2 Metal" \
+  --output-dir "$RUN_B"
+~~~
+
+The digest, hardware label and parallelism above are **operator-specific
+examples**, not asserted by the tool. Obtain the actual live digest and
+check it against the pinned model. After both fully collected phases,
+use the existing strict offline reviewer, pointing it to the **overload**
+subdirectories (the helper also saves pre/postflight and quality at each
+phase root):
+
+~~~sh
+python3 -m tools.benchmark.admission_tradeoff \
+  --baseline-dir "$RUN_A/overload" \
+  --candidate-dir "$RUN_B/overload" \
+  --output "reports/local/admission-tradeoff-$(date +%Y%m%d-%H%M%S).json"
+~~~
+
+Keep a record of `RUN_A` and `RUN_B`: shell variables disappear if a
+terminal closes. Inspect both `quality.json` reports for matched narrow
+reference-score parity, the two pre/postflights, thermal notes and complete
+HTTP 429/goodput/p95/TTFT matrix. The tradeoff reviewer **does not** ingest
+the separate reference-quality files or automatically mark P3 complete.
+Blocked or partial runs must not be passed off as completed evidence.
+
+## Manual alternative
+
+### Step-by-step local execution
 
 **Terminal 1:** Run exactly one existing loopback Ollama process on
 127.0.0.1:11434. If Ollama is fully stopped, you may use
