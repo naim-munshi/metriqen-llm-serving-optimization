@@ -32,8 +32,13 @@ independent hardware attestation or a production security audit.
   attests actual runtime slots, Mac/GPU execution or performance gains.
   Added a separate four-phase offline reviewer to bind all timed
   preflights, matched quality and raw reports, and write guarded private
-  aggregate evidence in one command. A fresh real A1/B1/A2/B2
-  four-phase result is **not yet claimed**.
+  aggregate evidence in one command. The operator subsequently reported
+  a complete October 20 A1/B1/A2/B2 study and private evidence-consistency
+  PASS. The [sanitized reviewer report](docs/benchmarks/experiments/2026-10-20-ollama-parallelism-abab.md)
+  records 1,296/1,296 successes, stable narrow reference quality, **large
+  same-setting drift and non-replicated candidate effects**. B1-time slots
+  and continuous A2 AC are not independently documented; this does not
+  close P2 or demonstrate a causal performance improvement.
 
 ### Operator demo and reviewer workflow
 
@@ -143,10 +148,13 @@ independent hardware attestation or a production security audit.
 
 ## Pending before Portfolio v1.0
 
-- [ ] Operator-run real Mac/Ollama model-management, chat, streaming,
-      digest and rollback evidence.
-- [ ] Prospective A/B/A/B raw model serving/quality results with honest
-      before/after attribution and regressions.
+- [ ] Formal acceptance and privacy-reviewed public evidence of the
+      operator-reported successful Mac/Ollama smoke and full lifecycle;
+      the real operator executions have already been reported.
+- [ ] Human acceptance of the newly collected October 20 A/B/A/B result,
+      including independently reviewed slot/power caveats and drift. The
+      private consistency PASS and published aggregate do not by themselves
+      close P2.
 - [ ] Real browser walkthrough, visual/keyboard QA and sanitized
       genuine screenshot/video assets.
 - [ ] Complete security/operational acceptance on the operator machine.
