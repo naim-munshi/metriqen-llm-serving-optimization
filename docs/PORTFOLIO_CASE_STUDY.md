@@ -165,6 +165,30 @@ The result is **descriptive, not causal or a production speedup**.
 See [full published methodology, per-concurrency results and
 limitations](benchmarks/experiments/2026-10-13-ollama-parallelism.md).
 
+## October 20 four-phase replication — why the first speedup did not replicate
+
+A fresh operator-collected **A1/B1/A2/B2** local study of the same Ollama
+parallelism setting (1/2/1/2) completed 36 timed runs and
+**1,296/1,296 measured requests**, plus 144 narrow reference-quality
+completions. Four operator-attested finalizations and the strict private
+four-phase evidence-consistency reviewer all returned **PASS**, but those
+checks cannot authenticate hardware, live slots, thermals or uninterrupted
+AC power.
+
+At offered concurrency 2, B1 gave **0.724 requests/s** versus
+A1 **0.302** (+139.79%), yet B2 gave **0.371** versus
+A2 **0.402** (**−7.73%**). Same-setting B1→B2 throughput drift was
+**−48.69%**. The four phase-specific reference scores were identical
+(86.11% exact, 91.67% normalized match), which tests limited string
+matching only. B1 has no independently preserved benchmark-time slot
+observation; continuous AC for A2 was unverified. The observed candidate
+effect is therefore **not reproducible enough to claim a speedup**.
+
+See the [full October 20 aggregate with all concurrency levels, p95/TTFT,
+same-setting drift and limitations](benchmarks/experiments/2026-10-20-ollama-parallelism-abab.md).
+The October 13 study above remains a **separate historical experiment**,
+not additional independent replications of this study.
+
 ## Metriqen-controlled optimization — CPU-only request parsing
 
 A separate **synthetic hosted Linux Go microbenchmark** compared the
@@ -215,16 +239,16 @@ neither actual Metal computation nor performance gains. See
 run/quality/evidence directories, one fresh and digest-matched preflight
 per phase, correct parallelism 1/2/1/2, and a descriptive report
 after validating the [preflight binding gate](benchmarks/phase-preflight-binding.md).
-That prospective experiment still needs the operator's Mac.
+The operator subsequently reported running all four phases on an Apple M2 and obtaining private review PASS on October 20. Human review of runtime-slot/power controls and release acceptance remains outstanding; GitHub CI has not run the real model.
 
 ## Current verified engineering evidence versus missing acceptance
 
 | Evidence | Status | What it does *not* prove |
 | --- | --- | --- |
 | PR #82, merged Go provider usage/reviewer UI | [11/11 post-merge CI success](https://github.com/naim-munshi/metriqen-llm-serving-optimization/actions/runs/39091018921) | Real browser screenshots or Mac Ollama |
-| PR #80, real-model local smoke command + tests | [11/11 post-merge CI success](https://github.com/naim-munshi/metriqen-llm-serving-optimization/actions/runs/39089847172) | The smoke was executed on a real Mac |
+| PR #80, real-model local smoke command + tests | [11/11 post-merge CI success](https://github.com/naim-munshi/metriqen-llm-serving-optimization/actions/runs/39089847172); subsequent Mac execution operator-reported | CI alone cannot independently attest the operator's Mac execution |
 | October 13 published Ollama experiment | Operator-attested public aggregates | Causality, independent raw-data recomputation, general GPU speedup |
-| October 18 Go parsing microbenchmark | Five paired synthetic Linux CI observations | End-to-end serving speedup |
+| October 20 four-phase Ollama study | 36 operator-collected timed runs; private consistency PASS; [public descriptive aggregate](benchmarks/experiments/2026-10-20-ollama-parallelism-abab.md) | Reproducible or causal speedup; independent B1-time slots / continuous A2 AC |\n| October 18 Go parsing microbenchmark | Five paired synthetic Linux CI observations | End-to-end serving speedup |
 | P1–P6 Portfolio v1.0 release | **Not finished**; see [release gates](PORTFOLIO_V1_ACCEPTANCE.md) | A tagged v1.0 release, hosted product, completed screenshots or authorized public service |
 
 ## What to discuss in an AI Infrastructure interview
