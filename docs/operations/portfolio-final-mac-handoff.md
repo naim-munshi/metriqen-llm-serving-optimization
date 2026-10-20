@@ -84,10 +84,16 @@ sanitized and explicitly attributed to the observed hardware, run date,
 model revision, quantization, software versions and number of repeats.
 
 For a bounded Metriqen-controlled FIFO queue-policy overload candidate,
-see the [queue-depth 0 vs 2 protocol and strict offline tradeoff review](../benchmarks/admission-overload.md).
-It counts every HTTP 429, reports success and latency together, and does
-not substitute for human-reviewed independent model-quality and thermal
-observations. A negative result is valid engineering evidence; do not
+see the [queue-depth 0 vs 2 protocol, guarded per-phase Mac collector and strict offline tradeoff review](../benchmarks/admission-overload.md).
+The `tools.benchmark.admission_phase` CLI performs fail-closed AC/digest/
+gateway-queue preflight, 12 timed overload runs and separate 36-answer
+quality capture for each manually configured phase, with an additional
+power/config check afterward. The operator must preserve actual n_slots
+logs and use **unchanged** Ollama parallelism in both conditions; the
+collector does not manage processes or authenticate uninterrupted power.
+The review counts every HTTP 429 and reports success and latency together;
+neither helper substitutes for human-reviewed independent model-quality
+and thermal observations or establishes P3 success. A negative result is valid engineering evidence; do not
 claim a queue speedup merely because Go unit tests pass.
 
 For any separate **Metriqen-controlled** optimization, run the
