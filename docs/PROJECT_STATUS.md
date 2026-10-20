@@ -36,11 +36,13 @@ For the current source-linked portfolio scope and release blockers, start with t
 
 CI validates public transcription arithmetic and synthetic report contracts, not the private raw inference measurements. No causal or general optimization claim is justified.
 
-### Unpublished operator-local follow-ups
+### October 20 operator-local four-phase A/B/A/B replication
 
-Additional Oct 13 A2 and Oct 14 A1 sweeps, variability checks, and a separate battery-powered 36-question quality evaluation are reported by the developer. They were not consolidated into a controlled, public four-phase A/B/A/B dataset, and the October 14 battery quality run must **not** be presented as a matched AC-controlled experiment. Reports remain Git-ignored under `reports/local/`.
+The operator reported fresh A1/B1/A2/B2 collection on an Apple M2 with Ollama 0.40.6, same pinned `llama3.2:1b` Q8_0, 36 total timed runs, **1,296/1,296 measured requests successful**, and 144 reference-quality completions. Four phase finalizers and the strict offline four-phase consistency reviewer returned PASS on private saved reports; the [sanitized October 20 aggregate](benchmarks/experiments/2026-10-20-ollama-parallelism-abab.md) explicitly shows **reversed throughput effects at C=1 and C=2**, −48.69% B1→B2 same-setting throughput drift at C=2, and unchanged narrow quality string scores.
 
-No new public benchmark figure should be added unless its provenance and limitations are independently checked against source reports.
+B1 benchmark-time model slots are not independently preserved, and uninterrupted AC power during A2 collection was not established. Actual GPU execution and thermal stability are not cryptographically attested. **This is descriptive evidence, not a verified causal speedup or human-approved P2 gate.** Raw reports remain private and Git-ignored.
+
+Older Oct 13/14 follow-up sweeps and the separate battery-powered quality smoke remain distinct historical observations; they are **not** folded into the new October 20 four-phase experiment.
 
 ### Model-quality regression smoke — October 14, 2026
 

@@ -1,0 +1,171 @@
+{
+  "schema_version": 1,
+  "kind": "operator_transcribed_local_abab_aggregate",
+  "experiment_date": "2026-10-20",
+  "provenance": {
+    "classification": "descriptive_replication_only",
+    "private_four_phase_consistency_passed": true,
+    "raw_private_source": "Operator-reported tools.benchmark.four_phase_review output (not checked in)",
+    "github_ci_revalidates_actual_mac_execution": false,
+    "independent_active_slots_or_power_attested": false,
+    "causal_speedup_verified": false,
+    "p2_portfolio_human_accepted": false
+  },
+  "model": {
+    "tag": "llama3.2:1b",
+    "digest": "baf6a787fdffd633537aa2eb51cfd54cb93ff08e28040095462bb63daf552878",
+    "quantization": "Q8_0"
+  },
+  "environment": {
+    "host_self_reported": "Apple M2 Metal",
+    "ollama_server_version_self_reported": "0.40.6"
+  },
+  "methodology": {
+    "phases": {
+      "A1": 1,
+      "B1": 2,
+      "A2": 1,
+      "B2": 2
+    },
+    "offered_concurrency": [
+      1,
+      2,
+      4
+    ],
+    "repeats_per_concurrency_per_phase": 3,
+    "measured_requests_per_run": 36,
+    "successful_measured_requests": 1296,
+    "failed_measured_requests": 0,
+    "quality_samples_per_phase": 36,
+    "benchmark_dataset_sha256": "6c209cd4008d0cd0d34356931934a8881361c121b52a4069916100342ef943d3",
+    "quality_dataset_sha256": "5bda762c02bb5bc419ed7a2657c2ab17ec90bdd4239d9feeffe1d289de0f8ffc",
+    "metrics_are_medians_of_run_summaries": true
+  },
+  "quality": {
+    "exact_match_per_phase": {
+      "A1": 0.8611,
+      "B1": 0.8611,
+      "A2": 0.8611,
+      "B2": 0.8611
+    },
+    "normalized_exact_match_per_phase": {
+      "A1": 0.9167,
+      "B1": 0.9167,
+      "A2": 0.9167,
+      "B2": 0.9167
+    },
+    "semantic_quality_attested": false
+  },
+  "metrics_by_concurrency": {
+    "1": {
+      "phase_medians": {
+        "A1": {
+          "requests_per_second_run_median": 0.276,
+          "output_tokens_per_second_run_median": 29.033,
+          "latency_p95_ms_run_median": 4827.802,
+          "ttft_p95_ms_run_median": 212.612
+        },
+        "B1": {
+          "requests_per_second_run_median": 0.364,
+          "output_tokens_per_second_run_median": 38.359,
+          "latency_p95_ms_run_median": 3428.776,
+          "ttft_p95_ms_run_median": 225.042
+        },
+        "A2": {
+          "requests_per_second_run_median": 0.372,
+          "output_tokens_per_second_run_median": 39.123,
+          "latency_p95_ms_run_median": 3610.325,
+          "ttft_p95_ms_run_median": 320.051
+        },
+        "B2": {
+          "requests_per_second_run_median": 0.288,
+          "output_tokens_per_second_run_median": 30.369,
+          "latency_p95_ms_run_median": 4375.48,
+          "ttft_p95_ms_run_median": 819.445
+        }
+      },
+      "throughput_delta_pct_reported": {
+        "A1_to_B1": 32.12,
+        "A2_to_B2": -22.36,
+        "A1_to_A2_drift": 34.73,
+        "B1_to_B2_drift": -20.83
+      }
+    },
+    "2": {
+      "phase_medians": {
+        "A1": {
+          "requests_per_second_run_median": 0.302,
+          "output_tokens_per_second_run_median": 31.771,
+          "latency_p95_ms_run_median": 8673.188,
+          "ttft_p95_ms_run_median": 4678.616
+        },
+        "B1": {
+          "requests_per_second_run_median": 0.724,
+          "output_tokens_per_second_run_median": 76.388,
+          "latency_p95_ms_run_median": 3883.006,
+          "ttft_p95_ms_run_median": 318.581
+        },
+        "A2": {
+          "requests_per_second_run_median": 0.402,
+          "output_tokens_per_second_run_median": 42.36,
+          "latency_p95_ms_run_median": 6709.839,
+          "ttft_p95_ms_run_median": 3514.913
+        },
+        "B2": {
+          "requests_per_second_run_median": 0.371,
+          "output_tokens_per_second_run_median": 39.075,
+          "latency_p95_ms_run_median": 8134.189,
+          "ttft_p95_ms_run_median": 3810.405
+        }
+      },
+      "throughput_delta_pct_reported": {
+        "A1_to_B1": 139.79,
+        "A2_to_B2": -7.73,
+        "A1_to_A2_drift": 33.33,
+        "B1_to_B2_drift": -48.69
+      }
+    },
+    "4": {
+      "phase_medians": {
+        "A1": {
+          "requests_per_second_run_median": 0.271,
+          "output_tokens_per_second_run_median": 28.474,
+          "latency_p95_ms_run_median": 16973.611,
+          "ttft_p95_ms_run_median": 15341.74
+        },
+        "B1": {
+          "requests_per_second_run_median": 0.651,
+          "output_tokens_per_second_run_median": 68.657,
+          "latency_p95_ms_run_median": 7630.157,
+          "ttft_p95_ms_run_median": 3826.127
+        },
+        "A2": {
+          "requests_per_second_run_median": 0.375,
+          "output_tokens_per_second_run_median": 39.459,
+          "latency_p95_ms_run_median": 11834.951,
+          "ttft_p95_ms_run_median": 9344.574
+        },
+        "B2": {
+          "requests_per_second_run_median": 0.432,
+          "output_tokens_per_second_run_median": 45.615,
+          "latency_p95_ms_run_median": 11533.174,
+          "ttft_p95_ms_run_median": 7494.735
+        }
+      },
+      "throughput_delta_pct_reported": {
+        "A1_to_B1": 140.52,
+        "A2_to_B2": 15.34,
+        "A1_to_A2_drift": 38.56,
+        "B1_to_B2_drift": -33.55
+      }
+    }
+  },
+  "limitations": [
+    "B1 benchmark-time actual n_slots not independently preserved",
+    "A2 continuous AC throughout collection not verified",
+    "B2 battery-blocked preflight was corrected before collection; uninterrupted AC and thermal state unverified",
+    "No independent hardware/GPU execution attestation",
+    "Large B1 to B2 drift and reversed candidate effects at C=1 and C=2",
+    "Three repeats per concurrency do not establish statistical significance"
+  ]
+}
