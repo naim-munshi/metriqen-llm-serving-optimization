@@ -63,10 +63,10 @@ class GuardedAdmissionPhaseTests(unittest.TestCase):
             self.collect("A")
             self.collect("B")
         self.assertEqual(pre.call_count, 4)
-        self.assertEqual(snap.call_count, 2)
+        self.assertEqual(snap.call_count, 4)
         self.assertEqual(load.call_count, 2)
         self.assertEqual(quality.call_count, 2)
-        self.assertEqual([x.args[1] for x in snap.call_args_list], [0, 2])
+        self.assertEqual([x.args[1] for x in snap.call_args_list], [0, 0, 2, 2])
         for phase, depth in (("A", "0"), ("B", "2")):
             args = next(call.args[0] for call in load.call_args_list
                         if call.args[0][call.args[0].index("--expected-queue-depth") + 1] == depth)
