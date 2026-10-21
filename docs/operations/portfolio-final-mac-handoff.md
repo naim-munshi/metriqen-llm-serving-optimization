@@ -27,8 +27,12 @@ or claim memory/quality/GPU metrics that were not measured.
    ```
 
    The Makefile defaults to `python3`, not the sometimes-absent macOS `python`;
-   set `PYTHON=/absolute/path/to/python3` to override. Go and Node must also
-   be installed. PostgreSQL/Redis CI jobs on GitHub use ephemeral
+   set `PYTHON=/absolute/path/to/python3` to override. If HTTPS package
+   installation fails due to an untrusted PyPI TLS certificate, follow the
+   [secure Mac pip certificate diagnosis](macos-python-tls.md) instead of
+   disabling SSL verification. The hosted CI validates Python 3.13; the
+   operator Mac currently has Python 3.14, which is not yet independently
+   verified. Go and Node must also be installed. PostgreSQL/Redis CI jobs on GitHub use ephemeral
    isolated services; local `make` alone does **not** recreate those
    integrations unless the operator starts them separately.
 3. Inspect repository `SECURITY.md` and keep all UIs, APIs, Ollama,
@@ -165,6 +169,11 @@ and [operator recovery checklist](local-inference.md).
   data redaction review, CI SHA and the recovery observations.
 
 ## F. P6 — release review and license decision
+
+Follow the [owner-operated repository branch hygiene procedure](repository-branch-hygiene.md)
+for an audit-before-prune cleanup of stale merged PR branches. No
+branch-ref cleanup is a substitute for local P1–P5 evidence; never delete
+unmerged unique commits as a release shortcut.
 
 1. Update `README.md`, [engineering case study](../PORTFOLIO_CASE_STUDY.md)
    and `CHANGELOG.md` with only verified operator evidence, actual

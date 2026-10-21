@@ -1,0 +1,62 @@
+name: Manual branch hygiene
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Audit only by default; pruning is destructive'
+        type: choice
+        options:
+          - audit
+          - prune
+        required: true
+        default: audit
+      confirmation:
+        description: 'For prune only, type DELETE_VERIFIED_MERGED_BRANCHES'
+        type: string
+        default: ''
+        required: false
+
+concurrency:
+  group: manual-branch-hygiene
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  audit:
+    if: inputs.mode == 'audit'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+      - name: Read-only audit
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/branch_hygiene.py --mode audit
+
+  prune:
+    if: inputs.mode == 'prune'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+      - name: Recheck merged heads and prune only after explicit confirmation
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: python scripts/branch_hygiene.py --mode prune --confirm "$CONFIRMATION"
