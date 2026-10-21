@@ -19,6 +19,8 @@ KEY_DOCUMENTS = (
     "docs/operations/real-ollama-portfolio-acceptance.md",
     "docs/operations/local-console.md",
     "docs/operations/portfolio-final-mac-handoff.md",
+    "docs/operations/macos-python-tls.md",
+    "docs/operations/repository-branch-hygiene.md",
 )
 
 INLINE_LINK = re.compile(r"(?<!!)\[[^\]]+\]\(([^\s)]+)(?:\s+[^)]*)?\)")
