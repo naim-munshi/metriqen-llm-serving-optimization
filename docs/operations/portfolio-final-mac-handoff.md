@@ -27,8 +27,12 @@ or claim memory/quality/GPU metrics that were not measured.
    ```
 
    The Makefile defaults to `python3`, not the sometimes-absent macOS `python`;
-   set `PYTHON=/absolute/path/to/python3` to override. Go and Node must also
-   be installed. PostgreSQL/Redis CI jobs on GitHub use ephemeral
+   set `PYTHON=/absolute/path/to/python3` to override. If HTTPS package
+   installation fails due to an untrusted PyPI TLS certificate, follow the
+   [secure Mac pip certificate diagnosis](macos-python-tls.md) instead of
+   disabling SSL verification. The hosted CI validates Python 3.13; the
+   operator Mac currently has Python 3.14, which is not yet independently
+   verified. Go and Node must also be installed. PostgreSQL/Redis CI jobs on GitHub use ephemeral
    isolated services; local `make` alone does **not** recreate those
    integrations unless the operator starts them separately.
 3. Inspect repository `SECURITY.md` and keep all UIs, APIs, Ollama,
