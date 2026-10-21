@@ -54,7 +54,7 @@ def classify(repo: str, default_branch: str, branches: list[dict],
         if not isinstance(name, str) or not isinstance(sha, str):
             raise ValueError("malformed branch response: missing ref or head SHA")
         if (name == default_branch or name in PRESERVE_NAMES
-                or name.startswith(PRESERVE_PREFIXES) or branch.get("protected") is True):
+                or name.startswith(PRESERVE_PREFIXES) or branch.get("protected") is not False):
             manual.append((name, "protected or deliberately preserved"))
             continue
         pr = merged_heads.get((name, sha))
