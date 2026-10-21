@@ -93,15 +93,11 @@ independent hardware attestation or a production security audit.
   commit digests. This is CI infrastructure maintenance, not model or
   latency performance evidence; validate all 11 jobs on current main.
 
-### P3 FIFO policy comparison preparation
+### P3 FIFO policy comparison and observed admission tradeoffs
 
-- Added a guarded **operator-only** P3 A/B collector combining real Mac AC/model/digest/process-config preflight, live gateway queue-capacity check, 12-run overload sweep, separate 36-answer quality evaluation and postflight checks. It never changes processes, authenticates n_slots or asserts a speedup; offline synthetic tests cover battery/configuration blocks and private reports. Original A/B real-model execution and human P3 acceptance remain pending.\n- Added strict offline `tools.benchmark.admission_tradeoff` analysis for
-  real, operator-produced queue depth 0 versus 2 overload sweeps. All four
-  offered concurrency levels include observed successes, HTTP 429s, goodput
-  and successful-only p95/TTFT changes. It revalidates raw observations,
-  rejects mismatched model/dataset/configuration, and never reports a
-  proven speedup, completed P3 or answer-quality parity. No real new Mac
-  FIFO A/B experiment is claimed.
+- Added guarded **operator-only** P3 A/B collector: Mac AC/model/digest/process-config preflight, live gateway queue-capacity checks, 12-run overload sweep per phase, 36-answer quality evaluation and postflight. It never changes processes, authenticates GPU/runtime slots, or asserts a speedup.
+- Added strict offline `tools.benchmark.admission_tradeoff` review of all measured request outcomes and HTTP 429s, goodput, successful-only p95 latency/TTFT and gateway admission counters. It rejects mismatched experimental configurations; does not automatically approve P3.
+- **October 21 operator-observed FIFO study:** queue depth 0 vs 2, unchanged Ollama configured parallelism 2, 864 total measured requests, 72 separate reference-quality completions; private collector and offline evidence-consistency checks PASS. [Sanitized descriptive aggregate](docs/benchmarks/experiments/2026-10-21-fifo-admission-overload.md) shows completed admissions increased **144→252 of 432** and observed 429s decreased **288→180**, while **goodput regressed at all concurrency levels**, and overloaded successful-only p95/TTFT generally increased. Narrow quality scores matched. Uninterrupted power/thermals, independent runtime attestation, operator privacy approval and formal P3 sign-off remain open. **No Metriqen inference-speedup claim.**
 
 ### Inference integrity and telemetry
 
