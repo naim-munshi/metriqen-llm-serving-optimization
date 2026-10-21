@@ -5,9 +5,10 @@ created automatically. All identity and permission decisions are server-side.
 """
 from __future__ import annotations
 
+import hashlib
 from uuid import UUID, uuid4
 
-from sqlalchemy import Engine, func, insert, select
+from sqlalchemy import Engine, func, insert, select, text
 from sqlalchemy.engine import Connection
 
 from app.security.oidc import VerifiedIdentity
@@ -49,8 +50,16 @@ class SQLWorkspaceStore:
 
     def create_organization(self, identity: VerifiedIdentity, name: str) -> dict:
         new_id = uuid4()
-        # A single transaction guarantees no orphan org or ownerless tenant.
+        # An issuer/subject can create organizations concurrently through
+        # independent API replicas. A stable user-row lock is unavailable for
+        # the first organization, so lock the verified principal transactionally.
         with self.engine.begin() as conn:
+            if conn.dialect.name == "postgresql":
+                principal = (identity.issuer + "\0" + identity.subject).encode("utf-8")
+                key = int.from_bytes(hashlib.sha256(principal).digest()[:8],
+                                     "big", signed=True)
+                conn.execute(text("SELECT pg_advisory_xact_lock(:key)"),
+                             {"key": key})
             count = conn.execute(select(func.count()).select_from(organization_memberships).where(
                 organization_memberships.c.issuer == identity.issuer,
                 organization_memberships.c.subject == identity.subject,
@@ -83,6 +92,14 @@ class SQLWorkspaceStore:
                        organization_id: UUID, name: str) -> dict:
         project_id = uuid4()
         with self.engine.begin() as conn:
+            # Lock the shared organization row, not only this requester's
+            # membership: multiple admins can race the same tenant's cap.
+            # Preserve team-operation lock order (organization, membership).
+            org = conn.execute(select(organizations.c.id).where(
+                organizations.c.id == organization_id,
+            ).with_for_update()).scalar_one_or_none()
+            if org is None:
+                raise WorkspaceNotFound
             membership = self._membership(conn, identity, organization_id, lock=True)
             if not is_allowed(membership, Permission.PROJECT_CREATE,
                               Resource(organization_id=organization_id)):

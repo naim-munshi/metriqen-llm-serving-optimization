@@ -81,6 +81,22 @@ def test_unauthenticated_denied_before_any_runtime_calls(sandbox):
     assert client.get("/api/v1/local/models", headers=headers).status_code == 200
 
 
+def test_duplicate_operator_authorization_fields_are_rejected(sandbox):
+    """No ambiguous credential selection even when one token is valid."""
+    client, _, fake, _ = sandbox
+    path = "/api/v1/local/available-models"
+    for headers in (
+        [("Authorization", f"Bearer {TOKEN}"),
+         ("Authorization", "Bearer invalid")],
+        [("Authorization", "Bearer invalid"),
+         ("Authorization", f"Bearer {TOKEN}")],
+        [("Authorization", f"Bearer {TOKEN}"),
+         ("Authorization", f"Bearer {TOKEN}")],
+    ):
+        assert client.get(path, headers=headers).status_code == 401
+    assert fake.calls == 0
+
+
 def test_nonloopback_request_denied_even_with_valid_token(sandbox):
     client, headers, fake, _ = sandbox
     remote = TestClient(client.app, client=("192.0.2.50", 54321))

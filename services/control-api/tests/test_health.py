@@ -11,6 +11,8 @@ def test_liveness() -> None:
     assert response.json() == {"service": "metriqen-control-api", "status": "ok"}
     assert response.headers["cache-control"] == "no-store"
     assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["x-frame-options"] == "DENY"
+    assert response.headers["referrer-policy"] == "no-referrer"
 
 
 def test_readiness() -> None:

@@ -208,8 +208,12 @@ def local_model_router(token: str, store: Registry, runtime: LocalModelRuntime,
     def operator(request: Request) -> None:
         if request.client is None or request.client.host not in LOOPBACK_CLIENTS:
             raise HTTPException(403, "local operator routes require loopback")
-        authorization = request.headers.get("Authorization", "")
-        if not authorization.startswith("Bearer ") or not secrets.compare_digest(authorization[7:], token):
+        # Reject ambiguous duplicate Authorization fields. Reverse proxies
+        # and the application must agree on exactly one credential.
+        values = request.headers.getlist("authorization")
+        if (len(values) != 1 or len(values[0]) != len(token) + 7
+                or not values[0].startswith("Bearer ")
+                or not secrets.compare_digest(values[0][7:], token)):
             raise HTTPException(401, "local operator token required", headers={"WWW-Authenticate": "Bearer"})
 
     router = APIRouter(prefix="/api/v1/local", tags=["local-models"], dependencies=[Depends(operator)])
