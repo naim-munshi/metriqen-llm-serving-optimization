@@ -137,7 +137,7 @@ def main(argv: list[str] | None = None) -> int:
         confirm_mode(args.mode, args.confirm)
         repo = os.environ.get("GITHUB_REPOSITORY", "")
         github = GitHub(repo, os.environ.get("GITHUB_TOKEN", ""))
-        metadata = github.get("")
+        metadata = github.request(f"/repos/{repo}")
         default = metadata.get("default_branch")
         if not isinstance(default, str) or not default:
             raise ValueError("missing default branch metadata")
