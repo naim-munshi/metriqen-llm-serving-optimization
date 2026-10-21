@@ -16,8 +16,19 @@ or claim memory/quality/GPU metrics that were not measured.
 1. On the Mac, `git pull --ff-only origin main` and record the exact
    `git rev-parse HEAD` commit. Check `go version`, `python3 --version`,
    `ollama --version` and available disk/RAM.
-2. Run `make portfolio-ci` if the Mac has Python dependencies, Go and
-   Node installed. PostgreSQL/Redis CI jobs on GitHub use ephemeral
+2. On macOS, create/activate a dedicated environment and install the control
+   API development dependencies before `make portfolio-ci` (Python 3.12+):
+
+   ```sh
+   python3 -m venv .venv
+   . .venv/bin/activate
+   python3 -m pip install -e './services/control-api[dev]'
+   make portfolio-ci
+   ```
+
+   The Makefile defaults to `python3`, not the sometimes-absent macOS `python`;
+   set `PYTHON=/absolute/path/to/python3` to override. Go and Node must also
+   be installed. PostgreSQL/Redis CI jobs on GitHub use ephemeral
    isolated services; local `make` alone does **not** recreate those
    integrations unless the operator starts them separately.
 3. Inspect repository `SECURITY.md` and keep all UIs, APIs, Ollama,

@@ -79,6 +79,15 @@ class PortfolioDocumentationContracts(unittest.TestCase):
 
 
 
+    def test_portfolio_makefile_uses_python3_on_macos(self):
+        """Check CLI portability; dependencies still require explicit installation."""
+        makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+        self.assertIn("PYTHON ?= python3", makefile)
+        self.assertIn("cd services/control-api && $(PYTHON) -m pytest -q", makefile)
+        self.assertIn("$(PYTHON) -m unittest discover", makefile)
+        self.assertNotIn("&& python -m pytest", makefile)
+        self.assertNotIn("\\n\\tpython -m unittest", makefile)
+
     def test_fifo_observed_tradeoff_is_linked_and_not_misrepresented(self):
         """Source-only documentation checks; cannot authenticate Mac execution."""
         path = "docs/benchmarks/experiments/2026-10-21-fifo-admission-overload.md"
