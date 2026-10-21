@@ -5,6 +5,8 @@ metriqen_ci database on 127.0.0.1. No SQLite substitutes, remote database,
 automatic app startup migration, external IdP or production credentials.
 """
 import base64
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 from datetime import datetime, timedelta, timezone
 import os
 from pathlib import Path
@@ -15,16 +17,17 @@ import psycopg
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, inspect, insert, select, update
+from sqlalchemy import delete, func, inspect, insert, select, update
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
 
 from app.main import create_app
 from app.security.http_identity import PinnedIdentitySettings
+from app.security.oidc import VerifiedIdentity
 from app.security.policy import Role
 from app.storage.runtime import load_local_project_store
 from app.storage.profiles import SQLProfileStore
-from app.storage.workspaces import SQLWorkspaceStore
+from app.storage.workspaces import SQLWorkspaceStore, WorkspaceLimitReached
 from app.storage.schema import (
     organizations, projects, organization_memberships, project_grants, user_profiles,
 )
@@ -414,3 +417,69 @@ def test_real_postgres_inference_authorization_checks_current_project_membership
         ))
     assert post(PROJECT_A).status_code == 404
     assert post(PROJECT_A2).status_code == 404
+
+
+def test_concurrent_organization_creation_enforces_principal_limit(postgres_engine):
+    """PostgreSQL transactional advisory lock must serialize first-org inserts."""
+    identity = VerifiedIdentity(issuer=ISSUER, subject="limit-owner",
+                                audience=AUDIENCE)
+    store = SQLWorkspaceStore(postgres_engine)
+    store.MAX_ORGANIZATIONS = 1  # Isolated test cap; no production changes.
+    start = Barrier(6)
+
+    def create_one(number):
+        start.wait(timeout=10)
+        try:
+            store.create_organization(identity, f"Organization {number}")
+            return "created"
+        except WorkspaceLimitReached:
+            return "limit"
+
+    with ThreadPoolExecutor(max_workers=6) as workers:
+        results = list(workers.map(create_one, range(6)))
+    assert results.count("created") == 1
+    assert results.count("limit") == 5
+    with postgres_engine.connect() as conn:
+        rows = conn.execute(select(organizations.c.id)).all()
+        owners = conn.execute(select(organization_memberships.c.organization_id).where(
+            organization_memberships.c.subject == identity.subject,
+            organization_memberships.c.role == Role.OWNER.value,
+        )).all()
+    assert len(rows) == len(owners) == 1
+
+
+def test_concurrent_owner_and_admin_project_creation_enforces_shared_org_limit(postgres_engine):
+    """Lock the tenant row across independent members; no 101st project race."""
+    owner = VerifiedIdentity(issuer=ISSUER, subject="quota-owner",
+                             audience=AUDIENCE)
+    admin = VerifiedIdentity(issuer=ISSUER, subject="quota-admin",
+                             audience=AUDIENCE)
+    store = SQLWorkspaceStore(postgres_engine)
+    store.MAX_PROJECTS_PER_ORGANIZATION = 1
+    org_id = UUID(store.create_organization(owner, "Shared organization")["id"])
+    with postgres_engine.begin() as conn:
+        conn.execute(insert(organization_memberships).values(
+            issuer=ISSUER, subject=admin.subject, organization_id=org_id,
+            role=Role.ADMIN.value,
+        ))
+    start = Barrier(6)
+
+    def create_one(number):
+        start.wait(timeout=10)
+        try:
+            store.create_project(
+                owner if number % 2 == 0 else admin, org_id, f"Project {number}"
+            )
+            return "created"
+        except WorkspaceLimitReached:
+            return "limit"
+
+    with ThreadPoolExecutor(max_workers=6) as workers:
+        results = list(workers.map(create_one, range(6)))
+    assert results.count("created") == 1
+    assert results.count("limit") == 5
+    with postgres_engine.connect() as conn:
+        count = conn.execute(select(func.count()).select_from(projects).where(
+            projects.c.organization_id == org_id,
+        )).scalar_one()
+    assert count == 1
