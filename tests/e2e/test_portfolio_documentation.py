@@ -79,6 +79,23 @@ class PortfolioDocumentationContracts(unittest.TestCase):
 
 
 
+    def test_fifo_observed_tradeoff_is_linked_and_not_misrepresented(self):
+        """Source-only documentation checks; cannot authenticate Mac execution."""
+        path = "docs/benchmarks/experiments/2026-10-21-fifo-admission-overload.md"
+        report = (ROOT / path).read_text(encoding="utf-8")
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        acceptance = (ROOT / "docs/PORTFOLIO_V1_ACCEPTANCE.md").read_text(encoding="utf-8")
+        changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+        for phrase in ("144/432", "252/432", "288", "180", "n_slots",
+                       "p95", "TTFT", "human P3 acceptance pending"):
+            self.assertIn(phrase.lower(), report.lower())
+        self.assertIn(path, readme)
+        self.assertIn("2026-10-21-fifo-admission-overload.md", acceptance)
+        self.assertIn("2026-10-21-fifo-admission-overload.md", changelog)
+        self.assertIn("goodput fell at every", report)
+        self.assertIn("causal_speedup_verified: false", report)
+        self.assertNotIn(r"\n- Added strict offline", changelog)
+
     def test_operator_handoff_preserves_all_six_release_gates(self):
         guide = (ROOT / "docs/operations/portfolio-final-mac-handoff.md").read_text(
             encoding="utf-8")
