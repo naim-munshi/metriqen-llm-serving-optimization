@@ -92,7 +92,7 @@ class PortfolioDocumentationContracts(unittest.TestCase):
         self.assertIn(path, readme)
         self.assertIn("2026-10-21-fifo-admission-overload.md", acceptance)
         self.assertIn("2026-10-21-fifo-admission-overload.md", changelog)
-        self.assertIn("goodput fell at every", report)
+        self.assertIn("did not improve successful-request goodput", report)
         self.assertIn("causal_speedup_verified: false", report)
         self.assertNotIn(r"\n- Added strict offline", changelog)
 
