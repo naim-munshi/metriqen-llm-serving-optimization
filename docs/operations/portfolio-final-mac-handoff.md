@@ -170,6 +170,11 @@ and [operator recovery checklist](local-inference.md).
 
 ## F. P6 — release review and license decision
 
+Follow the [owner-operated repository branch hygiene procedure](repository-branch-hygiene.md)
+for an audit-before-prune cleanup of stale merged PR branches. No
+branch-ref cleanup is a substitute for local P1–P5 evidence; never delete
+unmerged unique commits as a release shortcut.
+
 1. Update `README.md`, [engineering case study](../PORTFOLIO_CASE_STUDY.md)
    and `CHANGELOG.md` with only verified operator evidence, actual
    screenshots and versioned benchmark aggregate reports.
