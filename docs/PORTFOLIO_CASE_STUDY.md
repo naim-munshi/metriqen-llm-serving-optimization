@@ -189,6 +189,12 @@ same-setting drift and limitations](benchmarks/experiments/2026-10-20-ollama-par
 The October 13 study above remains a **separate historical experiment**,
 not additional independent replications of this study.
 
+### October 21, 2026 — Metriqen-owned FIFO admission tradeoff
+
+The operator reported a fresh **real local** depth-0 versus depth-2 Go admission experiment with unchanged configured Ollama parallelism 2, the same pinned `llama3.2:1b` Q8_0 model, and 432 measured requests plus 36 narrow quality checks per condition. The private strict A/B raw-evidence reviewer returned descriptive consistency PASS. Completed requests rose **144/432 → 252/432**; client-observed HTTP 429s fell **288 → 180**. However, **successful goodput fell at each tested C=4/6/8/12**, and successful-only p95 latency and TTFT rose substantially when overloaded. Both phases recorded 31/36 exact and 33/36 normalized reference matches. These are separate experimental results from Ollama's earlier `OLLAMA_NUM_PARALLEL` configurations and the Go CPU parsing microbenchmark. [All four concurrency levels, uncertainty, and adverse tradeoffs](benchmarks/experiments/2026-10-21-fifo-admission-overload.md).
+
+**Interpretation:** B improved observed acceptance under the offered concurrency workload; it did **not** speed up inference. Successful-only latency is biased by heavy baseline rejection, and uncontrolled thermal/temporal drift is a serious confounder. The FIFO queue remains opt-in, there is no causal-speedup claim, and formal P3 acceptance is pending independent private counter/configuration review.
+
 ## Metriqen-controlled optimization — CPU-only request parsing
 
 A separate **synthetic hosted Linux Go microbenchmark** compared the

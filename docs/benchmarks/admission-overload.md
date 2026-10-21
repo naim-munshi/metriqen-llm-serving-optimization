@@ -1,6 +1,6 @@
 # Local FIFO admission overload comparison
 
-**Status:** protocol + instrumentation; no benchmark result or optimization claim.
+**Status:** protocol + instrumentation, followed by an [October 21 operator-reported A/B descriptive result](experiments/2026-10-21-fifo-admission-overload.md). The private offline consistency reviewer passed, but candidate B's observed goodput was worse at every tested concurrency and formal P3 acceptance remains open. **No causal speedup or optimization claim.**
 
 This runs against the **real loopback Go gateway** and locally operated Ollama.
 Unlike the strict 1/2/4 sweep, a 429 rejection is an EXPECTED observation,
