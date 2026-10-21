@@ -1,7 +1,8 @@
 """Offline guards for manual GitHub branch cleanup. No API requests."""
 import unittest
+from unittest.mock import patch
 
-from scripts.branch_hygiene import Candidate, CONFIRMATION, classify, confirm_mode
+from scripts.branch_hygiene import Candidate, CONFIRMATION, GitHub, classify, confirm_mode
 
 
 REPO = "naim-munshi/metriqen-llm-serving-optimization"
@@ -66,6 +67,35 @@ class BranchHygieneContracts(unittest.TestCase):
     def test_malformed_response_aborts_rather_than_guessing(self):
         with self.assertRaises(ValueError):
             classify(REPO, "main", [{"name": "feat/odd", "commit": {}}], [])
+
+    def test_missing_protection_metadata_is_fail_closed(self):
+        branch = {"name": "feat/unknown", "commit": {"sha": "A"}}
+        matches, manual = classify(
+            REPO, "main", [branch], [merged_pr("feat/unknown", "A")]
+        )
+        self.assertEqual(matches, [])
+        self.assertEqual(manual[0][0], "feat/unknown")
+
+    def test_delete_revalidates_sha_and_protection_before_api_call(self):
+        gh = GitHub(REPO, "fake-unit-test-token")
+        candidate = Candidate("feat/safe", "1234", 42)
+        with (patch.object(gh, "get", return_value={
+                "name": "feat/safe",
+                "commit": {"sha": "5678"},
+                "protected": False,
+        }), patch.object(gh, "get_delete") as delete):
+            with self.assertRaisesRegex(ValueError, "changed/protected"):
+                gh.delete_verified(candidate)
+            delete.assert_not_called()
+
+        with (patch.object(gh, "get", return_value={
+                "name": "feat/safe",
+                "commit": {"sha": "1234"},
+                "protected": True,
+        }), patch.object(gh, "get_delete") as delete):
+            with self.assertRaises(ValueError):
+                gh.delete_verified(candidate)
+            delete.assert_not_called()
 
     def test_prune_requires_exact_confirmation_phrase(self):
         confirm_mode("audit", "")
