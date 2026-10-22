@@ -14,6 +14,24 @@ Do not post credentials, exploit details, or private data in public issues. Use 
 - The readiness routes currently check process availability only; they do not validate external dependencies.
 - Verified production identity-provider login, deployed PostgreSQL tenant persistence, production ingress and complete business-route RBAC, TLS termination, project rate limits and tamper-evident/retained audit are NOT implemented. Internal transactional team audit storage exists but is not an append-only, production-grade audit service. A narrow identity route and project-read RBAC seam exist; the latter is **disabled by default**, with an explicit loopback-only PostgreSQL opt-in for trusted storage. An isolated PostgreSQL 16 migration-backed CI job now exists; it is not a deployed database or IdP integration. The inference gateway now has an opt-in, loopback-only project authorization check; unconfigured legacy inference is still unauthenticated. Do not expose these services to a network.
 
+## Local FastAPI Host-header validation (development only)
+
+The deployed `app.main:app` ASGI entrypoint validates the canonical HTTP
+`Host` **and loopback peer address** before serving opt-in `/auth/*`,
+`/console/account*`, `/console/models*` or `/api/v1/local/*` routes.
+It accepts `127.0.0.1`, `localhost` or `[::1]` with a canonical TCP
+port; unknown/duplicate Host headers fail closed with HTTP 421. The
+health/readiness endpoints keep their existing health-only container contract.
+This is a defense against localhost DNS-rebinding risk, not HTTPS or a
+production browser authorization solution.
+
+**Important:** Custom code that directly mounts `create_app()` as a web
+server must explicitly use `enforce_local_http_host=True` when enabling
+the local browser/operator feature. The factory default remains permissive
+only to preserve isolated synthetic test fixtures; the repository's deployed
+`app.main:app` enables the guard. Do not expose developer-mode routes
+to untrusted networks or assume a custom ASGI factory inherits the guard.
+
 ## Opt-in local model management
 
 The local model manager's single-turn chat API checks approved and loaded exact model digests and forwards only to the fixed loopback Go gateway. It never forwards the operator token as a gateway credential. The independently accessible Go inference endpoint can now require a separate OIDC bearer token and PostgreSQL-authorized project in explicit opt-in mode, but existing model-manager calls are not automatically integrated with that mode. The local model manager's static UI is enabled alongside the operator model routes; it ships restrictive CSP and never persists the entered operator token in browser storage. Its API operations still require the loopback caller and bearer token. The development-only FastAPI model registry endpoints are disabled unless both a local operator bearer token and an absolute SQLite path are configured. The routes verify loopback caller address and the token before consulting private local data or native Ollama. They do not extend the OIDC project identity boundary, enforce admission in the Go gateway, lock mutable Ollama tags at runtime, provision remote models or provide production deployment authorization. Never enable them beyond loopback or expose the local token.

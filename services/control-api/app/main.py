@@ -6,7 +6,7 @@ project RBAC, local operator management and Redis controls require independent
 trusted configuration. Never expose this development API publicly.
 """
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 
 from app.security.http_identity import (
     PinnedIdentitySettings,
@@ -15,6 +15,7 @@ from app.security.http_identity import (
 )
 from app.security.project_access import ProjectAccessStore, read_authorized_project
 from app.storage.runtime import load_local_project_store
+from app.security.local_host import is_local_only_path, valid_local_request_host
 from app.local_models import configure_local_models
 from app.accounts import profile_router
 from app.storage.profiles import ProfileStore, SQLProfileStore
@@ -51,6 +52,7 @@ def create_app(
     project_output_reservations: RedisProjectOutputReservations | None = None,
     deployment_routing_store: SQLDeploymentRoutingStore | None = None,
     require_deployment_routing: bool = False,
+    enforce_local_http_host: bool = False,
 ) -> FastAPI:
     """Create isolated app instances; trusted stores are explicitly injected."""
     if project_quota is not None and (
@@ -89,6 +91,27 @@ def create_app(
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"
         return response
+
+    if enforce_local_http_host:
+        # The real ASGI app opts in below. Factory-created unit fixtures keep
+        # their synthetic host unless explicitly testing this security gate.
+        # Health-only routes stay usable behind their existing container setup.
+        @application.middleware("http")
+        async def enforce_loopback_host(request: Request, call_next):
+            if (is_local_only_path(request.url.path)
+                    and not valid_local_request_host(request)):
+                return Response(
+                    content="Untrusted local request host",
+                    status_code=421,
+                    media_type="text/plain",
+                    headers={
+                        "Cache-Control": "no-store",
+                        "X-Content-Type-Options": "nosniff",
+                        "X-Frame-Options": "DENY",
+                        "Referrer-Policy": "no-referrer",
+                    },
+                )
+            return await call_next(request)
 
     @application.get("/health/live", tags=["operations"])
     def live() -> dict[str, str]:
@@ -173,4 +196,5 @@ app = create_app(
     deployment_routing_store=(SQLDeploymentRoutingStore(_configured_project_store._engine)
                               if _configured_project_store is not None else None),
     require_deployment_routing=load_deployment_routing_mode(),
+    enforce_local_http_host=True,
 )
