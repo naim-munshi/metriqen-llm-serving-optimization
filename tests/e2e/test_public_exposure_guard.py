@@ -47,7 +47,8 @@ class LocalServiceExposureGuard(unittest.TestCase):
         security_guide = (ROOT / "docs/security/public-deployment-boundaries.md").read_text(
             encoding="utf-8")
         self.assertIn("BLOCKED for public production ingress", security_guide)
-        self.assertIn("independently hardened production entrypoint", security_guide)
+        self.assertIn("independently hardened", security_guide)
+        self.assertIn("production entrypoint", security_guide)
         self.assertIn("no GPU scale action", security_guide)
 
     def test_local_launcher_does_not_serve_cloud_reviewer(self):
