@@ -138,6 +138,15 @@ This is **not** integrated JWT/RBAC or permission to expose the service.
 
 [Local shared-secret configuration and limits](docs/operations/local-bearer-token.md)
 
+## Public HTTPS hosting is not enabled
+
+The current Metriqen browser sessions, local operator tools, Go gateway and
+Ollama backend are **development-only**. Do not expose ports 8000/8081
+publicly or assume Google-login code/CI implies a production SaaS.
+The [public deployment boundaries](docs/security/public-deployment-boundaries.md)
+and offline CI exposure guard specify required separate HTTPS, identity,
+PostgreSQL/Redis, project isolation and private GPU readiness acceptance.
+
 ## GPU worker sizing policy (offline only)
 
 A new [provider-neutral scaling policy](docs/operations/gpu-autoscaling-policy.md)
