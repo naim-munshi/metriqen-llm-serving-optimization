@@ -34,7 +34,7 @@ function hasVisibleText(node, fragment) {
       && hasVisibleText(child, fragment));
 }
 
-function fakeBrowser() {
+function fakeBrowser(role="owner") {
   const byId = new Map();
   const requests = [];
   const document = {
@@ -46,7 +46,7 @@ function fakeBrowser() {
     querySelectorAll() { return []; },
   };
   const org = {id:"11111111-1111-4111-8111-111111111111",
-    name:"Owner workspace",role:"owner"};
+    name:"Owner workspace",role};
   const responses = {
     "/auth/session": {authenticated:false},
     "/auth/organizations": {organizations:[org]},
@@ -96,3 +96,32 @@ test("View projects cannot detach the visible owner Manage team panel",async()=>
   assert.equal(browser.requests.some(x=>x.includes("chat/completions")),false);
 });
 
+
+test("non-creator roles can view projects but never see Create project controls",async()=>{
+  for (const role of ["viewer","developer","ml_engineer",
+                      "deployment_operator","auditor"]) {
+    const browser=fakeBrowser(role);
+    await vm.runInContext("refreshWorkspaces()",browser.ctx);
+    const card=browser.byId.get("workspace-list").children[0];
+    const heading=card.children[0];
+    assert.equal(heading.children.some(node=>node.textContent==="Manage team"),false);
+    const view=heading.children.find(node=>node.textContent==="View projects");
+    assert.ok(view);
+    await view.handlers.click();
+    assert.equal(hasVisibleText(card,"Create project in Owner workspace"),false,
+      "Unauthorized UI control exposed to "+role);
+    assert.equal(browser.requests.some(url=>url.includes("chat/completions")),false);
+  }
+});
+
+test("owner and admin retain the project creation form",async()=>{
+  for (const role of ["owner","admin"]) {
+    const browser=fakeBrowser(role);
+    await vm.runInContext("refreshWorkspaces()",browser.ctx);
+    const card=browser.byId.get("workspace-list").children[0];
+    const view=card.children[0].children.find(x=>x.textContent==="View projects");
+    await view.handlers.click();
+    assert.equal(hasVisibleText(card,"Create project in Owner workspace"),true,
+      "Creator UI missing for "+role);
+  }
+});

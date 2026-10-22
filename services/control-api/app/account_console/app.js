@@ -156,40 +156,44 @@ async function refreshWorkspaces() {
           items.append(makeNode("li", "", project.name));
         }
         detail.append(items);
-        const form = makeNode("form", "project-form");
-        const label = makeNode("label", "", "Create project in " + org.name);
-        const input = document.createElement("input");
-        input.setAttribute("aria-label", "Project name in " + org.name);
-        input.maxLength = 200;
-        input.required = true;
-        input.placeholder = "Project name";
-        const create = makeNode("button", "button primary workspace-action", "Create project");
-        create.type = "submit";
-        form.append(label, input, create);
-        form.addEventListener("submit", async event => {
-          event.preventDefault();
-          if (busy) return;
-          const name = input.value.trim();
-          if (!name) return;
-          setBusy(true);
-          try {
-            await jsonRequest("/auth/organizations/" +
-              encodeURIComponent(org.id) + "/projects", "POST", {name}, true);
-            input.value = "";
-            status("Project created in " + org.name + ".");
-            const fresh = await jsonRequest("/auth/organizations/" +
-              encodeURIComponent(org.id) + "/projects");
-            items.replaceChildren();
-            for (const project of fresh.projects) {
-              items.append(makeNode("li", "", project.name));
+        // A navigation aid, not an authorization boundary: the API checks
+        // current database roles/grants on every project creation request.
+        if (org.role === "owner" || org.role === "admin") {
+          const form = makeNode("form", "project-form");
+          const label = makeNode("label", "", "Create project in " + org.name);
+          const input = document.createElement("input");
+          input.setAttribute("aria-label", "Project name in " + org.name);
+          input.maxLength = 200;
+          input.required = true;
+          input.placeholder = "Project name";
+          const create = makeNode("button", "button primary workspace-action", "Create project");
+          create.type = "submit";
+          form.append(label, input, create);
+          form.addEventListener("submit", async event => {
+            event.preventDefault();
+            if (busy) return;
+            const name = input.value.trim();
+            if (!name) return;
+            setBusy(true);
+            try {
+              await jsonRequest("/auth/organizations/" +
+                encodeURIComponent(org.id) + "/projects", "POST", {name}, true);
+              input.value = "";
+              status("Project created in " + org.name + ".");
+              const fresh = await jsonRequest("/auth/organizations/" +
+                encodeURIComponent(org.id) + "/projects");
+              items.replaceChildren();
+              for (const project of fresh.projects) {
+                items.append(makeNode("li", "", project.name));
+              }
+            } catch (error) {
+              status(error instanceof Error ? error.message : "Project creation failed", true);
+            } finally {
+              setBusy(false);
             }
-          } catch (error) {
-            status(error instanceof Error ? error.message : "Project creation failed", true);
-          } finally {
-            setBusy(false);
-          }
-        });
-        detail.append(form);
+          });
+          detail.append(form);
+        }
       } catch (error) {
         status(error instanceof Error ? error.message : "Project list unavailable", true);
       } finally {
