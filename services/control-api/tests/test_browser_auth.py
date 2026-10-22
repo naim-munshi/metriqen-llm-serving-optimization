@@ -393,3 +393,144 @@ def test_account_ui_exposes_workspace_controls_as_safe_dom_text(fixture):
     assert 'document.createElement(tag)' in script
     assert "innerHTML" not in script
     assert "localStorage" not in script
+
+
+def test_google_provider_exact_endpoints_secret_and_no_cross_origin_override(fixture):
+    """Google endpoint exception never permits arbitrary OAuth hosts."""
+    from dataclasses import replace
+    from app.browser_auth import (
+        GOOGLE_ISSUER, GOOGLE_AUTH_URL, GOOGLE_TOKEN_URL,
+    )
+    _, _, _, _, local_identity = fixture
+    identity = replace(local_identity, issuer=GOOGLE_ISSUER)
+    google = BrowserAuthSettings(
+        authorization_url=GOOGLE_AUTH_URL, token_url=GOOGLE_TOKEN_URL,
+        client_id=CLIENT, client_secret="synthetic-google-client-secret-123",
+        identity=identity, provider="google",
+    )
+    for changes in (
+        {"authorization_url": "https://attacker.example.test/authorize"},
+        {"authorization_url": GOOGLE_AUTH_URL + "?redirect=attacker"},
+        {"token_url": "https://evil.example.test/token"},
+        {"token_url": GOOGLE_TOKEN_URL + "#fragment"},
+        {"client_secret": None},
+        {"provider": "not-google"},
+    ):
+        with pytest.raises(ValueError):
+            replace(google, **changes)
+    with pytest.raises(ValueError):
+        replace(google, identity=local_identity)
+    # Existing generic dedicated-jwt path retains issuer-origin restriction.
+    with pytest.raises(ValueError):
+        replace(google, provider="dedicated-jwt")
+
+
+def test_google_id_token_bff_login_with_opaque_google_access_token(fixture):
+    """Offline synthetic Google OIDC flow: opaque OAuth access != API JWT."""
+    from dataclasses import replace
+    from app.browser_auth import (
+        GOOGLE_ISSUER, GOOGLE_AUTH_URL, GOOGLE_TOKEN_URL,
+    )
+    _, _, _, _, local_identity = fixture
+    private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    pub = private.public_key().public_numbers()
+    identity = replace(
+        local_identity, issuer=GOOGLE_ISSUER,
+        trusted_jwks={"keys": [{
+            "kty": "RSA", "kid": "google-synthetic-kid", "alg": "RS256",
+            "use": "sig", "n": to_b64(pub.n), "e": to_b64(pub.e),
+        }]},
+    )
+    opts = BrowserAuthSettings(
+        authorization_url=GOOGLE_AUTH_URL, token_url=GOOGLE_TOKEN_URL,
+        client_id=CLIENT, client_secret="synthetic-google-client-secret-123",
+        identity=identity, provider="google",
+    )
+    cache = FakeRedis()
+
+    class GoogleFixtureExchange:
+        wrong_nonce = False
+        wrong_issuer = False
+
+        def exchange(self, code, verifier):
+            assert code == "synthetic-google-code" and len(verifier) > 43
+            assert cache.consumed is not None
+            now = datetime.now(timezone.utc)
+            body = {
+                "iss": "https://attacker.example.test" if self.wrong_issuer else GOOGLE_ISSUER,
+                "sub": "google-stable-subject-123", "aud": CLIENT,
+                "nonce": "tampered" if self.wrong_nonce else cache.consumed["nonce"],
+                "iat": now - timedelta(seconds=5),
+                "exp": now + timedelta(minutes=5),
+            }
+            return {
+                "id_token": jwt.encode(body, private, algorithm="RS256",
+                                       headers={"kid": "google-synthetic-kid", "typ": "JWT"}),
+                "access_token": "opaque-google-oauth-token-not-for-metriqen",
+            }
+
+    exchange = GoogleFixtureExchange()
+    login = BrowserLogin(opts, BrowserSessionStore(cache), exchange)
+    client = TestClient(create_app(identity, browser_login=login),
+                        client=("127.0.0.1", 50600))
+    start = client.get("/auth/login", follow_redirects=False)
+    assert start.status_code == 302
+    auth_url = urlsplit(start.headers["location"])
+    assert auth_url.scheme == "https" and auth_url.netloc == "accounts.google.com"
+    params = parse_qs(auth_url.query)
+    assert params["code_challenge_method"] == ["S256"]
+    state = params["state"][0]
+    callback = client.get("/auth/callback", params={"code": "synthetic-google-code",
+                                                    "state": state}, follow_redirects=False)
+    assert callback.status_code == 303
+    session = client.get("/auth/session").json()
+    assert session["authenticated"] is True
+    assert session["subject"] == "google-stable-subject-123"
+    assert session["issuer"] == GOOGLE_ISSUER
+    assert "opaque-google-oauth-token" not in str(cache.values)
+    # A Google ID token remains disallowed as the distinct API bearer JWT.
+    id_token = exchange.exchange("synthetic-google-code", "v"*48)["id_token"]
+    assert client.get("/api/v1/identity",
+                      headers={"Authorization": "Bearer " + id_token}).status_code == 401
+    assert client.get("/auth/callback", params={"code": "synthetic-google-code",
+                                                "state": state}).status_code == 401
+    assert client.post("/auth/logout", headers=browser_headers(session["csrf"])).status_code == 204
+    assert client.get("/auth/session").json() == {"authenticated": False}
+
+    for wrong_field in ("wrong_nonce", "wrong_issuer"):
+        setattr(exchange, wrong_field, True)
+        start = client.get("/auth/login", follow_redirects=False)
+        bad_state = parse_qs(urlsplit(start.headers["location"]).query)["state"][0]
+        bad = client.get("/auth/callback", params={"code": "synthetic-google-code",
+                                                  "state": bad_state}, follow_redirects=False)
+        assert bad.status_code == 401
+        assert client.get("/auth/session").json() == {"authenticated": False}
+        setattr(exchange, wrong_field, False)
+
+
+def test_google_provider_configuration_is_explicit(fixture, monkeypatch):
+    from dataclasses import replace
+    from app.browser_auth import GOOGLE_ISSUER, GOOGLE_AUTH_URL, GOOGLE_TOKEN_URL
+    _, _, _, _, original = fixture
+    identity = replace(original, issuer=GOOGLE_ISSUER)
+    config = {
+        "METRIQEN_BROWSER_PROVIDER": "google",
+        "METRIQEN_BROWSER_AUTH_URL": GOOGLE_AUTH_URL,
+        "METRIQEN_BROWSER_TOKEN_URL": GOOGLE_TOKEN_URL,
+        "METRIQEN_BROWSER_REDIS_URL":
+            "redis://session_user:at-least-16-bytes-of-secret@127.0.0.1:6379/0",
+        "METRIQEN_BROWSER_CLIENT_SECRET": "synthetic-google-client-secret-123",
+    }
+    import app.browser_auth as auth_module
+    monkeypatch.setattr(auth_module.redis.Redis, "from_url",
+                        lambda *_args, **_kwargs: FakeRedis())
+    google = browser_configured(config, identity)
+    assert google.settings.provider == "google"
+    assert browser_configured({}, identity) is None
+    for bad in (
+        {**config, "METRIQEN_BROWSER_CLIENT_SECRET": ""},
+        {**config, "METRIQEN_BROWSER_TOKEN_URL": "https://attacker.test/token"},
+        {"METRIQEN_BROWSER_PROVIDER": "google"},
+    ):
+        with pytest.raises(ValueError):
+            browser_configured(bad, identity)

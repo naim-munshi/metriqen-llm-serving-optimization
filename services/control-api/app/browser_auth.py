@@ -52,6 +52,10 @@ BROWSER_ENV = (
     "METRIQEN_BROWSER_REDIS_URL",
 )
 OPTIONAL_SECRET = "METRIQEN_BROWSER_CLIENT_SECRET"
+PROVIDER_ENV = "METRIQEN_BROWSER_PROVIDER"
+GOOGLE_ISSUER = "https://accounts.google.com"
+GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,12 +65,24 @@ class BrowserAuthSettings:
     client_id: str
     client_secret: str | None
     identity: PinnedIdentitySettings
+    provider: str = "dedicated-jwt"
 
     def __post_init__(self):
+        if self.provider not in ("dedicated-jwt", "google"):
+            raise ValueError("unsupported browser identity provider")
+        if self.provider == "google":
+            # Google's documented issuer and token endpoint have different
+            # fixed origins. This exception is *only* for these exact URLs.
+            if (self.identity.issuer != GOOGLE_ISSUER
+                    or self.authorization_url != GOOGLE_AUTH_URL
+                    or self.token_url != GOOGLE_TOKEN_URL
+                    or not self.client_secret):
+                raise ValueError("Google OIDC requires pinned provider URLs and a web client secret")
         issuer = urlsplit(self.identity.issuer)
         for value in (self.authorization_url, self.token_url):
             address = urlsplit(value)
-            if (address.scheme != "https" or address.netloc != issuer.netloc
+            if (address.scheme != "https"
+                    or (self.provider != "google" and address.netloc != issuer.netloc)
                     or not address.path.startswith("/") or address.path == "/"
                     or address.username or address.password or address.query
                     or address.fragment or len(value) > 2048):
@@ -83,7 +99,8 @@ def browser_configured(env: Mapping[str, str] | None,
     variables = os.environ if env is None else env
     values = [variables.get(k, "") for k in BROWSER_ENV]
     secret = variables.get(OPTIONAL_SECRET, "")
-    if not any(values) and not secret:
+    provider = variables.get(PROVIDER_ENV, "dedicated-jwt")
+    if not any(values) and not secret and provider == "dedicated-jwt":
         return None
     if not all(values) or identity is None:
         raise ValueError("OIDC browser configuration is incomplete")
@@ -91,7 +108,7 @@ def browser_configured(env: Mapping[str, str] | None,
         authorization_url=values[0], token_url=values[1],
         client_id=identity.authorized_party,
         client_secret=secret or None,
-        identity=identity,
+        identity=identity, provider=provider,
     )
     url = urlsplit(values[2])
     if (url.scheme != "redis" or url.hostname != "127.0.0.1"
@@ -205,8 +222,10 @@ class BrowserLogin:
     def validate_tokens(self, tokens: dict, nonce: str) -> VerifiedIdentity:
         id_token = tokens.get("id_token")
         access_token = tokens.get("access_token")
-        if (not isinstance(id_token, str) or not isinstance(access_token, str)
-                or len(id_token) > TOKEN_LIMIT or len(access_token) > TOKEN_LIMIT):
+        if (not isinstance(id_token, str) or len(id_token) > TOKEN_LIMIT
+                or (self.settings.provider != "google"
+                    and (not isinstance(access_token, str)
+                         or len(access_token) > TOKEN_LIMIT))):
             raise HTTPException(401, "trusted OIDC login verification failed")
         try:
             header = jwt.get_unverified_header(id_token)
@@ -234,6 +253,15 @@ class BrowserLogin:
                     or isinstance(claims.get("aud"), list) and
                     (len(claims["aud"]) != 1 or claims["aud"][0] != self.settings.client_id)):
                 raise ValueError("invalid subject, nonce or audience")
+            if self.settings.provider == "google":
+                # A Google OAuth access token belongs to Google APIs. Never
+                # repurpose it for Metriqen's dedicated at+jwt API boundary.
+                # Redis stores only the verified subject and opaque session.
+                return VerifiedIdentity(
+                    issuer=self.settings.identity.issuer,
+                    subject=claims["sub"],
+                    audience=self.settings.identity.audience,
+                )
             token_header = jwt.get_unverified_header(access_token)
             if token_header.get("typ", "").upper() != "AT+JWT":
                 raise ValueError("OIDC API access-token type invalid")
