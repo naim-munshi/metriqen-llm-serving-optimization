@@ -102,7 +102,9 @@ class PortfolioDocumentationContracts(unittest.TestCase):
             "127.0.0.1:8000", "no model download",
         ):
             self.assertIn(phrase.lower(), contents.lower())
-        self.assertNotIn("ollama pull", contents)
+        # A diagnostic may recommend a manual pull, but the launcher must not
+        # execute an automatic model download on the operator's behalf.
+        self.assertNotIn("\nollama pull ", contents)
         self.assertNotIn("--trusted-host", contents)
         self.assertNotIn("0.0.0.0:8000", contents)
         self.assertNotIn("0.0.0.0:8081", contents)
