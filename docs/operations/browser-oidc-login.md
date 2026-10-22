@@ -33,6 +33,16 @@ With fully configured identity and Redis, open:
   A repeated/expired callback cannot create a new session, and a revoked
   session immediately loses access.
 
+## Google sign-in compatibility (explicit local opt-in)
+
+A separate `METRIQEN_BROWSER_PROVIDER=google` option now accepts Google's
+**verified ID token** for browser-session creation; it does not treat
+Google OAuth access tokens as Metriqen API JWTs. Google's pinned token
+endpoint belongs to another Google-owned host, and exact endpoint
+allowlisting is enforced. The existing dedicated `at+jwt` identity
+provider mode remains the default. See [Google localhost setup and security
+limits](google-oidc-local.md). **This is not a hosted Google-login launch.**
+
 ## Exact configuration
 
 Everything remains **disabled by default**, with no extra pages or auth
