@@ -236,6 +236,14 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 		decoder.DisallowUnknownFields()
 		var nextRequest *http.Request
 		var lease *projectLeaseGrant
+		// Release a syntactically valid distributed permit on every exit,
+		// including a rejected authorization response. Otherwise an already
+		// acquired permit may exhaust Redis capacity until its crash TTL.
+		defer func() {
+			if a.leaseEnabled && lease.valid() {
+				a.releaseLease(*lease)
+			}
+		}()
 		var outputReservationRequired bool
 		if a.requireDeployment {
 			var decision struct {
@@ -248,7 +256,9 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 				Lease                     *projectLeaseGrant `json:"lease,omitempty"`
 				OutputReservationRequired bool               `json:"output_reservation_required,omitempty"`
 			}
-			if err := decoder.Decode(&decision); err != nil ||
+			decodeErr := decoder.Decode(&decision)
+			lease = decision.Lease
+			if decodeErr != nil ||
 				!decision.Authorized || decision.ProjectID != projects[0] ||
 				decision.Deployment != deployment || decision.Generation < 1 ||
 				!validModelTag(decision.ModelTag) ||
@@ -256,7 +266,6 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 				denyProjectAuth(w, http.StatusServiceUnavailable)
 				return
 			}
-			lease = decision.Lease
 			outputReservationRequired = decision.OutputReservationRequired
 			nextRequest = r.WithContext(context.WithValue(r.Context(),
 				deploymentBindingKey{}, deploymentBinding{
@@ -269,12 +278,13 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 				Lease                     *projectLeaseGrant `json:"lease,omitempty"`
 				OutputReservationRequired bool               `json:"output_reservation_required,omitempty"`
 			}
-			if err := decoder.Decode(&decision); err != nil ||
+			decodeErr := decoder.Decode(&decision)
+			lease = decision.Lease
+			if decodeErr != nil ||
 				!decision.Authorized || decision.ProjectID != projects[0] {
 				denyProjectAuth(w, http.StatusServiceUnavailable)
 				return
 			}
-			lease = decision.Lease
 			outputReservationRequired = decision.OutputReservationRequired
 			nextRequest = r
 		}
@@ -291,18 +301,12 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 		}
 		var remaining any
 		if err := decoder.Decode(&remaining); !errors.Is(err, io.EOF) {
-			if a.leaseEnabled && lease.valid() {
-				a.releaseLease(*lease)
-			}
 			denyProjectAuth(w, http.StatusServiceUnavailable)
 			return
 		}
 		if a.tokenBudgetEnabled != outputReservationRequired {
 			// A partially enabled API/gateway combination cannot drop
 			// output reservations while still serving inference.
-			if a.leaseEnabled && lease.valid() {
-				a.releaseLease(*lease)
-			}
 			denyProjectAuth(w, http.StatusServiceUnavailable)
 			return
 		}
@@ -314,7 +318,6 @@ func (a *projectAuthorizer) protect(next http.HandlerFunc) http.HandlerFunc {
 			// safe without a real serving process kill switch.
 			executionCtx, end := context.WithTimeout(nextRequest.Context(), projectLeaseDeadline)
 			defer end()
-			defer a.releaseLease(*lease)
 			requestCtx := executionCtx
 			if a.tokenBudgetEnabled {
 				requestCtx = context.WithValue(executionCtx,
