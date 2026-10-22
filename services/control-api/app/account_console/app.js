@@ -118,12 +118,14 @@ async function refreshWorkspaces() {
                 makeNode("p", "description", "Role: " + org.role));
     const view = makeNode("button", "button secondary workspace-action", "View projects");
     view.type = "button";
+    // Project and team panels are independent. Refreshing the project list
+    // must not detach an already open Team Management panel from the DOM.
     const detail = makeNode("div", "workspace-projects");
+    const teamDetails = makeNode("div", "workspace-projects");
     heading.append(meta, view);
     if (org.role === "owner" || org.role === "admin") {
       const manage = makeNode("button", "button secondary workspace-action", "Manage team");
       manage.type = "button";
-      const teamDetails = makeNode("div", "workspace-projects");
       manage.addEventListener("click", async () => {
         if (busy) return;
         setBusy(true);
@@ -136,9 +138,11 @@ async function refreshWorkspaces() {
         }
       });
       heading.append(manage);
-      detail.append(teamDetails);
     }
     card.append(heading, detail);
+    if (org.role === "owner" || org.role === "admin") {
+      card.append(teamDetails);
+    }
     view.addEventListener("click", async () => {
       if (busy) return;
       setBusy(true);
