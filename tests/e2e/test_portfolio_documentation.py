@@ -81,6 +81,35 @@ class PortfolioDocumentationContracts(unittest.TestCase):
 
 
 
+    def test_local_demo_launcher_is_syntactically_valid_and_stays_private(self):
+        """Offline contract only: no Mac, Ollama, model or browser is run in CI."""
+        import subprocess
+
+        path = ROOT / "scripts/start-local-demo.sh"
+        contents = path.read_text(encoding="utf-8")
+        result = subprocess.run(["bash", "-n", str(path)], capture_output=True,
+                                text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for phrase in (
+            "set -euo pipefail", "umask 077",
+            '[[ "$(uname -s)" == "Darwin" ]]',
+            'METRIQEN_UPSTREAM_URL="$OLLAMA_URL"',
+            "METRIQEN_QUEUE_DEPTH=0",
+            "METRIQEN_LOCAL_MODEL_TOKEN=",
+            "METRIQEN_LOCAL_MODEL_DB=",
+            "--host 127.0.0.1 --port 8000",
+            "operator token", "model preload", "127.0.0.1:8081",
+            "127.0.0.1:8000", "no model download",
+        ):
+            self.assertIn(phrase.lower(), contents.lower())
+        # A diagnostic may recommend a manual pull, but the launcher must not
+        # execute an automatic model download on the operator's behalf.
+        self.assertNotIn("\nollama pull ", contents)
+        self.assertNotIn("--trusted-host", contents)
+        self.assertNotIn("0.0.0.0:8000", contents)
+        self.assertNotIn("0.0.0.0:8081", contents)
+        self.assertNotIn("curl -k ", contents)
+
     def test_portfolio_makefile_uses_python3_on_macos(self):
         """Check CLI portability; dependencies still require explicit installation."""
         makefile = (ROOT / "Makefile").read_text(encoding="utf-8")

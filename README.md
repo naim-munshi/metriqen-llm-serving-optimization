@@ -138,6 +138,23 @@ This is **not** integrated JWT/RBAC or permission to expose the service.
 
 [Local shared-secret configuration and limits](docs/operations/local-bearer-token.md)
 
+## One-command local demo (Mac)
+
+With the project's virtual environment installed and the `llama3.2:1b`
+weights already present locally, start or reuse the loopback Ollama, Go
+gateway and opt-in Model Manager using:
+
+```bash
+bash scripts/start-local-demo.sh
+```
+
+The script opens `http://127.0.0.1:8081/console` and
+`http://127.0.0.1:8000/console/models`, retains a private operator
+token, preloads the installed model, and checks one real local inference.
+It does **not** auto-approve a model, create OIDC users, expose public
+services, benchmark a speedup or sign off P1–P6.
+See [macOS demo startup and failure handling](docs/operations/start-local-demo.md).
+
 ## Quickstart — local inference
 
 **Requirements:** Go 1.23+; locally installed [Ollama](https://ollama.com/) with `llama3.2:1b` pulled. Python 3.12+ is used for analysis and tests. All traffic must remain on localhost.
