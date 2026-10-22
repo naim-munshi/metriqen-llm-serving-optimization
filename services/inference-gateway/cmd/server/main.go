@@ -38,6 +38,10 @@ func main() {
 	if err != nil {
 		log.Fatal("invalid local inference upstream configuration")
 	}
+	// Binding to 127.0.0.1 alone does not prevent DNS rebinding attacks:
+	// browsers can connect to loopback while presenting an attacker Host.
+	// Require a canonical loopback Host at the real server entry point.
+	router = secureGatewayHandler(addr, upstream, router)
 	server := &http.Server{
 		Addr:              addr,
 		Handler:           router,
@@ -78,4 +82,37 @@ func listenerAllowed(addr, upstream string) bool {
 		return false
 	}
 	return hostname == "127.0.0.1" || hostname == "localhost" || hostname == "::1"
+}
+
+ 
+// secureGatewayHandler intentionally leaves the health-only container's
+// externally bound endpoint unchanged. Inference mode is a localhost-only
+// development service and rejects DNS rebinding and wrong-port Host headers.
+func secureGatewayHandler(addr, upstream string, next http.Handler) http.Handler {
+	if upstream == "" {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, bindPort, err := net.SplitHostPort(addr)
+		if err != nil || !trustedLocalHost(r.Host, bindPort) {
+			w.Header().Set("Cache-Control", "no-store")
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			http.Error(w, "Untrusted local request host", http.StatusMisdirectedRequest)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// Never resolve client-controlled hostnames. Even a hostname that currently
+// resolves to 127.0.0.1 is untrusted: it may be controlled by a remote site.
+func trustedLocalHost(requestHost, expectedPort string) bool {
+	if expectedPort == "" {
+		return false
+	}
+	host, port, err := net.SplitHostPort(requestHost)
+	if err != nil || port != expectedPort {
+		return false
+	}
+	return host == "127.0.0.1" || host == "::1" || host == "localhost"
 }
