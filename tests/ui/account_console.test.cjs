@@ -50,10 +50,10 @@ function fakeBrowser() {
   const responses = {
     "/auth/session": {authenticated:false},
     "/auth/organizations": {organizations:[org]},
-    "/auth/organizations/"+org.id+"/members": {members:[]},
-    "/auth/organizations/"+org.id+"/projects": {projects:[]},
-    "/auth/organizations/"+org.id+"/invitations": {invitations:[]},
-    "/auth/organizations/"+org.id+"/audit": {events:[]},
+    ["/auth/organizations/"+org.id+"/members"]: {members:[]},
+    ["/auth/organizations/"+org.id+"/projects"]: {projects:[]},
+    ["/auth/organizations/"+org.id+"/invitations"]: {invitations:[]},
+    ["/auth/organizations/"+org.id+"/audit"]: {events:[]},
   };
   const fetch = async (url,options) => {
     requests.push(url);
