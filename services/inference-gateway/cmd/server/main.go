@@ -84,7 +84,6 @@ func listenerAllowed(addr, upstream string) bool {
 	return hostname == "127.0.0.1" || hostname == "localhost" || hostname == "::1"
 }
 
-
 // secureGatewayHandler intentionally leaves the health-only container's
 // externally bound endpoint unchanged. Inference mode is a localhost-only
 // development service and rejects DNS rebinding and wrong-port Host headers.
