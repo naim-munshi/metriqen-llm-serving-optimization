@@ -47,7 +47,11 @@ def test_local_assets_operator_and_browser_auth_guarded_before_handler(monkeypat
         assert client.get("/console/models").status_code == 200
         assert client.get("/console/account").status_code == 200
         assert client.get("/api/v1/local/models").status_code == 401
-        assert client.get("/auth/session").status_code == 401
+        # An anonymous session-status probe is intentionally public; it must
+        # report authenticated=false, not a misleading 401 or active session.
+        session_response = client.get("/auth/session")
+        assert session_response.status_code == 200
+        assert session_response.json() == {"authenticated": False}
 
         for path in ("/console/models", "/console/account", "/auth/session",
                      "/api/v1/local/models"):
