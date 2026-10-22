@@ -138,6 +138,15 @@ This is **not** integrated JWT/RBAC or permission to expose the service.
 
 [Local shared-secret configuration and limits](docs/operations/local-bearer-token.md)
 
+## GPU worker sizing policy (offline only)
+
+A new [provider-neutral scaling policy](docs/operations/gpu-autoscaling-policy.md)
+can calculate a **recommended** GPU worker count from trusted aggregate
+queue, in-flight, cooldown, idle-time and estimated spending limits. It is
+fully offline, runs in source CI, and **never** provisions GPU resources.
+Provider-side authenticated scaling, actual GPU workers, account billing
+limits, public HTTPS and real multi-user access are **not implemented**.
+
 ## One-command local demo (Mac)
 
 With the project's virtual environment installed and the `llama3.2:1b`
