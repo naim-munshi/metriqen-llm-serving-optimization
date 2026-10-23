@@ -13,6 +13,7 @@ KEY_DOCUMENTS = (
     "README.md",
     "CHANGELOG.md",
     "docs/PORTFOLIO_CASE_STUDY.md",
+    "docs/PORTFOLIO_INTERVIEW_GUIDE.md",
     "docs/PORTFOLIO_V1_ACCEPTANCE.md",
     "docs/PROJECT_STATUS.md",
     "docs/operations/portfolio-local-reviewer-journey.md",
@@ -67,6 +68,17 @@ class PortfolioDocumentationContracts(unittest.TestCase):
         self.assertIn("2026-10", changes)
         for id in (69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 82):
             self.assertIn(f"/pull/{id}", changes)
+
+    def test_recruiter_guide_does_not_turn_synthetic_results_into_release_claims(self):
+        guide = (ROOT / "docs/PORTFOLIO_INTERVIEW_GUIDE.md").read_text(encoding="utf-8")
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        for phrase in ("144/432", "252/432", "1,296",
+                       "no causal", "real Safari", "GPU",
+                       "v1.0", "TTFT", "P1", "P6"):
+            self.assertIn(phrase.lower(), guide.lower())
+        self.assertIn("docs/PORTFOLIO_INTERVIEW_GUIDE.md", readme)
+        self.assertIn("not released v1.0", guide.lower())
+        self.assertIn("Do **not** say", guide)
 
     def test_readme_and_historical_status_point_to_authoritative_release_criteria(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
