@@ -7,6 +7,7 @@ Dry-run by default. Live mode only targets the existing loopback gateway.
 from __future__ import annotations
 
 import argparse
+import hashlib
 from datetime import datetime, timezone
 import json
 import os
@@ -21,6 +22,7 @@ from tools.benchmark import gateway_overhead, runner
 
 ROOT = Path(__file__).resolve().parents[2]
 PRIVATE = ROOT / "reports" / "local"
+EXPERIMENT_BINARY = PRIVATE / "sse-abab-gateway"
 DATASET = ROOT / "docs" / "benchmarks" / "workload.v1.jsonl"
 ENDPOINT = "http://127.0.0.1:8081/v1/chat/completions"
 PHASE_BUFFER = {"A1": 1024, "B1": 4096, "A2": 1024, "B2": 4096}
@@ -45,8 +47,33 @@ def _capture(argv: list[str]) -> str:
     return p.stdout
 
 
+def _verified_experiment_binary() -> tuple[Path, str]:
+    """Require the one owner-built regular executable at the fixed private path.
+
+    A file hash does not prove which Git source commit or bytes are mapped
+    into RAM; the operator must still attest the build and runtime.
+    """
+    binary = EXPERIMENT_BINARY
+    if (binary.is_symlink() or binary.parent != PRIVATE or
+            not binary.is_file()):
+        raise PhaseRefused("experiment_binary_missing_or_untrusted")
+    st = binary.stat()
+    if (not stat.S_ISREG(st.st_mode) or not st.st_mode & 0o111 or
+            not 0 < st.st_size <= 128 * 1024 * 1024):
+        raise PhaseRefused("experiment_binary_not_executable_or_bounded")
+    digest = hashlib.sha256()
+    try:
+        with binary.open("rb") as source:
+            for block in iter(lambda: source.read(65536), b""):
+                digest.update(block)
+    except OSError:
+        raise PhaseRefused("experiment_binary_unreadable") from None
+    return binary.resolve(strict=True), digest.hexdigest()
+
+
 def inspect_gateway() -> dict:
-    """Observe one active Go gateway listener and only its explicit SSE setting."""
+    """Require the PID's actual executable, not merely its SSE environment."""
+
     raw = _capture(["lsof", "-nP", "-t", "-iTCP:8081", "-sTCP:LISTEN"])
     values = raw.split()
     if len(values) != 1 or not values[0].isdigit():
@@ -54,6 +81,20 @@ def inspect_gateway() -> dict:
     pid = int(values[0])
     if pid < 2:
         raise PhaseRefused("invalid_gateway_pid")
+    expected_binary, actual_sha = _verified_experiment_binary()
+    # On macOS, lsof -F n reports the text vnode path for the running
+    # executable. An old "go run" build-cache executable is NOT the
+    # predeclared standalone binary, even if its env defaults to 1 KiB.
+    files = _capture(["lsof", "-nP", "-a", "-p", str(pid),
+                      "-d", "txt", "-F", "n"])
+    text_paths = [line[1:] for line in files.splitlines() if line.startswith("n")]
+    if str(expected_binary) not in text_paths:
+        raise PhaseRefused("gateway_not_running_expected_binary")
+    # Guard accidental public exposure during the operator experiment.
+    listener = _capture(["lsof", "-nP", "-a", "-p", str(pid),
+                         "-iTCP:8081", "-sTCP:LISTEN", "-F", "n"])
+    if "n127.0.0.1:8081" not in listener.splitlines():
+        raise PhaseRefused("gateway_listener_not_loopback")
     process = _capture(["ps", "eww", "-p", str(pid)])
     found = _ENV.findall(process)
     if len(found) > 1 or (found and found[0] != "4096"):
@@ -62,8 +103,10 @@ def inspect_gateway() -> dict:
         "pid": pid,
         "buffer_bytes": 4096 if found else 1024,
         "evidence": "process_env_4096" if found else "env_unset_assumed_default",
-        # Absence is not verifiable proof that this binary uses the
-        # current source's default. Operator must inspect binary SHA.
+        "binary_path_verified": True,
+        "binary_sha256": actual_sha,
+        # Hash and vnode identify the owner-built binary, but cannot
+        # independently prove its source SHA or its mapped image bytes.
         "binary_source_sha_verified": False,
     }
 
@@ -201,6 +244,13 @@ def _load_phase(path: Path, expected: str) -> dict:
             or data.get("p3_gate_approved") is not False
             or data.get("causal_optimization_verified") is not False):
         raise PhaseRefused("phase_contract_invalid")
+    process = data.get("gateway_process")
+    if (not isinstance(process, dict) or
+            process.get("binary_path_verified") is not True or
+            not isinstance(process.get("binary_sha256"), str) or
+            _SHA.fullmatch(process["binary_sha256"]) is None or
+            process.get("binary_source_sha_verified") is not False):
+        raise PhaseRefused("active_gateway_binary_not_verified")
     vals = data.get("results")
     if (not isinstance(vals, list) or len(vals) != 3 or
             [x.get("concurrency") for x in vals if isinstance(x, dict)] != list(LEVELS)):
@@ -224,7 +274,10 @@ def review(paths: dict[str, Path]) -> dict:
         raise PhaseRefused("four_phases_required")
     data = {name: _load_phase(paths[name], name) for name in PHASE_BUFFER}
     canonical = data["A1"]
+    original_binary_sha = canonical["gateway_process"]["binary_sha256"]
     for name, doc in data.items():
+        if doc["gateway_process"]["binary_sha256"] != original_binary_sha:
+            raise PhaseRefused("gateway_binary_differs_across_abab_phases")
         for field in ("model_tag", "model_digest", "dataset_sha256",
                       "max_tokens", "stream", "warmup_per_concurrency"):
             if doc.get(field) != canonical.get(field):
