@@ -138,6 +138,23 @@ This is **not** integrated JWT/RBAC or permission to expose the service.
 
 [Local shared-secret configuration and limits](docs/operations/local-bearer-token.md)
 
+## Google public signing-key snapshot (local operator)
+
+Google browser OIDC still requires an owner-owned OAuth Web Client,
+authenticated Redis and PostgreSQL. The optional
+[operator-invoked JWKS tool](docs/operations/google-oidc-local.md) can now
+retrieve **only Google's public RSA signing keys** from the fixed Google HTTPS
+key endpoint, validate them and save an owner-private local snapshot:
+
+```bash
+python3 -m tools.identity.google_jwks --refresh
+python3 -m tools.identity.google_jwks --check
+```
+
+A future intentional rotation uses `--refresh --replace` and FastAPI restart.
+This does not expose OAuth secrets, perform Google login, refresh keys
+automatically, or enable public hosting.
+
 ## Public HTTPS hosting is not enabled
 
 The current Metriqen browser sessions, local operator tools, Go gateway and

@@ -43,10 +43,27 @@ closed. No automatic remote JWKS refresh has been added.
    Follow the provider's verified supported redirect procedure instead.
 2. Obtain a Google Web Client ID and **Client secret**. Never commit
    either secret, access/refresh/ID tokens, personal emails or private keys.
-3. Retrieve and verify Google's current published **public JWKS** out of
-   band from the Google discovery-document `jwks_uri`. Store the public
-   JWKS snapshot under a protected private absolute path, and plan manual
-   refresh during key rotation. No untrusted per-request key discovery.
+3. Retrieve Google's current **public** RSA signing keys using Metriqen's
+   explicit, operator-invoked, pinned-key fetcher. Its endpoint is Google's
+   documented HTTPS `jwks_uri`, `https://www.googleapis.com/oauth2/v3/certs`,
+   and the tool uses no ambient proxy, follows no redirects, rejects
+   malformed/duplicate/weak/private keys, and writes only a sanitized
+   owner-private JWKS file:
+
+   ```bash
+   cd ~/metriqen-llm-serving-optimization
+   python3 -m tools.identity.google_jwks --refresh
+   python3 -m tools.identity.google_jwks --check
+   ```
+
+   The fixed output is `reports/local/google-public-jwks.json`. Set
+   `METRIQEN_OIDC_JWKS_PATH` to its **absolute path** on your Mac.
+   When Google rotates keys, explicitly refresh with
+   `python3 -m tools.identity.google_jwks --refresh --replace`, validate
+   and **restart** FastAPI to load the new public keys. The tool never
+   downloads or stores OAuth client secrets, user accounts, ID tokens,
+   private signing keys or refresh tokens. Key rotation still requires
+   operator action; this is **not** a background production key manager.
 4. Configure authenticated local PostgreSQL with migrations and
    authenticated local Redis according to the existing
    [OIDC browser runbook](browser-oidc-login.md).
