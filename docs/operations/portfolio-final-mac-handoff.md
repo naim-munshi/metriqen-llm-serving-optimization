@@ -31,10 +31,15 @@ or claim memory/quality/GPU metrics that were not measured.
    installation fails due to an untrusted PyPI TLS certificate, follow the
    [secure Mac pip certificate diagnosis](macos-python-tls.md) instead of
    disabling SSL verification. The hosted CI validates Python 3.13; the
-   operator Mac currently has Python 3.14, which is not yet independently
-   verified. Go and Node must also be installed. PostgreSQL/Redis CI jobs on GitHub use ephemeral
-   isolated services; local `make` alone does **not** recreate those
-   integrations unless the operator starts them separately.
+   operator Mac has Python 3.14; on October 23 the operator provided
+   a successful `make portfolio-ci` transcript on earlier main commit
+   `243bd1f` (916 explicit passing source tests plus Go race/vet).
+   That is real **source-test execution on the Mac**, not independently
+   verified model/slot/browser acceptance, and it predates later changes.
+   Go and Node must also be installed. PostgreSQL/Redis CI jobs on
+   GitHub use ephemeral isolated services; local `make` alone does
+   **not** recreate those integrations unless the operator starts them
+   separately.
 3. Inspect repository `SECURITY.md` and keep all UIs, APIs, Ollama,
    PostgreSQL and Redis bound to **localhost**. **Never expose this
    development platform through tunnels or open public ports.**
