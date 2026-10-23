@@ -164,6 +164,15 @@ The [public deployment boundaries](docs/security/public-deployment-boundaries.md
 and offline CI exposure guard specify required separate HTTPS, identity,
 PostgreSQL/Redis, project isolation and private GPU readiness acceptance.
 
+## GPU fleet reconciliation contract (simulated)
+
+The [revision-fenced simulated GPU fleet reconciler](docs/operations/gpu-worker-reconciliation.md)
+can turn a bounded scaling policy decision into an expiring intent, reject
+outdated/duplicate/concurrent requests, recheck live demand and simulate
+desired-vs-observed worker state/acknowledgement. **It does not connect to any
+GPU provider or modify cloud resources**. Real provider authentication,
+distributed fencing, worker draining and billing guardrails remain pending.
+
 ## GPU worker sizing policy (offline only)
 
 A new [provider-neutral scaling policy](docs/operations/gpu-autoscaling-policy.md)
