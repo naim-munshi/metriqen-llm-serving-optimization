@@ -8,6 +8,22 @@ There is **no tagged Portfolio v1.0 release yet**. Do not interpret this
 document as a claim of commercial SaaS readiness, trusted token billing,
 independent hardware attestation or a production security audit.
 
+## October 23 — prospective AC-powered Go SSE A/B/A/B comparison
+
+- Added `tools.benchmark.sse_abab` for **operator-initiated**, sequential
+  `A1 (1 KiB) → B1 (4 KiB) → A2 (1 KiB) → B2 (4 KiB)` real local Go
+  gateway diagnostics on the same endpoint. Default is plan-only; each
+  `collect --execute` phase verifies AC, exact installed Ollama
+  digest, gateway dependency health and observed process/buffer mode
+  at boundaries. It never restarts servers, reads credentials or
+  selects a different inference URL. An offline four-phase report
+  retains full failure counts and per-concurrency descriptive latency,
+  TTFT and throughput without claiming speedup.
+- [Owner Mac procedure](docs/benchmarks/sse-abab-ac-operator.md),
+  synthetic negative-path tests and strict independent manual
+  power/thermal/slot/model-quality limitations. No actual Mac phase,
+  reproducible performance gain or P3 sign-off was performed in CI.
+
 ## October 23 — no-AC-power local reviewer and security preflight
 
 - Added an explicit-opt-in, read-only

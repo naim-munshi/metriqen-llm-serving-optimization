@@ -84,6 +84,19 @@ reliability-versus-latency trade-offs, quality evaluation, identity and
 GPU simulation. It does **not** claim that a demo video, P1–P6
 sign-off, causal inference speedup or released v1.0 currently exists.
 
+## P3 — AC-powered, operator-controlled SSE buffer A/B/A/B
+
+The [Mac AC/pinned-digest A1/B1/A2/B2 collector](docs/benchmarks/sse-abab-ac-operator.md)
+measures the exact **same loopback Go gateway** at its default 1 KiB
+versus explicitly selected 4 KiB SSE relay buffer. It **never restarts**
+servers, touches credentials or changes model/GPU settings. Plan-only
+`python3 -m tools.benchmark.sse_abab plan` makes no requests; one
+explicitly selected phase uses `collect --execute` only after the
+operator manually starts and verifies the correct gateway mode. A
+four-phase `review` reports descriptive RPS/p95 TTFT/p95 latency and
+failures including drift, but always leaves P3 optimization and
+model-quality acceptance **unverified**, regardless of the results.
+
 ## P3 — candidate Go SSE relay read-buffer change (source-tested only)
 
 A deliberately small, **opt-in** [SSE 1 KiB→4 KiB relay chunk candidate](docs/benchmarks/sse-relay-buffer-candidate.md)
