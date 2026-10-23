@@ -66,10 +66,10 @@ func newInferenceBridge(rawURL string) (*inferenceBridge, error) {
 		return nil, err
 	}
 	bridge := &inferenceBridge{
-		admission: newAdmissionScheduler(maxConcurrent, 0),
-		upstreamFailures: &upstreamFailureCounters{},
-		outcomes: &inferenceOutcomeCounters{},
-		usage: &providerUsageCounters{},
+		admission:               newAdmissionScheduler(maxConcurrent, 0),
+		upstreamFailures:        &upstreamFailureCounters{},
+		outcomes:                &inferenceOutcomeCounters{},
+		usage:                   &providerUsageCounters{},
 		sseRelayReadBufferBytes: readBufferBytes,
 	}
 	if strings.TrimSpace(rawURL) == "" {
