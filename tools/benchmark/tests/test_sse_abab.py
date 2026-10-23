@@ -67,8 +67,14 @@ class SSEABABContracts(unittest.TestCase):
         self.assertEqual(exp.PHASE_BUFFER, {"A1": 1024, "B1": 4096, "A2": 1024, "B2": 4096})
         self.assertEqual(exp.LEVELS, (1, 2, 4))
         self.assertEqual(exp.ENDPOINT, "http://127.0.0.1:8081/v1/chat/completions")
-        with self.assertRaises(exp.PhaseRefused):
-            self.collect("not-a-phase")
+        with self.assertRaisesRegex(exp.PhaseRefused, "invalid_phase"):
+            exp.collect(
+                "not-a-phase", "llama3.2:1b", self.digest,
+                self.private / "illegal.json",
+                inspect=lambda: {},
+                runtime=lambda *_: None,
+                measure=self.fake_measure,
+            )
 
     def test_explicit_running_configuration_must_match_phase(self):
         actual = {
