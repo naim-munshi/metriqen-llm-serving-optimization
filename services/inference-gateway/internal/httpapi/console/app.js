@@ -14,7 +14,9 @@ const paths = Object.freeze({
 const $ = id => document.getElementById(id);
 const text = (id, value) => {
   const node = $(id);
-  if (node) node.textContent = String(value);
+  // Avoid mutating aria-live regions on unchanged periodic snapshots.
+  // Repeated identical announcements can disrupt screen-reader reading.
+  if (node && node.textContent !== String(value)) node.textContent = String(value);
 };
 const number = v => (typeof v === "number" && Number.isSafeInteger(v) && v >= 0)
   ? v.toLocaleString("en-US") : "—";
@@ -167,6 +169,19 @@ function showUsage(data) {
     : "Provider usage unavailable or unsupported schema");
 }
 let inFlight = null;
+let autoRefreshPaused = false;
+
+function setAutoRefreshPaused(paused) {
+  autoRefreshPaused = paused;
+  const button = $("auto-refresh-toggle");
+  button.setAttribute("aria-pressed", paused ? "true" : "false");
+  button.setAttribute("aria-label", paused
+    ? "Resume automatic metrics refresh"
+    : "Pause automatic metrics refresh");
+  button.textContent = paused ? "Resume auto" : "Pause auto";
+  text("refresh-interval", paused ? "Auto-refresh paused" : "Auto-refresh 5s");
+}
+
 async function refresh() {
   if (inFlight) return;
   const controller = new AbortController();
@@ -198,12 +213,15 @@ async function refresh() {
   }
 }
 $("refresh").addEventListener("click", refresh);
+$("auto-refresh-toggle").addEventListener("click", () => {
+  setAutoRefreshPaused(!autoRefreshPaused);
+});
 void refresh();
-// Only poll while visible; no background processes, external telemetry,
-// automatic Ollama restarts or inference requests.
+// Only poll while visible and not manually paused; neither mode issues
+// inference requests, writes metrics, restarts Ollama, or stores user state.
 setInterval(() => {
-  if (document.visibilityState === "visible") void refresh();
+  if (!autoRefreshPaused && document.visibilityState === "visible") void refresh();
 }, 5000);
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") void refresh();
+  if (!autoRefreshPaused && document.visibilityState === "visible") void refresh();
 });

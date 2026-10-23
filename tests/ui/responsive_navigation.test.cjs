@@ -13,7 +13,7 @@ const css = fs.readFileSync(path.join(base, "app.css"), "utf8");
 
 test("first keyboard stop provides a visible-on-focus main-content skip link", () => {
   assert.match(html, /<body>\s*<a class="skip-link" href="#overview">Skip to main operations content<\/a>/);
-  assert.match(html, /<main id="overview" class="content">/);
+  assert.match(html, /<main id="overview" class="content" tabindex="-1">/);
   assert.match(css, /\.skip-link\{[^}]*transform:translateY\(-160%\)/);
   assert.match(css, /\.skip-link:focus\{transform:translateY\(0\)\}/);
   assert.match(css, /a:focus-visible,button:focus-visible\{outline:2px solid/);
@@ -37,4 +37,12 @@ test("mobile and tablet no longer hide all or inactive operations navigation", (
   assert.match(css, /\.nav-link\{flex:0 0 auto;white-space:nowrap;min-height:44px/);
   assert.match(css, /\.health-value\{font-size:19px;white-space:normal;overflow-wrap:anywhere/);
   assert.match(css, /@media\(prefers-reduced-motion:reduce\)/);
+});
+
+test("manual automatic-refresh control stays accessible on mobile without autoplay dependency", () => {
+  assert.match(html, /id="auto-refresh-toggle" type="button" class="refresh-button" aria-pressed="false" aria-label="Pause automatic metrics refresh"/);
+  assert.match(html, /id="refresh" type="button"/);
+  assert.match(css, /#auto-refresh-toggle\[aria-pressed="true"\]/);
+  assert.match(css, /\.refresh-button\{min-height:44px;white-space:nowrap\}/);
+  assert.match(css, /@media\(max-width:480px\)/);
 });

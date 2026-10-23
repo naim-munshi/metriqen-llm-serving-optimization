@@ -103,6 +103,18 @@ Ollama digest, AC power and operator-reviewed Ollama/gateway settings.
 causal speedup evidence.** Use its results to pick one isolated
 Metriqen-controlled change and remeasure matched gateway baseline/candidate.
 
+## P4 — accessibility and mobile reviewer controls (source-tested)
+
+The localhost Go Operations console now offers an explicit **Pause auto /
+Resume auto** control for its five-second read-only metrics polling; manual
+Refresh remains available while paused. Unchanged health summaries no longer
+trigger repeated screen-reader live-region updates. The Model Manager keeps
+44px keyboard-visible mobile navigation targets. This improves the source
+behavior **without** storing preferences, making inference calls, or changing
+the login security boundary. [Manual Safari/VoiceOver acceptance remains
+required](docs/operations/portfolio-local-reviewer-journey.md); synthetic
+Node DOM tests do not establish real browser accessibility.
+
 ## P1 portfolio acceptance evidence (operator-run)
 
 Once the actual Mac has completed the native Ollama/Go smoke and full

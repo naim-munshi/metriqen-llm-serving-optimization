@@ -130,3 +130,8 @@ section[id],main[id]{scroll-margin-top:18px}
 @media(max-width:1160px){.usage-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.reviewer-steps{grid-template-columns:1fr}}
 @media(max-width:600px){.usage-grid{grid-template-columns:1fr 1fr;gap:9px}.usage-stat{padding:13px}.usage-stat>strong{font-size:21px}.reviewer-steps{gap:10px}.reviewer-steps li{padding:16px}.section-explainer{font-size:11px}}
 @media(max-width:360px){.usage-grid{grid-template-columns:1fr}}
+
+/* Polling controls remain fully tappable without hiding navigation on phones. */
+#auto-refresh-toggle[aria-pressed="true"]{border-color:var(--cyan);color:var(--cyan)}
+.refresh-button{min-height:44px;white-space:nowrap}
+@media(max-width:480px){.topbar{height:auto;min-height:61px;flex-wrap:wrap;padding:10px 0}.top-right{width:100%;justify-content:space-between;gap:8px}}
