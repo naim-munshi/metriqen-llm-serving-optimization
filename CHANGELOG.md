@@ -8,6 +8,30 @@ There is **no tagged Portfolio v1.0 release yet**. Do not interpret this
 document as a claim of commercial SaaS readiness, trusted token billing,
 independent hardware attestation or a production security audit.
 
+## October 23 — current evidence and safe release-audit maintenance
+
+- Added [current evidence and limitations matrix](docs/PORTFOLIO_CURRENT_STATUS.md)
+  separating verified code, operator-reported Mac observations,
+  green source CI, negative optimization results, and unverified
+  production/Google/GPU claims. Historical `docs/PROJECT_STATUS.md`
+  remains explicitly archived, not a current feature inventory.
+- Added an offline, read-only
+  [six-gate release readiness audit](docs/operations/portfolio-release-readiness.md)
+  with JSON output and deliberate blocked exit status 2, even when
+  source docs or a license file exist. It cannot forge real Mac/browser
+  evidence or tag a release.
+- Recorded recent opt-in v2 **source code only**: local [Google
+  OIDC compatibility #113](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/113),
+  [Google public JWKS refresh #119](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/119),
+  [GPU worker count recommendation #117](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/117),
+  and [offline GPU fleet reconciliation #120](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/120).
+  **No live Google login, public HTTPS or GPU scaling deployed.**
+- Current verified reference main CI: [11/11 jobs on
+  `c772963`](https://github.com/naim-munshi/metriqen-llm-serving-optimization/actions/runs/39883279798).
+  Operator's last supplied Mac `make portfolio-ci` transcript verified
+  an earlier `243bd1f` commit with 916 explicitly passing source
+  tests plus Go race/vet; it was not a browser/GPU/real IdP test.
+
 ## Unreleased — Portfolio v1.0 preparation (2026-10)
 
 ### P1 deployment acceptance preparation
