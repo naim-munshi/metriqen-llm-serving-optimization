@@ -153,6 +153,12 @@ class MemoryFleetSimulator:
                 return fail("budget_or_policy_conflict")
             if intent.desired_workers == current.observed_workers:
                 return fail("unchanged_target")
+            # A stale plan must not scale a fleet after demand/cooldown changed.
+            live_decision = plan_scale(policy, telemetry, now_epoch_s=now_epoch_s)
+            if (live_decision.action == "hold"
+                    or live_decision.desired_workers != intent.desired_workers
+                    or live_decision.reason != intent.reason):
+                return fail("live_demand_changed")
             if (intent.desired_workers < current.observed_workers
                     and (telemetry.inflight_requests or telemetry.queued_requests)):
                 return fail("active_work_cannot_drain")
