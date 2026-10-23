@@ -77,7 +77,8 @@ class PortfolioDocumentationContracts(unittest.TestCase):
                        "v1.0", "TTFT", "P1", "P6"):
             self.assertIn(phrase.lower(), guide.lower())
         self.assertIn("docs/PORTFOLIO_INTERVIEW_GUIDE.md", readme)
-        self.assertIn("not released v1.0", guide.lower())
+        self.assertIn("released v1.0", guide.lower())
+        self.assertIn("local research prototype, not", guide.lower())
         self.assertIn("Do **not** say", guide)
 
     def test_readme_and_historical_status_point_to_authoritative_release_criteria(self):
