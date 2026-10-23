@@ -8,6 +8,19 @@ There is **no tagged Portfolio v1.0 release yet**. Do not interpret this
 document as a claim of commercial SaaS readiness, trusted token billing,
 independent hardware attestation or a production security audit.
 
+## October 23 — no-AC-power local reviewer and security preflight
+
+- Added an explicit-opt-in, read-only
+  [local service preflight](docs/operations/local-readonly-review-preflight.md)
+  for the already-running Ollama, Go and FastAPI localhost endpoints,
+  including model manager anonymous **401** defense-in-depth.
+  It defaults to an offline plan, sends only fixed bounded GETs after
+  `--execute`, rejects redirects and proxy use, and can save private
+  sanitized summaries without credentials or response bodies.
+- This command **never runs a model**, browses a page, logs into Google,
+  restarts servers, attests loopback-only listeners or approves P1/P4/P5.
+  Offline synthetic and privacy/adversarial regression tests are included.
+
 ## P3 prospective path-overhead diagnosis (operator-only, unreleased)
 
 - Added an explicit `--execute` **native Ollama vs Go gateway** ABBA
