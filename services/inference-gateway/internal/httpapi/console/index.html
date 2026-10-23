@@ -33,11 +33,12 @@
       </div>
     </aside>
 
-    <main id="overview" class="content">
+    <main id="overview" class="content" tabindex="-1">
       <div class="topbar">
         <span class="breadcrumb">METRIQEN <span class="slash">/</span> OPERATIONS <span class="slash">/</span> OVERVIEW</span>
         <div class="top-right">
-          <span class="refresh-label">Auto-refresh <strong>5s</strong></span>
+          <span class="refresh-label" id="refresh-interval">Auto-refresh <strong>5s</strong></span>
+          <button id="auto-refresh-toggle" type="button" class="refresh-button" aria-pressed="false" aria-label="Pause automatic metrics refresh">Pause auto</button>
           <button id="refresh" type="button" class="refresh-button">↻ <span>Refresh</span></button>
         </div>
       </div>
