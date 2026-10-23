@@ -59,9 +59,14 @@ def config_validation(model: str, digest: str, requests: int, tokens: int,
     if type(tokens) is not int or not 1 <= tokens <= 128:
         raise ValueError("output cap must be within 1..128")
     # Refuse arbitrary paths, symlinks, non-ignored or existing destinations.
+    if ".." in output_dir.parts:
+        raise ValueError("path traversal is forbidden")
     target = output_dir.expanduser().absolute()
     base = REPORT_ROOT.absolute()
-    if target == base or not target.is_relative_to(base):
+    # Resolve *parent* as well: no nested symlink may escape the ignored
+    # private reports/local directory before the new path is created.
+    if (target == base or not target.is_relative_to(base)
+            or not target.parent.resolve().is_relative_to(base.resolve())):
         raise ValueError("output must be a fresh directory under reports/local")
     if output_dir.is_symlink() or output_dir.exists():
         raise ValueError("output directory must not exist")
