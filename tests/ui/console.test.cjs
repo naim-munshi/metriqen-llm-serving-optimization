@@ -129,3 +129,50 @@ test("missing report means unknown, while a measured missing stream remains expl
   assert.equal(app.element("usage-unmeasured").textContent,"—");
   assert.equal(app.element("usage-total").textContent,"—");
 });
+
+test("manual pause blocks interval and visibility refresh but keeps explicit refresh available",async()=>{
+  const app=fixture();await app.flush();
+  const toggle=app.events.get("auto-refresh-toggle:click");
+  assert.equal(typeof toggle,"function");
+  const original=app.calls.length;
+  toggle();
+  assert.equal(app.element("auto-refresh-toggle").attributes["aria-pressed"],"true");
+  assert.equal(app.element("auto-refresh-toggle").textContent,"Resume auto");
+  assert.equal(app.element("auto-refresh-toggle").attributes["aria-label"],"Resume automatic metrics refresh");
+  app.events.get("poll")();
+  app.events.get("document:visibilitychange")();
+  await app.flush();
+  assert.equal(app.calls.length,original,"paused dashboard still polled");
+  app.events.get("refresh:click")();
+  await app.flush();
+  assert.equal(app.calls.length,original+6,"explicit read-only Refresh must work while paused");
+  toggle();
+  assert.equal(app.element("auto-refresh-toggle").attributes["aria-pressed"],"false");
+  assert.equal(app.element("auto-refresh-toggle").textContent,"Pause auto");
+  app.events.get("poll")();
+  await app.flush();
+  assert.equal(app.calls.length,original+12,"resumed dashboard did not poll");
+  assert.equal(app.calls.some(x=>x.url.includes("chat/completions")),false);
+});
+
+test("identical automatic health observations do not reannounce the same live status",async()=>{
+  const app=fixture();await app.flush();
+  const region=app.element("data-state");
+  let writes=0;
+  let old=region.textContent;
+  Object.defineProperty(region,"textContent",{
+    configurable:true,
+    get(){return old;},
+    set(value){writes++;old=value;}
+  });
+  await app.refresh();
+  assert.equal(writes,0,"identical periodic health summary caused repeat live announcement");
+  app.data["/health/upstream"]={status:"unreachable"};
+  await app.refresh();
+  assert.equal(writes,1,"changed health should announce exactly once");
+  await app.refresh();
+  assert.equal(writes,1,"unchanged degraded health should not repeat announcement");
+  app.data["/health/upstream"]={status:"reachable"};
+  await app.refresh();
+  assert.equal(writes,2,"recovery must be announced");
+});
