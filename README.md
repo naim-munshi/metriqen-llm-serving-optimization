@@ -75,10 +75,12 @@ Each setting had 9 runs (3 repeats at concurrency 1/2/4), **324/324 measured req
 
 ## P3 — candidate Go SSE relay read-buffer change (source-tested only)
 
-A deliberately small [SSE 1 KiB→4 KiB relay chunk candidate](docs/benchmarks/sse-relay-buffer-candidate.md)
+A deliberately small, **opt-in** [SSE 1 KiB→4 KiB relay chunk candidate](docs/benchmarks/sse-relay-buffer-candidate.md)
 seeks to reduce per-read gateway copy/flush overhead during buffered
-stream bursts. It preserves per-read streaming flush and existing
-terminal/usage/cancellation controls. Go's **synthetic CPU** benchmark
+stream bursts. **Default remains 1 KiB**; only the exact operator startup
+setting `METRIQEN_SSE_RELAY_BUFFER_BYTES=4096` enables the candidate.
+It preserves per-read flush and terminal/usage/cancellation controls.
+Go's **synthetic CPU** benchmark
 and regression checks can run without the Mac on AC power; there is **no
 validated real Ollama/TTFT/p95/goodput speedup**, and a real paired gateway
 before/after experiment is still required for P3.
