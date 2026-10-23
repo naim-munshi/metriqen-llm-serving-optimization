@@ -24,6 +24,10 @@ const (
 	defaultMaxTokens = 256
 	maxConcurrent    = 4
 	maxStreamedBytes = 8 << 20 // Per-request streaming response byte budget.
+	// Candidate: larger bounded relay read to reduce read/write/flush cycles
+	// for buffered bursts. io.Reader does not wait to fill this buffer;
+	// per-read immediate flush remains unchanged. Real TTFT is unproven.
+	sseRelayReadBufferBytes = 4096
 	requestDeadline  = 120 * time.Second
 )
 
@@ -284,7 +288,7 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 	if !ok {
 		return
 	}
-	buffer := make([]byte, 1024)
+	buffer := make([]byte, sseRelayReadBufferBytes)
 	forwarded := 0
 	var terminal sseTerminalTracker
 	usageTracker := newSSEProviderUsageTracker(requestedOutputCap)
