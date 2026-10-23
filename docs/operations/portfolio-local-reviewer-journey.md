@@ -78,6 +78,29 @@ mouse interaction, confirm no unintended document-wide horizontal overflow,
 and inspect strong focus rings and legible health status. Capture only
 authentic, approved screenshots. Missing Mac/browser evidence keeps P4 open.
 
+### Polling control and screen-reader review (source implementation)
+
+The Go Operations console now has a focusable **Pause auto** button
+beside the explicit **Refresh** control. `aria-pressed=true` denotes
+paused automatic polling; its label changes to **Resume auto**. Paused
+mode performs **no new timer-triggered or tab-visibility-triggered**
+metrics requests, while explicit Refresh still works. State lives only
+in the current tab's memory, with no local storage or cookies.
+A refresh already in progress may finish once after Pause is clicked.
+
+The live gateway status text is only replaced when its value changes,
+avoiding repetitive identical screen-reader announcements on each
+five-second refresh. It still announces health changes or recovery.
+
+**Manual checks remaining:** At 390px and 320px Safari widths, Tab from
+the skip link into the dashboard, confirm both Pause auto and Refresh
+are visible and have at least 44px tap targets. Activate Pause by
+keyboard and confirm automatic network polling stops. Verify manual
+Refresh still samples health; Resume restarts 5-second polling when
+visible, without inference requests. Check VoiceOver announces actual
+health changes, not identical statuses every five seconds. Node tests
+validate the behavior with a mocked DOM, **not** Safari VoiceOver.
+
 ## Control-plane keyboard parity
 
 The Model Manager and optional Account Console now expose their own
