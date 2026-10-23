@@ -73,6 +73,15 @@ Each setting had 9 runs (3 repeats at concurrency 1/2/4), **324/324 measured req
 
 **October 21 Metriqen-controlled FIFO admission A/B (descriptive, not a speedup):** a local operator collected queue depth `0` versus `2` using the same Ollama parallelism `2`, pinned model and workload, with 12 timed runs and 432 measured requests per phase plus 36 reference-quality completions each. The private offline raw-evidence tradeoff reviewer returned consistency PASS. Candidate B improved completed admissions from **144/432 to 252/432** and decreased client-observed HTTP 429s from **288 to 180**, but its successful goodput **declined at every tested concurrency (4/6/8/12)** and overloaded successful-only p95 latency/TTFT generally worsened. The reference scores were unchanged (31/36 exact; 33/36 normalized) but are narrow proxies, not semantic quality guarantees. [Read the October 21 descriptive aggregate, limitations and regression table](docs/benchmarks/experiments/2026-10-21-fifo-admission-overload.md). **No causal inference speedup or formal P3 acceptance is claimed.** The queue remains opt-in; raw Mac reports stay Git-ignored.
 
+## Interview-ready technical walkthrough (draft)
+
+The [evidence-grounded recruiter interview guide](docs/PORTFOLIO_INTERVIEW_GUIDE.md)
+provides a **proposed**, operator-led 2–3-minute demo sequence and
+answers to questions about Go/FastAPI architecture, TTFT, FIFO
+reliability-versus-latency trade-offs, quality evaluation, identity and
+GPU simulation. It does **not** claim that a demo video, P1–P6
+sign-off, causal inference speedup or released v1.0 currently exists.
+
 ## P3 — candidate Go SSE relay read-buffer change (source-tested only)
 
 A deliberately small, **opt-in** [SSE 1 KiB→4 KiB relay chunk candidate](docs/benchmarks/sse-relay-buffer-candidate.md)
