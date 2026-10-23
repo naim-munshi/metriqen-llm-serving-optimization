@@ -102,7 +102,7 @@ func TestStreamingRelayLargerReadBufferPreservesHTTPAndAccounting(t *testing.T) 
 func BenchmarkSSEChunkedRelayParsing(b *testing.B) {
 	payload := syntheticRelaySSE()
 	for _, tc := range []struct {
-		name string
+		name     string
 		readSize int
 	}{
 		{"baseline_1024", 1024},
