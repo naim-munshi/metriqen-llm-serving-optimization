@@ -1,6 +1,6 @@
 # SSE relay read-buffer candidate: bounded 1 KiB → 4 KiB
 
-**Status: code candidate only — no proven Mac/Metal/Ollama speedup.**
+**Status: opt-in code candidate only — no proven Mac/Metal/Ollama speedup.**
 
 ## Hypothesis (predeclared)
 
@@ -22,8 +22,10 @@ improvement is presumed.
 
 - File: `services/inference-gateway/internal/httpapi/inference.go`
 - Baseline: `make([]byte, 1024)` on main commit `129bba5`
-- Candidate: `make([]byte, sseRelayReadBufferBytes)` with
-  `sseRelayReadBufferBytes = 4096`.
+- Default (unchanged): `METRIQEN_SSE_RELAY_BUFFER_BYTES` unset = 1 KiB.
+- Candidate (explicit startup opt-in only):
+  `METRIQEN_SSE_RELAY_BUFFER_BYTES=4096` = 4 KiB.
+  Unrecognized values fail server initialization instead of guessing.
 - Same per-read `w.Write`, `flusher.Flush`, streaming cancellation,
   8 MiB total cap, SSE terminal framing, provider usage and all
   model/authorization/queueing controls.
@@ -32,7 +34,7 @@ improvement is presumed.
 
 ## Checks possible with no AC power or model
 
-CI runs Go tests/race, SSE first-event flush and cancellation tests,
+CI runs Go tests/race, exact startup opt-in/default rejection, SSE first-event flush and cancellation tests,
 bounded stream protection, terminal `[DONE]`, usage classification,
 and a new synthetic HTTP byte-identity test. The paired CPU-only
 benchmark compares 1024 and 4096 with **identical synthetic SSE bytes**:
@@ -51,7 +53,8 @@ The main-source CI benchmark is descriptive and runner-dependent.
 
 ## Later, on AC-powered Mac only
 
-1. Compare old and candidate Go gateway builds using the **same** pinned
+1. Compare the default (unset env = 1 KiB) and candidate
+   (`METRIQEN_SSE_RELAY_BUFFER_BYTES=4096`) Go gateway startup modes using the **same** pinned
    installed Ollama digest, same model residency, runtime version,
    quantization, power/thermals, prompt dataset, SSE max token cap,
    true Ollama parallel slots, queue depth, auth, offered concurrency,
