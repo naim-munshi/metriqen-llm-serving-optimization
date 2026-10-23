@@ -58,3 +58,11 @@ test("all three consoles keep keyboard focus explicit and not hidden for tablet/
     assert.match(styles, /\.skip-link\{[^}]*z-index:100;/);
   }
 });
+
+test("model manager mobile navigation provides 44px touch and keyboard targets", () => {
+  const { css } = assets("model_console");
+  assert.match(css, /@media\(max-width:680px\)\{\.sidebar nav\{/);
+  assert.match(css, /\.sidebar nav a\{flex:0 0 auto;display:inline-flex;align-items:center;min-height:44px\}/);
+  assert.match(css, /\.sidebar nav a:focus-visible\{outline:2px solid var\(--accent\)/);
+  assert.doesNotMatch(css, /\.sidebar nav\{display:none/);
+});
