@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -27,25 +28,50 @@ const (
 	requestDeadline  = 120 * time.Second
 )
 
-// Candidate: larger bounded relay read to reduce read/write/flush cycles
-// for buffered bursts. io.Reader does not wait to fill this buffer;
-// per-read immediate flush remains unchanged. Real TTFT is unproven.
-const sseRelayReadBufferBytes = 4096
+// Keep the existing 1 KiB runtime behavior unless the *operator* opts in.
+// 4 KiB might reduce buffered burst read/write/flush cycles; no real
+// inference performance or TTFT improvement has been established.
+const (
+	defaultSSERelayReadBufferBytes   = 1024
+	candidateSSERelayReadBufferBytes = 4096
+)
+
+func parseSSERelayReadBufferBytes(raw string) (int, error) {
+	switch raw {
+	case "":
+		return defaultSSERelayReadBufferBytes, nil
+	case "4096":
+		return candidateSSERelayReadBufferBytes, nil
+	default:
+		return 0, errors.New("SSE relay buffer must be unset or exactly 4096 bytes")
+	}
+}
 
 // inferenceBridge deliberately has no API authentication. It MUST remain on a
 // loopback-only development listener until authentication and quotas are wired.
 type inferenceBridge struct {
-	endpoint         string
-	client           *http.Client
-	admission        *admissionScheduler
-	allowedModels    map[string]struct{}
-	upstreamFailures *upstreamFailureCounters
-	outcomes         *inferenceOutcomeCounters
-	usage            *providerUsageCounters
+	endpoint                string
+	client                  *http.Client
+	admission               *admissionScheduler
+	allowedModels           map[string]struct{}
+	upstreamFailures        *upstreamFailureCounters
+	outcomes                *inferenceOutcomeCounters
+	usage                   *providerUsageCounters
+	sseRelayReadBufferBytes int
 }
 
 func newInferenceBridge(rawURL string) (*inferenceBridge, error) {
-	bridge := &inferenceBridge{admission: newAdmissionScheduler(maxConcurrent, 0), upstreamFailures: &upstreamFailureCounters{}, outcomes: &inferenceOutcomeCounters{}, usage: &providerUsageCounters{}}
+	readBufferBytes, err := parseSSERelayReadBufferBytes(os.Getenv("METRIQEN_SSE_RELAY_BUFFER_BYTES"))
+	if err != nil {
+		return nil, err
+	}
+	bridge := &inferenceBridge{
+		admission: newAdmissionScheduler(maxConcurrent, 0),
+		upstreamFailures: &upstreamFailureCounters{},
+		outcomes: &inferenceOutcomeCounters{},
+		usage: &providerUsageCounters{},
+		sseRelayReadBufferBytes: readBufferBytes,
+	}
 	if strings.TrimSpace(rawURL) == "" {
 		return bridge, nil // disabled unless explicitly configured
 	}
@@ -289,7 +315,7 @@ func (bridge *inferenceBridge) serveChat(w http.ResponseWriter, r *http.Request)
 	if !ok {
 		return
 	}
-	buffer := make([]byte, sseRelayReadBufferBytes)
+	buffer := make([]byte, bridge.sseRelayReadBufferBytes)
 	forwarded := 0
 	var terminal sseTerminalTracker
 	usageTracker := newSSEProviderUsageTracker(requestedOutputCap)
