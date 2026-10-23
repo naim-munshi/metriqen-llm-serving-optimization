@@ -81,9 +81,10 @@ def main(argv: list[str] | None = None) -> int:
         for gate in state["gates"]:
             print(f"{gate['id']} MANUAL REVIEW REQUIRED: {gate['next_evidence']}")
         print("No Mac, browser, Google OAuth, cloud GPU or release was verified.")
-    # Not an execution failure: this is a read-only status reporter. Blocking
-    # status is carried explicitly in the machine-readable result.
-    return 0
+    # A blocked readiness check must never be mistaken for a passing
+    # release gate by shell automation. Exit 2 until an *independent*
+    # human-reviewed release approval workflow is implemented.
+    return 2
 
 
 if __name__ == "__main__":
