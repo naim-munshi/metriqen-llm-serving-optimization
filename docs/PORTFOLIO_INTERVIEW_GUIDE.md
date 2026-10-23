@@ -25,8 +25,8 @@ released v1.0, commercial SaaS, vLLM serving or deployed GPU autoscaler.
 | 00:20–00:50 | Gateway read-only operations console at `127.0.0.1:8081/console` | Admission, outcomes, upstream failures and self-reported token telemetry are process-local counters, **not p95/TTFT or billable usage** |
 | 00:50–01:30 | `127.0.0.1:8000/console/models`, after operator token is privately entered | Inspect pinned digest, approved installed model and local load status; no model downloaded by the demo |
 | 01:30–02:00 | Approved model chat and deployment lifecycle | Demonstrate actual output and Stop/Start/Promote/Rollback only when current hardware and model state have already passed the P1 checks |
-| 02:00–02:30 | Public sanitized [experimental case study](../PORTFOLIO_CASE_STUDY.md) | The FIFO scheduler raises admitted completions under overload but worsened successful goodput and p95/TTFT; a test can pass even when performance trade-offs are negative |
-| 02:30–03:00 | [P1–P6 acceptance](../PORTFOLIO_V1_ACCEPTANCE.md) and next steps | Explain bounded Go-path candidate, real Mac A/B/A/B still pending, security boundaries and why v1 has **not** been tagged |
+| 02:00–02:30 | Public sanitized [experimental case study](PORTFOLIO_CASE_STUDY.md) | The FIFO scheduler raises admitted completions under overload but worsened successful goodput and p95/TTFT; a test can pass even when performance trade-offs are negative |
+| 02:30–03:00 | [P1–P6 acceptance](PORTFOLIO_V1_ACCEPTANCE.md) and next steps | Explain bounded Go-path candidate, real Mac A/B/A/B still pending, security boundaries and why v1 has **not** been tagged |
 
 Do not screen-record bearer tokens, Google identity attributes, private
 prompts/responses, local DSNs, raw reports, browser cookies or invitees.
