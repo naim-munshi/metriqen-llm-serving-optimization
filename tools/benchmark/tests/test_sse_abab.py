@@ -1,6 +1,7 @@
 """Synthetic no-network tests for operator-only SSE 1 KiB/4 KiB A/B/A/B."""
 from contextlib import redirect_stdout
 from io import StringIO
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -18,6 +19,13 @@ class SSEABABContracts(unittest.TestCase):
         self.private = Path(self.temp.name) / "reports" / "local"
         self.private.mkdir(parents=True, mode=0o700)
         self.private.chmod(0o700)
+        self.binary = self.private / "sse-abab-gateway"
+        self.binary.write_bytes(b"synthetic-unit-test-executable-not-real-gateway")
+        self.binary.chmod(0o700)
+        self.bin_sha = hashlib.sha256(self.binary.read_bytes()).hexdigest()
+        binary_patch = patch.object(exp, "EXPERIMENT_BINARY", self.binary)
+        binary_patch.start()
+        self.addCleanup(binary_patch.stop)
         target_patch = patch.object(exp, "PRIVATE", self.private)
         target_patch.start()
         self.addCleanup(target_patch.stop)
@@ -40,6 +48,8 @@ class SSEABABContracts(unittest.TestCase):
         fake_gateway = lambda: {
             "pid": 91234, "buffer_bytes": buffer_size,
             "evidence": "process_env_4096" if buffer_size == 4096 else "env_unset_assumed_default",
+            "binary_path_verified": True,
+            "binary_sha256": self.bin_sha,
             "binary_source_sha_verified": False,
         }
         fn = changes.pop("inspect", fake_gateway)
@@ -61,7 +71,7 @@ class SSEABABContracts(unittest.TestCase):
                     "--output", str(self.private / "A1.json"),
                 ]), 2)
         self.assertIn("PLAN ONLY", out.getvalue())
-        self.assertEqual(list(self.private.iterdir()), [])
+        self.assertEqual([p.name for p in self.private.iterdir()], ["sse-abab-gateway"])
 
     def test_only_four_declared_phases_and_fixed_loopback_inference(self):
         self.assertEqual(exp.PHASE_BUFFER, {"A1": 1024, "B1": 4096, "A2": 1024, "B2": 4096})
@@ -80,11 +90,13 @@ class SSEABABContracts(unittest.TestCase):
         actual = {
             "pid": 20, "buffer_bytes": 1024,
             "evidence": "env_unset_assumed_default",
+            "binary_path_verified": True,
+            "binary_sha256": self.bin_sha,
             "binary_source_sha_verified": False,
         }
         with self.assertRaisesRegex(exp.PhaseRefused, "buffer_does_not_match_phase"):
             self.collect("B1", inspect=lambda: actual)
-        self.assertEqual(list(self.private.iterdir()), [])
+        self.assertEqual([p.name for p in self.private.iterdir()], ["sse-abab-gateway"])
 
     def test_bad_power_digest_or_wrong_os_rejected_before_request(self):
         with patch.object(exp.platform, "system", return_value="Linux"):
@@ -97,23 +109,63 @@ class SSEABABContracts(unittest.TestCase):
                 exp.verify_environment("llama3.2:1b", self.digest, "A1",
                     runtime_check=lambda *_: (_ for _ in ()).throw(ValueError("not AC")),
                     gateway_check=lambda: {})
-        self.assertEqual(list(self.private.iterdir()), [])
+        self.assertEqual([p.name for p in self.private.iterdir()], ["sse-abab-gateway"])
 
     def test_process_check_never_logs_untrusted_environment(self):
-        def ps_output(args):
-            if args[0] == "lsof":
+        def process_output(args):
+            if args[0] == "ps":
+                return "COMMAND secrets=PRIVATE_TOKEN METRIQEN_SSE_RELAY_BUFFER_BYTES=4096\n"
+            if "-t" in args:
                 return "71234\n"
-            return "COMMAND secrets=PRIVATE_TOKEN METRIQEN_SSE_RELAY_BUFFER_BYTES=4096\n"
-        with patch.object(exp, "_capture", side_effect=ps_output):
+            if "-d" in args:
+                return "p71234\nftxt\nn" + str(self.binary.resolve()) + "\nftxt\nn/usr/lib/dyld\n"
+            return "p71234\nn127.0.0.1:8081\n"
+        with patch.object(exp, "_capture", side_effect=process_output):
             snap = exp.inspect_gateway()
         self.assertEqual(snap["buffer_bytes"], 4096)
         self.assertEqual(snap["pid"], 71234)
+        self.assertEqual(snap["binary_sha256"], self.bin_sha)
+        self.assertTrue(snap["binary_path_verified"])
+        self.assertFalse(snap["binary_source_sha_verified"])
         self.assertNotIn("PRIVATE_TOKEN", str(snap))
         with patch.object(exp, "_capture", side_effect=lambda a:
-                          "22\n" if a[0] == "lsof" else
-                          "METRIQEN_SSE_RELAY_BUFFER_BYTES=9999"):
-            with self.assertRaisesRegex(exp.PhaseRefused, "unsupported_running"):
+                          "22\n" if "-t" in a else
+                          "p22\nftxt\nn/tmp/go-build/old-server\n" if "-d" in a else ""):
+            with self.assertRaisesRegex(exp.PhaseRefused, "not_running_expected_binary"):
                 exp.inspect_gateway()
+
+    def test_old_go_run_gateway_is_rejected_before_any_inference(self):
+        def old_running_process(args):
+            if "-t" in args:
+                return "75718\n"
+            if "-d" in args:
+                return "p75718\nftxt\nn/Users/test/Library/Caches/go-build/old/server\n"
+            raise AssertionError("Old go-run executable must be rejected before ps")
+        with patch.object(exp, "_capture", side_effect=old_running_process):
+            with patch.object(exp.platform, "system", return_value="Darwin"):
+                with self.assertRaisesRegex(exp.PhaseRefused, "preflight_failed"):
+                    exp.verify_environment("llama3.2:1b", self.digest, "A1",
+                        runtime_check=lambda *_: None,
+                        gateway_check=exp.inspect_gateway)
+        self.assertFalse((self.private / "A1.json").exists())
+
+    def test_old_A1_without_binary_attestation_and_changed_binary_hash_cannot_be_reviewed(self):
+        paths = {}
+        for phase in exp.PHASE_BUFFER:
+            self.collect(phase)
+            paths[phase] = self.private / f"{phase}.json"
+        old = json.loads(paths["A1"].read_text())
+        old["gateway_process"].pop("binary_path_verified")
+        paths["A1"].write_text(json.dumps(old), encoding="utf-8")
+        with self.assertRaisesRegex(exp.PhaseRefused, "active_gateway_binary_not_verified"):
+            exp.review(paths)
+        old["gateway_process"]["binary_path_verified"] = True
+        paths["A1"].write_text(json.dumps(old), encoding="utf-8")
+        later = json.loads(paths["B2"].read_text())
+        later["gateway_process"]["binary_sha256"] = "b" * 64
+        paths["B2"].write_text(json.dumps(later), encoding="utf-8")
+        with self.assertRaisesRegex(exp.PhaseRefused, "gateway_binary_differs_across"):
+            exp.review(paths)
 
     def test_three_real_runner_calls_are_sanitized_and_not_speedup(self):
         calls = []
@@ -143,6 +195,8 @@ class SSEABABContracts(unittest.TestCase):
             return {
                 "pid": 22 + int(call > 2), "buffer_bytes": 1024,
                 "evidence": "env_unset_assumed_default",
+                "binary_path_verified": True,
+                "binary_sha256": self.bin_sha,
                 "binary_source_sha_verified": False,
             }
         with self.assertRaisesRegex(exp.PhaseRefused, "process_changed"):

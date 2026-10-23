@@ -22,15 +22,20 @@ compute, quantization, GPU acceleration or batching.
 
 `collect` fails closed if AC power is not verified, the exact
 `llama3.2:1b` installed digest differs, the gateway upstream is not
-healthy, the listener is missing/duplicated, or the active gateway
-process env setting differs from the requested A/B phase. It checks
-process/PID, model and AC again between loads and after the phase.
-It never prints or writes the full process environment: it may contain
-secrets. **A mode without `METRIQEN_SSE_RELAY_BUFFER_BYTES` is
-interpreted as the 1 KiB default but is NOT a binary/source SHA
-attestation.** Power may fluctuate mid-request despite boundary checks.
-The operator must independently check runtime slots, temperature and
-the exact binary compiled from the expected source.
+healthy, the listener is missing/duplicated, its actual executable is
+not **exactly** the owner-built `reports/local/sse-abab-gateway`, its
+listener is not bound to `127.0.0.1:8081`, or its process env setting
+differs from the A/B phase. A macOS `lsof` text-vnode check and SHA-256
+of that executable are required before/between/after measured loads.
+**Four-phase review rejects unverified executables and different binary
+hashes across phases.** It never logs full `ps eww` output, which can
+contain credentials. Missing `METRIQEN_SSE_RELAY_BUFFER_BYTES` is
+accepted as 1 KiB **only on the expected executable**.
+
+These checks still do not independently attest the original Git source
+SHA, in-memory mapped binary bytes, uninterrupted power or Ollama
+worker slots. The operator must independently inspect source revision,
+runtime slots and thermals.
 
 No script action changes gateway settings, terminates a process,
 installs a model, downloads weights, provisions a GPU, or sends
@@ -85,6 +90,35 @@ unrecognized process or a shared production service.** Leave Ollama
 `scripts/start-local-demo.sh` REUSES an already running Go process
 and strips arbitrary environment variables on launch: **it will not
 switch this experiment's 1 KiB/4 KiB mode**.
+
+## Important: reject a stale `go run` A1 baseline
+
+On October 23 the operator compiled `reports/local/sse-abab-gateway`
+but the attempt to start it failed with `bind: address already in use`.
+The old PID 75718 was observed executing a `Library/Caches/go-build/`
+binary, and **that old process served the subsequently recorded
+36/36 A1 requests**. This is useful smoke evidence, but **NOT**
+a valid 1 KiB same-binary A1 baseline and must not be included in
+a final B1/A2/B2 review.
+
+Before a new A1, inspect the current listener PID and its parent:
+
+```bash
+lsof -nP -iTCP:8081 -sTCP:LISTEN
+ps -p 75713,75718 -o pid,ppid,command
+```
+
+Those historic PIDs are examples **not authoritative current targets**.
+Stop the original foreground `go run` process with Ctrl+C in its
+own terminal; if not possible, independently identify its current
+owner/process and gracefully stop **only that verified local service**.
+Confirm port 8081 is actually free before starting the new binary.
+Keep the old private A1 report unchanged for audit, but select a **fresh
+run name/output path** for every replacement phase.
+
+The updated collector now refuses to run while a `go run` cache
+binary owns port 8081. A historical A1 report lacking a verified
+executable fingerprint is refused by the four-phase offline review.
 
 ## 3. Four sequential phases
 

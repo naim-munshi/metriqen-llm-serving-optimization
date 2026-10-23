@@ -8,6 +8,20 @@ There is **no tagged Portfolio v1.0 release yet**. Do not interpret this
 document as a claim of commercial SaaS readiness, trusted token billing,
 independent hardware attestation or a production security audit.
 
+## October 23 — reject stale Go gateway binaries in AC A/B/A/B
+
+- Corrected a real operator-observed invalid A1: a newly built binary
+  failed to bind occupied port 8081; an old `go run` cache executable
+  remained active and served 36/36 successful A1 requests. Successful
+  requests alone did **not** establish a same-binary baseline.
+- Strengthened `tools.benchmark.sse_abab` so a live phase refuses any
+  listener not backed by the exact dedicated `reports/local/sse-abab-gateway`
+  executable, checks the expected **loopback** listening socket, and
+  stores the compiled binary SHA-256 without leaking process env.
+  Four-phase review rejects historical unverifiable A1 files and
+  mismatched executable hashes across modes. A new owner-controlled
+  A1/B1/A2/B2 must still be run; no P3 speedup is claimed.
+
 ## October 23 — prospective AC-powered Go SSE A/B/A/B comparison
 
 - Added `tools.benchmark.sse_abab` for **operator-initiated**, sequential
