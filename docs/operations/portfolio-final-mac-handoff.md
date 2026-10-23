@@ -48,6 +48,26 @@ or claim memory/quality/GPU metrics that were not measured.
    browser session cookies, DSNs, screenshots with identities or
    full private benchmark logs in Git commits.
 
+### Optional read-only P4/P5 Mac service snapshot (no inference, no AC)
+
+After the local services are **already running**, the
+[restricted localhost reviewer preflight](local-readonly-review-preflight.md)
+can check Go/FastAPI console HTTP availability, Ollama API version,
+gateway dependency health and the unauthenticated model registry's expected
+HTTP 401 **without** loading a model, supplying a credential, navigating to
+a real identity provider or changing process state:
+
+```bash
+python3 -m tools.demo.local_readonly_review
+python3 -m tools.demo.local_readonly_review --execute
+```
+
+Optional `--output reports/local/unique-review.json` creates a new
+owner-private, sanitized source-independent snapshot. It **does not**
+check actual browser layout, local network binding, real model inference,
+enabled JWT/Redis/PostgreSQL identity, latency or successful recovery;
+it cannot close P1, P4 or P5.
+
 ## B. P1 — real inference and model-management acceptance
 
 With Ollama and the Go inference gateway already running locally

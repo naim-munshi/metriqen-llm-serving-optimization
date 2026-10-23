@@ -12,6 +12,8 @@
 
 **Read-only release readiness audit:** `python3 -m tools.demo.portfolio_readiness` reports **all six human-review gates as blocked**, exiting with code `2` to prevent synthetic/source-only CI from automatically approving a release. [Exact source-only audit scope](docs/operations/portfolio-release-readiness.md).
 
+**No-AC-power, read-only Mac reviewer preflight:** `python3 -m tools.demo.local_readonly_review` is an offline plan; explicit `--execute` sends eight exact localhost GET checks against already-running Ollama, Go operations and FastAPI Model Manager, including an **anonymous HTTP 401 guard** for the model registry. No inference, credentials, OAuth redirects or process changes. See the [private-report and safety runbook](docs/operations/local-readonly-review-preflight.md). **This cannot approve real Safari P4 or security P5 acceptance.**
+
 **Mac/operator final handoff:** [exact P1–P6 actions, recovery checks, screenshots, benchmark and release blockers](docs/operations/portfolio-final-mac-handoff.md). This is an operator checklist, not evidence that those tasks have already run.
 
 **Portfolio v1.0 release criteria:** [six objective gates](docs/PORTFOLIO_V1_ACCEPTANCE.md) · [real local Ollama acceptance checker](docs/operations/real-ollama-portfolio-acceptance.md) · [three-console reviewer tour](docs/operations/portfolio-local-reviewer-journey.md). The existing [offline reviewer demo](docs/operations/offline-portfolio-demo.md) uses **synthetic** model replies; it is a CI contract test, not a real Ollama run. **Portfolio v1.0 is not released yet.**
