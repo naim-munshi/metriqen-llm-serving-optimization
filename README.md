@@ -73,6 +73,24 @@ Each setting had 9 runs (3 repeats at concurrency 1/2/4), **324/324 measured req
 
 **October 21 Metriqen-controlled FIFO admission A/B (descriptive, not a speedup):** a local operator collected queue depth `0` versus `2` using the same Ollama parallelism `2`, pinned model and workload, with 12 timed runs and 432 measured requests per phase plus 36 reference-quality completions each. The private offline raw-evidence tradeoff reviewer returned consistency PASS. Candidate B improved completed admissions from **144/432 to 252/432** and decreased client-observed HTTP 429s from **288 to 180**, but its successful goodput **declined at every tested concurrency (4/6/8/12)** and overloaded successful-only p95 latency/TTFT generally worsened. The reference scores were unchanged (31/36 exact; 33/36 normalized) but are narrow proxies, not semantic quality guarantees. [Read the October 21 descriptive aggregate, limitations and regression table](docs/benchmarks/experiments/2026-10-21-fifo-admission-overload.md). **No causal inference speedup or formal P3 acceptance is claimed.** The queue remains opt-in; raw Mac reports stay Git-ignored.
 
+## P3 — diagnose actual serving-path overhead before optimizing
+
+An [opt-in macOS native-Ollama versus Go-gateway ABBA diagnostic](docs/benchmarks/gateway-overhead-diagnostic.md)
+now uses the same fixed 36-prompt workload, pinned local model, matched
+streaming request caps and concurrency 1/2/4, recording every outcome,
+p95 latency, first-content TTFT and successful RPS under
+`reports/local/`. **Default command is plan-only**:
+
+```bash
+python3 -m tools.benchmark.gateway_overhead
+```
+
+Actual local inference requires deliberate `--execute`, a real exact
+Ollama digest, AC power and operator-reviewed Ollama/gateway settings.
+**This is an overhead diagnostic, not a new performance optimization or
+causal speedup evidence.** Use its results to pick one isolated
+Metriqen-controlled change and remeasure matched gateway baseline/candidate.
+
 ## P1 portfolio acceptance evidence (operator-run)
 
 Once the actual Mac has completed the native Ollama/Go smoke and full
