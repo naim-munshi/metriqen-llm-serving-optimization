@@ -21,6 +21,7 @@ KEY_DOCUMENTS = (
     "docs/operations/local-console.md",
     "docs/operations/portfolio-final-mac-handoff.md",
     "docs/operations/local-readonly-review-preflight.md",
+    "docs/benchmarks/sse-abab-ac-operator.md",
     "docs/operations/macos-python-tls.md",
     "docs/operations/repository-branch-hygiene.md",
 )
