@@ -6,6 +6,8 @@
 
 **Engineering case study:** [architecture, implementation decisions, measured results and trade-offs](docs/PORTFOLIO_CASE_STUDY.md) · [Unreleased changelog](CHANGELOG.md)
 
+**Current evidence status (2026-10-23):** [What actually works, honest strengths, weak points, benchmark limitations, and remaining gates](docs/PORTFOLIO_CURRENT_STATUS.md). The separate [October 14 historical implementation status](docs/PROJECT_STATUS.md) is **not** today's feature matrix. Current source CI is green, but **P1–P6 remain open**.
+
 **P1 deployment lifecycle acceptance:** [read-only preflight and explicit local Stop/Start/Promote/Rollback command](docs/operations/local-deployment-acceptance.md), with synthetic CI contract coverage. The operator has now reported real Mac Stop/Start/Promote/Rollback and matching private smoke/lifecycle consistency PASS, with genuine Safari snapshots of the final `assistant` routing state; private evidence remains unpublished and release/browser accessibility sign-off is still pending.
 
 **Mac/operator final handoff:** [exact P1–P6 actions, recovery checks, screenshots, benchmark and release blockers](docs/operations/portfolio-final-mac-handoff.md). This is an operator checklist, not evidence that those tasks have already run.
@@ -26,6 +28,8 @@ Metriqen is an **engineering research prototype** for understanding how concurre
 | **Measurement** | Versioned workloads, repeated sweeps, TTFT/p95/RPS, quality and evidence gates; aggregate provider-reported token counters | Mostly single-machine tests; provider usage is untrusted and **not billable**; no verified causal serving speedup |
 | **Evaluation** | Exact/normalized reference-answer checks, matched evidence and A/B/A/B drift review | String matching is **not** semantic/factual quality evaluation |
 | **Control plane / Accounts** | FastAPI pinned-JWKS access token validation, opt-in local OIDC browser sessions/Redis, PostgreSQL org/project RBAC and durable deployments | Requires operator-supplied IdP/config; no hosted production tenant service |
+| **GPU autoscaling research** | Bounded, offline worker-capacity policy and generation-fenced simulated desired/observed reconciliation with replay/cost safety tests | No actual GPU workers, cloud provider adapter, billing enforcement or autoscaling |
+| **Public hosting / Google** | Opt-in Google ID-token BFF and pinned public JWKS refresh CLI; local-only network exposure guards | No real Google account login, HTTPS production BFF, public ingress or cross-tenant live acceptance |
 | **Reviewer interface** | Go read-only operations console + separate FastAPI model manager and optional OIDC account console, with fixed local navigation | Not one shared login/session; real Mac browser and accessibility/screenshots still unverified |
 
 **Stack:** Go · Python · FastAPI · Ollama / llama.cpp · PostgreSQL / SQLAlchemy (optional) · Docker Compose (local) · GitHub Actions.
