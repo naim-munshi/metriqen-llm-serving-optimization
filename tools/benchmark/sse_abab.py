@@ -232,6 +232,24 @@ def review(paths: dict[str, Path]) -> dict:
         for a, b in zip(canonical["results"], doc["results"]):
             if a["requests"] != b["requests"]:
                 raise PhaseRefused("phases_request_counts_differ")
+    if len({str(path.resolve()) for path in paths.values()}) != 4:
+        raise PhaseRefused("four_distinct_phase_files_required")
+    # A/B/A/B is a time-ordered protocol, not four arbitrarily relabeled
+    # reports. This still does NOT attest real process identity or thermals.
+    stamps = []
+    for name in PHASE_BUFFER:
+        timestamp = data[name].get("observed_at_utc")
+        if not isinstance(timestamp, str):
+            raise PhaseRefused("phase_timestamp_missing")
+        try:
+            stamp = datetime.fromisoformat(timestamp)
+        except ValueError:
+            raise PhaseRefused("phase_timestamp_invalid") from None
+        if stamp.tzinfo is None:
+            raise PhaseRefused("phase_timestamp_missing_timezone")
+        stamps.append(stamp)
+    if any(older >= newer for older, newer in zip(stamps, stamps[1:])):
+        raise PhaseRefused("phases_not_in_abab_chronological_order")
     by_c = {}
     for index, c in enumerate(LEVELS):
         values = {p: data[p]["results"][index] for p in PHASE_BUFFER}
