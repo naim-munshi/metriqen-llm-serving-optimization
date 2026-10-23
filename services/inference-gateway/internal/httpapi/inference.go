@@ -24,12 +24,13 @@ const (
 	defaultMaxTokens = 256
 	maxConcurrent    = 4
 	maxStreamedBytes = 8 << 20 // Per-request streaming response byte budget.
-	// Candidate: larger bounded relay read to reduce read/write/flush cycles
-	// for buffered bursts. io.Reader does not wait to fill this buffer;
-	// per-read immediate flush remains unchanged. Real TTFT is unproven.
-	sseRelayReadBufferBytes = 4096
 	requestDeadline  = 120 * time.Second
 )
+
+// Candidate: larger bounded relay read to reduce read/write/flush cycles
+// for buffered bursts. io.Reader does not wait to fill this buffer;
+// per-read immediate flush remains unchanged. Real TTFT is unproven.
+const sseRelayReadBufferBytes = 4096
 
 // inferenceBridge deliberately has no API authentication. It MUST remain on a
 // loopback-only development listener until authentication and quotas are wired.
