@@ -8,6 +8,20 @@ There is **no tagged Portfolio v1.0 release yet**. Do not interpret this
 document as a claim of commercial SaaS readiness, trusted token billing,
 independent hardware attestation or a production security audit.
 
+## P3 prospective path-overhead diagnosis (operator-only, unreleased)
+
+- Added an explicit `--execute` **native Ollama vs Go gateway** ABBA
+  diagnostic for the same pinned local model and 36-prompt workload,
+  concurrency 1/2/4. It checks installed digest, AC power, endpoint
+  reachability and private report paths, retaining failures and
+  success-only TTFT/p95/RPS for every phase. With no `--execute`, the
+  command never accesses the network or creates files.
+- The diagnostic measures **overhead and attribution hypotheses**, not
+  a changed Metriqen serving path, model speedup, GPU optimization,
+  controlled semantic quality comparison or P3 acceptance. Its owner
+  must independently verify gateway upstream, runtime slots, power and
+  thermal conditions. [Protocol](docs/benchmarks/gateway-overhead-diagnostic.md).
+
 ## October 23 — current evidence and safe release-audit maintenance
 
 - Added [current evidence and limitations matrix](docs/PORTFOLIO_CURRENT_STATUS.md)
