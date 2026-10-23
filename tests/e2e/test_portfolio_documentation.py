@@ -20,6 +20,7 @@ KEY_DOCUMENTS = (
     "docs/operations/real-ollama-portfolio-acceptance.md",
     "docs/operations/local-console.md",
     "docs/operations/portfolio-final-mac-handoff.md",
+    "docs/operations/local-readonly-review-preflight.md",
     "docs/operations/macos-python-tls.md",
     "docs/operations/repository-branch-hygiene.md",
 )
@@ -68,6 +69,16 @@ class PortfolioDocumentationContracts(unittest.TestCase):
         self.assertIn("2026-10", changes)
         for id in (69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 82):
             self.assertIn(f"/pull/{id}", changes)
+
+    def test_readonly_mac_review_does_not_claim_browser_or_security_signoff(self):
+        doc = (ROOT / "docs/operations/local-readonly-review-preflight.md").read_text(
+            encoding="utf-8")
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("docs/operations/local-readonly-review-preflight.md", readme)
+        for item in ("--execute", "HTTP 401", "no model",
+                     "not", "browser", "security", "P4", "P5",
+                     "127.0.0.1:11434", "127.0.0.1:8081", "127.0.0.1:8000"):
+            self.assertIn(item.lower(), doc.lower())
 
     def test_recruiter_guide_does_not_turn_synthetic_results_into_release_claims(self):
         guide = (ROOT / "docs/PORTFOLIO_INTERVIEW_GUIDE.md").read_text(encoding="utf-8")
