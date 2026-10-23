@@ -54,14 +54,14 @@
             <button class="button primary" id="save" type="submit">Save profile</button>
           </div>
         </form>
-        <p id="profile-note" class="description"></p>
+        <p id="profile-note" class="description" role="status" aria-live="polite"></p>
         <div class="rule workspace-divider"></div>
         <div class="memberbar">
           <div><p class="eyebrow">TEAM ACCESS</p><h3>Invitations for you</h3></div>
           <button class="button secondary" id="refresh-invitations" type="button">Refresh invitations</button>
         </div>
         <p class="description">Invitations are addressed to your exact verified OIDC subject. Accepting adds only the server-approved role. No email invitations are sent.</p>
-        <div id="pending-invitations" class="workspace-list" aria-live="polite"></div>
+        <div id="pending-invitations" class="workspace-list" role="status" aria-live="polite"></div>
         <div class="rule workspace-divider"></div>
         <div class="memberbar">
           <div><p class="eyebrow">WORKSPACES</p><h3>Organizations &amp; Projects</h3></div>
@@ -71,11 +71,11 @@
         <form id="organization-form">
           <label for="organization-name">New organization name</label>
           <div class="formrow">
-            <input id="organization-name" maxlength="200" required placeholder="e.g. Metriqen Research">
+            <input id="organization-name" name="organization_name" type="text" maxlength="200" required autocomplete="organization" aria-describedby="workspace-note" placeholder="e.g. Metriqen Research">
             <button class="button primary" id="create-organization" type="submit">Create organization</button>
           </div>
         </form>
-        <p id="workspace-note" class="description" aria-live="polite">Loading organizations…</p>
+        <p id="workspace-note" class="description" role="status" aria-live="polite">Loading organizations…</p>
         <div id="workspace-list" class="workspace-list"></div>
       </section>
       <footer>METRIQEN · DEVELOPMENT-ONLY OIDC SESSIONS · DO NOT EXPOSE PUBLICLY</footer>
