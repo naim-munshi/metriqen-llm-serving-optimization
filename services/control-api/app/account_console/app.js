@@ -413,13 +413,28 @@ el("profile-form").addEventListener("submit", async event => {
   }
 });
 
+// Signing out must not leave the previous subject, profile or workspace
+// details in hidden DOM nodes on a shared local browser. No network calls.
+function clearSignedOutIdentity() {
+  csrf = "";
+  hasProfile = false;
+  el("subject").textContent = "—";
+  el("issuer").textContent = "—";
+  el("display-name").value = "";
+  el("organization-name").value = "";
+  el("profile-note").textContent = "";
+  el("workspace-note").textContent = "";
+  el("save").textContent = "Save profile";
+  el("pending-invitations").replaceChildren();
+  el("workspace-list").replaceChildren();
+}
+
 el("logout").addEventListener("click", async () => {
   if (busy || !csrf) return;
   setBusy(true);
   try {
     await jsonRequest("/auth/logout", "POST", null, true);
-    csrf = "";
-    el("display-name").value = "";
+    clearSignedOutIdentity();
     el("guest").hidden = false;
     el("member").hidden = true;
     status("Signed out. The local session was revoked.");

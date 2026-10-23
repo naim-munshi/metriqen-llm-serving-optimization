@@ -118,6 +118,23 @@ real, configured surface with Tab/Shift+Tab/Enter and at 320–390px widths;
 optional OIDC login may legitimately be unavailable without a real IdP,
 PostgreSQL and Redis. Only release human-reviewed sanitized screenshots.
 
+### Account-console sign-out privacy guard
+
+After the existing same-origin `/auth/logout` succeeds, the optional
+Account Console now explicitly removes the previous verified subject,
+issuer, profile draft, organization draft, pending invitations, workspace
+DOM cards and status notes, rather than merely setting the member panel
+to `hidden`. The browser's ephemeral CSRF value and profile-existence
+flag are cleared too. Failed logout attempts **do not** claim that the
+server session was revoked or silently discard it.
+
+This is a **local browser DOM privacy improvement**, not proof of
+server-side session revocation across other devices, a production
+security audit, or full cancellation of every outstanding request.
+A mocked-DOM Node test verifies fields disappear following an accepted
+logout; real Google provider/Redis/PostgreSQL browser acceptance is
+still mandatory before production claims. No credentials are persisted.
+
 ## Screenshot/video checklist
 
 Capture the **actual rendered Mac browser**, not synthetic CI HTML, after
