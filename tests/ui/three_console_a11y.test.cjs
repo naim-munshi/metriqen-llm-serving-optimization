@@ -66,3 +66,21 @@ test("model manager mobile navigation provides 44px touch and keyboard targets",
   assert.match(css, /\.sidebar nav a:focus-visible\{outline:2px solid var\(--accent\)/);
   assert.doesNotMatch(css, /\.sidebar nav\{display:none/);
 });
+
+test("account forms expose explicit labels and status updates to assistive tech", () => {
+  const { html } = assets("account_console");
+  for (const [label, field] of [
+    ["Display name", "display-name"],
+    ["New organization name", "organization-name"],
+  ]) {
+    assert.ok(html.includes('<label for="' + field + '">' + label + '</label>'));
+    assert.match(html, new RegExp('<input id="' + field + '"[^>]*'));
+  }
+  assert.match(html, /id="organization-name"[^>]*name="organization_name"[^>]*type="text"[^>]*autocomplete="organization"[^>]*aria-describedby="workspace-note"/);
+  for (const id of ["profile-note", "workspace-note"]) {
+    assert.match(html, new RegExp('<p id="' + id + '"[^>]*role="status"[^>]*aria-live="polite"'));
+  }
+  assert.match(html, /id="pending-invitations"[^>]*role="status" aria-live="polite"/);
+  assert.match(html, /<form id="profile-form">/);
+  assert.match(html, /<form id="organization-form">/);
+});
