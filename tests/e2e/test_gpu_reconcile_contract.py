@@ -114,10 +114,10 @@ class ReconciliationSafetyTests(unittest.TestCase):
             (fleet(observed_at_epoch_s=NOW+1), observed()),
             (fleet(), observed(observed_at_epoch_s=NOW-31)),
         ):
-            with self.subTest(fleet=f), self.assertIsNone(
-                propose_intent(policy(), f, telemetry, now_epoch_s=NOW)
-            ):
-                pass
+            with self.subTest(fleet=f):
+                self.assertIsNone(
+                    propose_intent(policy(), f, telemetry, now_epoch_s=NOW)
+                )
 
     def test_expired_intent_never_changes_state(self):
         state = fleet()
