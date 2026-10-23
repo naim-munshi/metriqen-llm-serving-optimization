@@ -149,6 +149,7 @@ def _private_output(path: Path) -> Path:
     base = REPORT_ROOT.absolute()
     if (target == base or target.suffix != ".json"
             or target.parent != base or base.is_symlink()
+            or base.parent.is_symlink()
             or not target.is_relative_to(base)
             or target.is_symlink() or target.exists()):
         raise ValueError("unsafe_report_path")
