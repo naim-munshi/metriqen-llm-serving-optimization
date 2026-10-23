@@ -49,6 +49,7 @@ function fakeBrowser(role="owner") {
     name:"Owner workspace",role};
   const responses = {
     "/auth/session": {authenticated:false},
+    "/auth/logout": null,
     "/auth/organizations": {organizations:[org]},
     ["/auth/organizations/"+org.id+"/members"]: {members:[]},
     ["/auth/organizations/"+org.id+"/projects"]: {projects:[]},
@@ -61,7 +62,7 @@ function fakeBrowser(role="owner") {
     assert.equal(options.redirect,"error");
     assert.equal(options.cache,"no-store");
     assert.ok(Object.hasOwn(responses,url), "Unexpected account request: "+url);
-    return {ok:true,status:200,json:async()=>responses[url]};
+    return {ok:true,status:url==="/auth/logout" ? 204 : 200,json:async()=>responses[url]};
   };
   const ctx = vm.createContext({document,fetch});
   vm.runInContext(source,ctx,{timeout:1500});
@@ -124,4 +125,47 @@ test("owner and admin retain the project creation form",async()=>{
     assert.equal(hasVisibleText(card,"Create project in Owner workspace"),true,
       "Creator UI missing for "+role);
   }
+});
+
+test("successful sign-out clears sensitive identity and workspace DOM, not just hides it",async()=>{
+  const browser=fakeBrowser();
+  const get=id=>browser.ctx.document.getElementById(id);
+  await new Promise(resolve=>setImmediate(resolve)); // finish unauthenticated boot
+  vm.runInContext('csrf="synthetic-account-test-csrf";hasProfile=true;',browser.ctx);
+  get("guest").hidden=true;
+  get("member").hidden=false;
+  get("subject").textContent="PRIVATE_OLD_SUBJECT";
+  get("issuer").textContent="PRIVATE_OLD_ISSUER";
+  get("display-name").value="PRIVATE_OLD_NAME";
+  get("organization-name").value="PRIVATE_ORG_DRAFT";
+  get("profile-note").textContent="PRIVATE_PROFILE_METADATA";
+  get("workspace-note").textContent="PRIVATE_WORKSPACE_METADATA";
+  get("save").textContent="Update profile";
+  const secretNode=new Element();
+  secretNode.textContent="PRIVATE_ORG_CONTENT";
+  get("workspace-list").append(secretNode);
+  const invitation=new Element();
+  invitation.textContent="PRIVATE_INVITATION_SUBJECT";
+  get("pending-invitations").append(invitation);
+
+  await get("logout").handlers.click();
+  assert.equal(vm.runInContext('csrf',browser.ctx),"");
+  assert.equal(vm.runInContext('hasProfile',browser.ctx),false);
+  assert.equal(get("member").hidden,true);
+  assert.equal(get("guest").hidden,false);
+  assert.equal(get("subject").textContent,"—");
+  assert.equal(get("issuer").textContent,"—");
+  for(const id of ["display-name","organization-name"]) {
+    assert.equal(get(id).value,"");
+  }
+  for(const id of ["profile-note","workspace-note"]) {
+    assert.equal(get(id).textContent,"");
+  }
+  for(const id of ["workspace-list","pending-invitations"]) {
+    assert.equal(get(id).children.length,0);
+  }
+  assert.equal(get("save").textContent,"Save profile");
+  assert.match(get("status").textContent,/Signed out/);
+  assert.equal(browser.requests.filter(url=>url==="/auth/logout").length,1);
+  assert.equal(browser.requests.some(url=>url.includes("chat/completions")),false);
 });
