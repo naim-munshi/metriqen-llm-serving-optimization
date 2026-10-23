@@ -47,16 +47,45 @@ func syntheticRelayReadPass(input []byte, readSize int) (int, bool, providerUsag
 	}
 }
 
+func TestSSERelayCandidateOptInPreservesLegacyDefault(t *testing.T) {
+	t.Setenv("METRIQEN_SSE_RELAY_BUFFER_BYTES", "")
+	bridge, err := newInferenceBridge("http://127.0.0.1:11434")
+	if err != nil || bridge.sseRelayReadBufferBytes != 1024 {
+		t.Fatalf("default changed: %v, bridge=%+v", err, bridge)
+	}
+	for _, value := range []string{"4096", "1024", "0", "-1", "4096 ", "8192", "04", "bad"} {
+		got, err := parseSSERelayReadBufferBytes(value)
+		if value == "4096" {
+			if err != nil || got != 4096 {
+				t.Fatalf("candidate opt-in not accepted: value=%q got=%d err=%v", value, got, err)
+			}
+			continue
+		}
+		if err == nil {
+			t.Fatalf("invalid or unreviewed opt-in accepted: %q => %d", value, got)
+		}
+	}
+	t.Setenv("METRIQEN_SSE_RELAY_BUFFER_BYTES", "4096")
+	bridge, err = newInferenceBridge("http://127.0.0.1:11434")
+	if err != nil || bridge.sseRelayReadBufferBytes != 4096 {
+		t.Fatalf("opt-in candidate not applied: %v, bridge=%+v", err, bridge)
+	}
+	t.Setenv("METRIQEN_SSE_RELAY_BUFFER_BYTES", "8192")
+	if _, err := newInferenceBridge("http://127.0.0.1:11434"); err == nil {
+		t.Fatal("invalid operator configuration must fail at startup")
+	}
+}
+
 func TestStreamingRelayLargerReadChunksPreserveSSEAndReportedUsage(t *testing.T) {
-	if sseRelayReadBufferBytes != 4096 {
-		t.Fatalf("expected 4 KiB bounded candidate chunk, got %d", sseRelayReadBufferBytes)
+	if candidateSSERelayReadBufferBytes != 4096 {
+		t.Fatalf("expected 4 KiB bounded candidate chunk, got %d", candidateSSERelayReadBufferBytes)
 	}
 	payload := syntheticRelaySSE()
 	smallReads, smallDone, smallUsage, err := syntheticRelayReadPass(payload, 1024)
 	if err != nil || !smallDone || smallUsage.kind != providerUsagePlausible {
 		t.Fatalf("bad baseline synthetic framing %v %+v", err, smallUsage)
 	}
-	for _, size := range []int{1, 3, 127, 1024, sseRelayReadBufferBytes, 8192} {
+	for _, size := range []int{1, 3, 127, 1024, candidateSSERelayReadBufferBytes, 8192} {
 		reads, done, usage, err := syntheticRelayReadPass(payload, size)
 		if err != nil || !done || usage.kind != providerUsagePlausible ||
 			usage.promptTokens != smallUsage.promptTokens ||
@@ -65,7 +94,7 @@ func TestStreamingRelayLargerReadChunksPreserveSSEAndReportedUsage(t *testing.T)
 			t.Fatalf("read size %d changed framing/usage: reads=%d done=%v %+v err=%v",
 				size, reads, done, usage, err)
 		}
-		if size == sseRelayReadBufferBytes && reads >= smallReads {
+		if size == candidateSSERelayReadBufferBytes && reads >= smallReads {
 			t.Fatalf("larger candidate did not reduce synthetic buffered read cycles %d vs %d",
 				reads, smallReads)
 		}
@@ -73,6 +102,7 @@ func TestStreamingRelayLargerReadChunksPreserveSSEAndReportedUsage(t *testing.T)
 }
 
 func TestStreamingRelayLargerReadBufferPreservesHTTPAndAccounting(t *testing.T) {
+	t.Setenv("METRIQEN_SSE_RELAY_BUFFER_BYTES", "4096")
 	payload := syntheticRelaySSE()
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
@@ -106,7 +136,7 @@ func BenchmarkSSEChunkedRelayParsing(b *testing.B) {
 		readSize int
 	}{
 		{"baseline_1024", 1024},
-		{"candidate_4096", sseRelayReadBufferBytes},
+		{"candidate_4096", candidateSSERelayReadBufferBytes},
 	} {
 		b.Run(tc.name, func(b *testing.B) {
 			b.ReportAllocs()
