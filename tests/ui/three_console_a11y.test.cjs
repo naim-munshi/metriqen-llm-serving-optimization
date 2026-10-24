@@ -84,3 +84,12 @@ test("account forms expose explicit labels and status updates to assistive tech"
   assert.match(html, /<form id="profile-form">/);
   assert.match(html, /<form id="organization-form">/);
 });
+
+test("account and model controls retain 44px touch targets on phones", () => {
+  const account = assets("account_console");
+  const model = assets("model_console");
+  assert.match(account.css, /\.button\{min-height:44px;/);
+  assert.match(model.css, /button\{min-height:44px;/);
+  assert.match(account.css, /@media\(max-width:750px\)/);
+  assert.match(model.css, /@media\(max-width:680px\)/);
+});

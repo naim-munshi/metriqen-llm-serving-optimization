@@ -37,6 +37,14 @@ async function jsonRequest(path, method = "GET", payload = null, csrfRequired = 
   if (response.status !== 204) {
     body = await response.json();
   }
+  if (response.status === 401) {
+    // Revocation/expiry must immediately remove the former user's data
+    // from a still-open tab. A 401 is not a transient PostgreSQL failure.
+    // This changes local presentation only; the server remains the authority.
+    clearSignedOutIdentity();
+    el("member").hidden = true;
+    el("guest").hidden = false;
+  }
   if (!response.ok) {
     const detail = body && typeof body.detail === "string"
       ? body.detail.slice(0, 180) : "Request rejected";
@@ -51,6 +59,7 @@ async function boot() {
   try {
     const current = await jsonRequest("/auth/session");
     if (!current.authenticated) {
+      clearSignedOutIdentity();
       el("guest").hidden = false;
       el("member").hidden = true;
       status("Not signed in. Use your configured identity provider to continue.");
@@ -121,16 +130,23 @@ async function refreshWorkspaces() {
     // Project and team panels are independent. Refreshing the project list
     // must not detach an already open Team Management panel from the DOM.
     const detail = makeNode("div", "workspace-projects");
+    detail.id = "org-projects-" + org.id;
+    view.setAttribute("aria-controls", detail.id);
+    view.setAttribute("aria-expanded", "false");
     const teamDetails = makeNode("div", "workspace-projects");
+    teamDetails.id = "org-team-" + org.id;
     heading.append(meta, view);
     if (org.role === "owner" || org.role === "admin") {
       const manage = makeNode("button", "button secondary workspace-action", "Manage team");
       manage.type = "button";
+      manage.setAttribute("aria-controls", teamDetails.id);
+      manage.setAttribute("aria-expanded", "false");
       manage.addEventListener("click", async () => {
         if (busy) return;
         setBusy(true);
         try {
           await showTeam(org, teamDetails);
+          manage.setAttribute("aria-expanded", "true");
         } catch (error) {
           status(error instanceof Error ? error.message : "Team access denied", true);
         } finally {
@@ -151,6 +167,7 @@ async function refreshWorkspaces() {
           encodeURIComponent(org.id) + "/projects");
         if (!Array.isArray(data.projects)) throw new Error("Invalid project list response");
         detail.replaceChildren();
+        view.setAttribute("aria-expanded", "true");
         const items = makeNode("ul", "project-items");
         for (const project of data.projects) {
           items.append(makeNode("li", "", project.name));
@@ -162,6 +179,8 @@ async function refreshWorkspaces() {
           const form = makeNode("form", "project-form");
           const label = makeNode("label", "", "Create project in " + org.name);
           const input = document.createElement("input");
+          input.id = "project-name-" + org.id;
+          label.htmlFor = input.id;
           input.setAttribute("aria-label", "Project name in " + org.name);
           input.maxLength = 200;
           input.required = true;
@@ -427,6 +446,7 @@ function clearSignedOutIdentity() {
   el("save").textContent = "Save profile";
   el("pending-invitations").replaceChildren();
   el("workspace-list").replaceChildren();
+  // Never leave a stale account screen visible on subsequent local sessions.
 }
 
 el("logout").addEventListener("click", async () => {
