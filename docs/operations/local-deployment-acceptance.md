@@ -59,6 +59,36 @@ is an **example**: choose a distinct revision that is installed and
 fits memory. If your Mac cannot hold both, do not force multiple 7B
 models into memory or proceed with Promote/Rollback.
 
+### Read-only preflight troubleshooting
+
+The checker identifies whether the **baseline** or **candidate** caused
+a refusal. It intentionally never auto-registers, approves or loads models
+during the read-only preflight:
+
+- `baseline_approved_model_not_loaded`: the approved baseline is no longer
+  resident in Ollama (for example, its five-minute idle keep-alive expired).
+  Use the existing authenticated Model Manager **Load** action for
+  `llama3.2:1b`, then retry immediately. Do not re-register or re-approve
+  the unchanged digest. The plain no-candidate preflight distinguishes this
+  even on older checker revisions.
+- `candidate_approved_model_missing`: register the **already installed**
+  `llama3.2:latest` revision explicitly in the operator console.
+- `candidate_registered_model_not_approved`: operator-review and
+  **Approve** the candidate's exact registered digest, then retry.
+- `candidate_registered_model_loaded_digest_mismatch`: **stop** and review
+  the registered Ollama revision; never silently approve a changed digest.
+- `candidate_approved_model_not_loaded`: the candidate is unloaded in
+  normal simultaneous-load mode. With `--sequential-load`, unloaded
+  candidate is intentionally permitted once registered and approved.
+- `baseline_registered_model_not_approved` or a malformed digest: stop
+  and inspect the persistent registry instead of overwriting it.
+
+The error messages and preflight response are not proof of a currently
+authorized **running Go gateway candidate allowlist**. Before any
+`--execute` candidate test, independently inspect that runtime policy.
+A successful read-only preflight is not permission to modify an in-use
+deployment or a real-browser P1 sign-off.
+
 ## Step 2: explicit local lifecycle (mutates alias)
 
 After verifying both models remain loaded and the alias is idle:
