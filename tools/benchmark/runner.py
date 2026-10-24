@@ -219,8 +219,15 @@ def request_once(endpoint: str, model: str, messages: list[dict[str, Any]],
             return Sample(status, True, (time.perf_counter() - started) * 1000,
                           first, completion, prompt)
     except HTTPError as exc:
-        return Sample(exc.code, False, (time.perf_counter() - started) * 1000,
-                      None, None, None, f"http_{exc.code}")
+        # urllib's HTTPError owns a readable response body/socket. Do not
+        # inspect it (it may contain private provider output); close it
+        # explicitly so repeated 429s never leak handles or emit
+        # ResourceWarning on the operator's Mac.
+        try:
+            return Sample(exc.code, False, (time.perf_counter() - started) * 1000,
+                          None, None, None, f"http_{exc.code}")
+        finally:
+            exc.close()
     except (URLError, OSError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
         reason = str(exc) if isinstance(exc, ValueError) else type(exc).__name__
         return Sample(status, False, (time.perf_counter() - started) * 1000,
