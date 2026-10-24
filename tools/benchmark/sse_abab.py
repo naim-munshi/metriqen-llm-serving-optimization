@@ -7,6 +7,7 @@ Dry-run by default. Live mode only targets the existing loopback gateway.
 from __future__ import annotations
 
 import argparse
+import ctypes
 import hashlib
 from datetime import datetime, timezone
 import json
@@ -73,6 +74,29 @@ def _verified_experiment_binary() -> tuple[Path, str]:
     return binary.resolve(strict=True), digest.hexdigest()
 
 
+def _macos_running_executable(pid: int) -> Path:
+    """Ask the Darwin kernel for this PID's executable, not all mmap text vnodes.
+
+    lsof -d txt may also list dylibs and other executable mappings. Matching
+    one entry there alone does NOT establish the running main executable.
+    """
+    if type(pid) is not int or pid < 2:
+        raise PhaseRefused("invalid_gateway_pid")
+    try:
+        # Only called by the explicitly macOS-only live operator path.
+        libproc = ctypes.CDLL("/usr/lib/libproc.dylib")
+        proc_pidpath = libproc.proc_pidpath
+        proc_pidpath.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
+        proc_pidpath.restype = ctypes.c_int
+        result = ctypes.create_string_buffer(4096)
+        count = proc_pidpath(pid, result, len(result))
+        if not 0 < count < len(result) or not result.value:
+            raise PhaseRefused("mac_executable_identity_unavailable")
+        return Path(os.fsdecode(result.value))
+    except (OSError, AttributeError, TypeError, ValueError):
+        raise PhaseRefused("mac_executable_identity_unavailable") from None
+
+
 def inspect_gateway() -> dict:
     """Require the PID's actual executable, not merely its SSE environment."""
 
@@ -92,6 +116,10 @@ def inspect_gateway() -> dict:
     text_paths = [line[1:] for line in files.splitlines() if line.startswith("n")]
     if str(expected_binary) not in text_paths:
         raise PhaseRefused("gateway_not_running_expected_binary")
+    # macOS lsof txt includes mappings beyond the main executable. Verify the
+    # PID's *actual executable* independently through libproc proc_pidpath.
+    if _macos_running_executable(pid) != expected_binary:
+        raise PhaseRefused("gateway_main_executable_mismatch")
     # Guard accidental public exposure during the operator experiment.
     listener = _capture(["lsof", "-nP", "-a", "-p", str(pid),
                          "-iTCP:8081", "-sTCP:LISTEN", "-F", "n"])
@@ -112,6 +140,7 @@ def inspect_gateway() -> dict:
         "buffer_bytes": 4096 if found else 1024,
         "evidence": "process_env_4096" if found else "env_unset_assumed_default",
         "binary_path_verified": True,
+        "mac_proc_pidpath_verified": True,
         "binary_sha256": actual_sha,
         "upstream_origin_verified": True,
         "upstream_origin": EXPECTED_UPSTREAM,
@@ -271,6 +300,7 @@ def _load_phase(path: Path, expected: str) -> dict:
             process.get("upstream_origin_verified") is not True or
             process.get("upstream_origin") != EXPECTED_UPSTREAM or
             process.get("binary_path_verified") is not True or
+            process.get("mac_proc_pidpath_verified") is not True or
             not isinstance(process.get("binary_sha256"), str) or
             _SHA.fullmatch(process["binary_sha256"]) is None or
             process.get("binary_source_sha_verified") is not False):

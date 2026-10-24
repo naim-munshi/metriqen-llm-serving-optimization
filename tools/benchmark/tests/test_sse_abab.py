@@ -29,6 +29,15 @@ class SSEABABContracts(unittest.TestCase):
         target_patch = patch.object(exp, "PRIVATE", self.private)
         target_patch.start()
         self.addCleanup(target_patch.stop)
+        self.native_executable_probe = exp._macos_running_executable
+        # CI runs on Linux; live Darwin PID inspection is exercised separately.
+        # All synthetic gateway probes use an explicitly expected main binary.
+        process_patch = patch.object(
+            exp, "_macos_running_executable",
+            side_effect=lambda _pid: self.binary.resolve(),
+        )
+        process_patch.start()
+        self.addCleanup(process_patch.stop)
         self.digest = "a" * 64
 
     @staticmethod
@@ -49,6 +58,7 @@ class SSEABABContracts(unittest.TestCase):
             "pid": 91234, "buffer_bytes": buffer_size,
             "evidence": "process_env_4096" if buffer_size == 4096 else "env_unset_assumed_default",
             "binary_path_verified": True,
+                "mac_proc_pidpath_verified": True,
             "upstream_origin_verified": True,
             "upstream_origin": exp.EXPECTED_UPSTREAM,
             "binary_sha256": self.bin_sha,
@@ -93,6 +103,7 @@ class SSEABABContracts(unittest.TestCase):
             "pid": 20, "buffer_bytes": 1024,
             "evidence": "env_unset_assumed_default",
             "binary_path_verified": True,
+                "mac_proc_pidpath_verified": True,
             "upstream_origin_verified": True,
             "upstream_origin": exp.EXPECTED_UPSTREAM,
             "binary_sha256": self.bin_sha,
@@ -114,6 +125,58 @@ class SSEABABContracts(unittest.TestCase):
                     runtime_check=lambda *_: (_ for _ in ()).throw(ValueError("not AC")),
                     gateway_check=lambda: {})
         self.assertEqual([p.name for p in self.private.iterdir()], ["sse-abab-gateway"])
+
+    def test_kernel_main_executable_must_match_even_if_lsof_txt_lists_expected(self):
+        def mapped_only(argv):
+            if "-t" in argv:
+                return "71234\n"
+            if "-d" in argv:
+                # A helper process can map this file without executing it.
+                return "p71234\nftxt\nn" + str(self.binary.resolve()) + "\n"
+            raise AssertionError("Mismatched main executable must block before env inspection")
+
+        with patch.object(exp, "_capture", side_effect=mapped_only), patch.object(
+            exp, "_macos_running_executable", return_value=Path("/tmp/other-server")
+        ), self.assertRaisesRegex(exp.PhaseRefused, "gateway_main_executable_mismatch"):
+            exp.inspect_gateway()
+        self.assertFalse((self.private / "A1.json").exists())
+
+    def test_macos_proc_pidpath_reads_kernel_executable_and_fails_closed(self):
+        # setUp installs a fake native probe for all cross-platform synthetic
+        # gateway tests; test the *actual* implementation here.
+        probe = self.native_executable_probe
+        expected = str(self.binary.resolve()).encode()
+        def fake_path(pid, target, size):
+            self.assertEqual(pid, 71234)
+            self.assertGreater(size, len(expected))
+            exp.ctypes.memmove(target, expected + b"\0", len(expected) + 1)
+            return len(expected) + 1
+        with patch.object(exp.ctypes, "CDLL", return_value=type(
+            "FakeLib", (), {"proc_pidpath": staticmethod(fake_path)}
+        )()):
+            self.assertEqual(probe(71234), self.binary.resolve())
+
+        def unavailable(_pid, _target, _size):
+            return 0
+        with patch.object(exp.ctypes, "CDLL", return_value=type(
+            "FakeLib", (), {"proc_pidpath": staticmethod(unavailable)}
+        )()), self.assertRaisesRegex(exp.PhaseRefused, "mac_executable_identity_unavailable"):
+            probe(71234)
+
+        with patch.object(exp.ctypes, "CDLL", side_effect=OSError("not Darwin")), \
+                self.assertRaisesRegex(exp.PhaseRefused, "mac_executable_identity_unavailable"):
+            probe(71234)
+
+    def test_offline_rejects_historical_phase_without_kernel_pid_attestation(self):
+        paths = {}
+        for phase in exp.PHASE_BUFFER:
+            self.collect(phase)
+            paths[phase] = self.private / f"{phase}.json"
+        old = json.loads(paths["A1"].read_text())
+        old["gateway_process"].pop("mac_proc_pidpath_verified")
+        paths["A1"].write_text(json.dumps(old), encoding="utf-8")
+        with self.assertRaisesRegex(exp.PhaseRefused, "active_gateway_binary_not_verified"):
+            exp.review(paths)
 
     def test_process_check_never_logs_untrusted_environment(self):
         def process_output(args):
@@ -193,6 +256,7 @@ class SSEABABContracts(unittest.TestCase):
                 "buffer_bytes": 1024,
                 "evidence": "env_unset_assumed_default",
                 "binary_path_verified": True,
+                "mac_proc_pidpath_verified": True,
                 "binary_sha256": self.bin_sha,
                 "binary_source_sha_verified": False,
                 "upstream_origin_verified": True,
@@ -503,6 +567,7 @@ class SSEABABContracts(unittest.TestCase):
                 "pid": 22 + int(call > 2), "buffer_bytes": 1024,
                 "evidence": "env_unset_assumed_default",
                 "binary_path_verified": True,
+                "mac_proc_pidpath_verified": True,
                 "upstream_origin_verified": True,
                 "upstream_origin": exp.EXPECTED_UPSTREAM,
                 "binary_sha256": self.bin_sha,
