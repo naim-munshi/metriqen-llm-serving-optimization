@@ -6,6 +6,29 @@
 
 Do not post credentials, exploit details, or private data in public issues. Use GitHub's private vulnerability reporting or security advisory flow if it is enabled by the maintainer.
 
+## Public repository tracked-file safety gate
+
+The `public-repository-file-safety` GitHub Actions job checks **tracked Git
+index filenames** and fails a pull request if paths such as
+`.env`, `.env.local`, `reports/local/`, `reports/private/`, private
+data directories, model-manager SQLite state, private-key containers or
+other known credential-file suffixes appear—even if they were force-added
+despite `.gitignore`. It intentionally allows the public `.env.example`
+template. Run the read-only check locally with:
+
+```sh
+python3 -m tools.security.repo_publication_guard
+```
+
+**Limitations:** This is a filename guard only. It **does not inspect
+file contents**, detect inline secrets, scan Git history or ensure that
+GitHub secret scanning, Dependabot vulnerability alerts or CodeQL are
+enabled. It cannot reverse a prior exposure; if a real credential was
+committed, revoke/rotate it and follow the private incident process.
+The owner must configure GitHub branch protection/rulesets to **require**
+this and other appropriate CI checks; unprotected branches can bypass
+source-defined workflows.
+
 ## Current threat exposure
 
 - Control-plane health routes are unauthenticated and return no credentials. The separate read-only `/api/v1/identity` route is fail-closed and requires a pinned-public-JWKS-verified dedicated access token when explicitly configured.
