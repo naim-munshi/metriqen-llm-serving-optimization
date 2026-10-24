@@ -188,8 +188,13 @@ def collect(phase: str, model: str, digest: str, output: Path,
         )
         if (type(observation.get("successes")) is not int or
                 type(observation.get("failures")) is not int or
+                observation["successes"] < 0 or observation["failures"] < 0 or
                 observation["successes"] + observation["failures"] != requests):
             raise PhaseRefused("invalid_runner_request_accounting")
+        coverage = observation.get("completion_token_coverage")
+        if (type(coverage) is not int or
+                not 0 <= coverage <= observation["successes"]):
+            raise PhaseRefused("invalid_runner_completion_token_coverage")
         results.append({
             "concurrency": concurrency,
             "requests": requests,
