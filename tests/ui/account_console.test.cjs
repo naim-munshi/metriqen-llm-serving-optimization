@@ -62,12 +62,14 @@ function fakeBrowser(role="owner") {
     assert.equal(options.redirect,"error");
     assert.equal(options.cache,"no-store");
     assert.ok(Object.hasOwn(responses,url), "Unexpected account request: "+url);
-    return {ok:true,status:url==="/auth/logout" ? 204 : 200,json:async()=>responses[url]};
+    const payload = responses[url];
+    const status = payload && payload._status || (url==="/auth/logout" ? 204 : 200);
+    return {ok:status<400,status,json:async()=>payload};
   };
   const ctx = vm.createContext({document,fetch});
   vm.runInContext(source,ctx,{timeout:1500});
   vm.runInContext('csrf="synthetic-account-test-csrf";',ctx);
-  return {byId,requests,ctx};
+  return {byId,requests,ctx,responses,org};
 }
 
 test("View projects cannot detach the visible owner Manage team panel",async()=>{
@@ -125,6 +127,61 @@ test("owner and admin retain the project creation form",async()=>{
     assert.equal(hasVisibleText(card,"Create project in Owner workspace"),true,
       "Creator UI missing for "+role);
   }
+});
+
+test("a revoked session 401 immediately erases previous subject, drafts and workspace data",async()=>{
+  const browser=fakeBrowser();
+  const get=id=>browser.ctx.document.getElementById(id);
+  await new Promise(resolve=>setImmediate(resolve));
+  vm.runInContext('csrf="synthetic-account-test-csrf";hasProfile=true;',browser.ctx);
+  get("guest").hidden=true;
+  get("member").hidden=false;
+  get("subject").textContent="SENSITIVE_SUBJECT";
+  get("issuer").textContent="SENSITIVE_ISSUER";
+  get("display-name").value="SENSITIVE_NAME";
+  get("organization-name").value="SENSITIVE_ORG";
+  get("workspace-list").append(new Element());
+  get("pending-invitations").append(new Element());
+  browser.responses["/auth/organizations"]={_status:401,detail:"no active browser session"};
+
+  await assert.rejects(
+    vm.runInContext("refreshWorkspaces()",browser.ctx),
+    /401: no active browser session/,
+  );
+  assert.equal(vm.runInContext("csrf",browser.ctx),"");
+  assert.equal(vm.runInContext("hasProfile",browser.ctx),false);
+  assert.equal(get("member").hidden,true);
+  assert.equal(get("guest").hidden,false);
+  assert.equal(get("subject").textContent,"—");
+  assert.equal(get("issuer").textContent,"—");
+  assert.equal(get("display-name").value,"");
+  assert.equal(get("organization-name").value,"");
+  assert.equal(get("workspace-list").children.length,0);
+  assert.equal(get("pending-invitations").children.length,0);
+});
+
+test("mobile/keyboard dynamic project control has a real associated label and ARIA state",async()=>{
+  const browser=fakeBrowser();
+  await vm.runInContext("refreshWorkspaces()",browser.ctx);
+  const card=browser.byId.get("workspace-list").children[0];
+  const heading=card.children[0];
+  const view=heading.children.find(node=>node.textContent==="View projects");
+  const manage=heading.children.find(node=>node.textContent==="Manage team");
+  const details=card.children[1],team=card.children[2];
+  assert.equal(view.attributes["aria-expanded"],"false");
+  assert.equal(view.attributes["aria-controls"],details.id);
+  assert.equal(manage.attributes["aria-expanded"],"false");
+  assert.equal(manage.attributes["aria-controls"],team.id);
+  await view.handlers.click();
+  assert.equal(view.attributes["aria-expanded"],"true");
+  const form=details.children.find(node=>node.tagName==="form");
+  assert.ok(form);
+  const label=form.children.find(node=>node.tagName==="label");
+  const input=form.children.find(node=>node.tagName==="input");
+  assert.equal(label.htmlFor,input.id);
+  assert.match(input.id,/^project-name-[a-f0-9-]+$/);
+  await manage.handlers.click();
+  assert.equal(manage.attributes["aria-expanded"],"true");
 });
 
 test("successful sign-out clears sensitive identity and workspace DOM, not just hides it",async()=>{
