@@ -49,6 +49,8 @@ class SSEABABContracts(unittest.TestCase):
             "pid": 91234, "buffer_bytes": buffer_size,
             "evidence": "process_env_4096" if buffer_size == 4096 else "env_unset_assumed_default",
             "binary_path_verified": True,
+            "upstream_origin_verified": True,
+            "upstream_origin": exp.EXPECTED_UPSTREAM,
             "binary_sha256": self.bin_sha,
             "binary_source_sha_verified": False,
         }
@@ -91,6 +93,8 @@ class SSEABABContracts(unittest.TestCase):
             "pid": 20, "buffer_bytes": 1024,
             "evidence": "env_unset_assumed_default",
             "binary_path_verified": True,
+            "upstream_origin_verified": True,
+            "upstream_origin": exp.EXPECTED_UPSTREAM,
             "binary_sha256": self.bin_sha,
             "binary_source_sha_verified": False,
         }
@@ -114,7 +118,7 @@ class SSEABABContracts(unittest.TestCase):
     def test_process_check_never_logs_untrusted_environment(self):
         def process_output(args):
             if args[0] == "ps":
-                return "COMMAND secrets=PRIVATE_TOKEN METRIQEN_SSE_RELAY_BUFFER_BYTES=4096\n"
+                return "COMMAND secrets=PRIVATE_TOKEN METRIQEN_UPSTREAM_URL=http://127.0.0.1:11434 METRIQEN_SSE_RELAY_BUFFER_BYTES=4096\n"
             if "-t" in args:
                 return "71234\n"
             if "-d" in args:
@@ -133,6 +137,69 @@ class SSEABABContracts(unittest.TestCase):
                           "p22\nftxt\nn/tmp/go-build/old-server\n" if "-d" in a else ""):
             with self.assertRaisesRegex(exp.PhaseRefused, "not_running_expected_binary"):
                 exp.inspect_gateway()
+
+    def test_gateway_upstream_origin_is_explicit_and_fail_closed(self):
+        def capture(origin):
+            def fake(argv):
+                if "-t" in argv:
+                    return "71234\n"
+                if "-d" in argv:
+                    return "p71234\nftxt\nn" + str(self.binary.resolve()) + "\n"
+                if argv[0] == "ps":
+                    return "COMMAND PRIVATE_TOKEN=NEVER_PRINT " + origin + "\n"
+                return "p71234\nn127.0.0.1:8081\n"
+            return fake
+
+        good = "METRIQEN_UPSTREAM_URL=http://127.0.0.1:11434"
+        with patch.object(exp, "_capture", side_effect=capture(good)):
+            attestation = exp.inspect_gateway()
+        self.assertTrue(attestation["upstream_origin_verified"])
+        self.assertEqual(attestation["upstream_origin"], exp.EXPECTED_UPSTREAM)
+        self.assertNotIn("NEVER_PRINT", str(attestation))
+
+        for rejected in (
+            "",
+            "METRIQEN_UPSTREAM_URL=http://127.0.0.1:11435",
+            "METRIQEN_UPSTREAM_URL=http://localhost:11434",
+            "METRIQEN_UPSTREAM_URL=http://192.0.2.1:11434",
+            good + " " + good,
+        ):
+            with self.subTest(origin=rejected), patch.object(
+                exp, "_capture", side_effect=capture(rejected)
+            ):
+                with self.assertRaisesRegex(
+                    exp.PhaseRefused, "gateway_upstream_origin_not_verified"
+                ):
+                    exp.inspect_gateway()
+        self.assertFalse((self.private / "A1.json").exists())
+
+    def test_changed_upstream_origin_refused_before_measured_request(self):
+        calls = []
+        def wrong_upstream():
+            raise exp.PhaseRefused("gateway_upstream_origin_not_verified")
+
+        with self.assertRaisesRegex(exp.PhaseRefused, "preflight_failed"):
+            self.collect("A1", inspect=wrong_upstream,
+                         measure=lambda *_a, **_kw: calls.append(True))
+        self.assertEqual(calls, [])
+        self.assertFalse((self.private / "A1.json").exists())
+
+    def test_historical_unattested_upstream_report_is_not_comparable(self):
+        paths = {}
+        for phase in exp.PHASE_BUFFER:
+            self.collect(phase)
+            paths[phase] = self.private / f"{phase}.json"
+        self.assertFalse(exp.review(paths)["p3_gate_approved"])
+        report = json.loads(paths["A1"].read_text())
+        report["gateway_process"].pop("upstream_origin_verified")
+        paths["A1"].write_text(json.dumps(report), encoding="utf-8")
+        with self.assertRaisesRegex(exp.PhaseRefused, "active_gateway_binary_not_verified"):
+            exp.review(paths)
+        report["gateway_process"]["upstream_origin_verified"] = True
+        report["gateway_process"]["upstream_origin"] = "http://127.0.0.1:11435"
+        paths["A1"].write_text(json.dumps(report), encoding="utf-8")
+        with self.assertRaisesRegex(exp.PhaseRefused, "active_gateway_binary_not_verified"):
+            exp.review(paths)
 
     def test_old_go_run_gateway_is_rejected_before_any_inference(self):
         def old_running_process(args):
@@ -175,7 +242,7 @@ class SSEABABContracts(unittest.TestCase):
                 if "-d" in argv:
                     return "p71234\nftxt\nn" + str(self.binary.resolve()) + "\n"
                 if argv[0] == "ps":
-                    return "COMMAND gateway " + setting + "\n"
+                    return "COMMAND gateway METRIQEN_UPSTREAM_URL=http://127.0.0.1:11434 " + setting + "\n"
                 return "p71234\n" + listener + "\n"
             return fake
 
@@ -219,7 +286,7 @@ class SSEABABContracts(unittest.TestCase):
             if "-d" in argv:
                 return "p71234\nftxt\nn" + str(self.binary.resolve()) + "\n"
             if argv[0] == "ps":
-                return "COMMAND gateway\n"
+                return "COMMAND gateway METRIQEN_UPSTREAM_URL=http://127.0.0.1:11434\n"
             return "p71234\nn127.0.0.1:8081\n"
 
         calls = []
@@ -410,6 +477,8 @@ class SSEABABContracts(unittest.TestCase):
                 "pid": 22 + int(call > 2), "buffer_bytes": 1024,
                 "evidence": "env_unset_assumed_default",
                 "binary_path_verified": True,
+                "upstream_origin_verified": True,
+                "upstream_origin": exp.EXPECTED_UPSTREAM,
                 "binary_sha256": self.bin_sha,
                 "binary_source_sha_verified": False,
             }
