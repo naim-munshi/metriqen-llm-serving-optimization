@@ -190,6 +190,40 @@ class OperatorLifecycleTests(unittest.TestCase):
                          execute=True, fetch=fake)
         self.assertTrue(all(verb == "GET" for verb, _, _ in fake.calls))
 
+    def test_read_only_candidate_inspection_preserves_existing_rollback_history(self):
+        fake = FakeLocalAPI()
+        fake.alias["previous_tag"], fake.alias["previous_digest"] = B, DB
+        original = dict(fake.alias)
+        report = demo.collect(token=TOKEN, name=NAME, baseline=A, candidate=B,
+                              execute=False, sequential_load=True, fetch=fake)
+        self.assertTrue(report["passed"])
+        self.assertTrue(report["candidate_lifecycle_blocked_by_existing_rollback_history"])
+        self.assertFalse(report["executed_state_changes"])
+        self.assertFalse(report["portfolio_p1_complete"])
+        self.assertEqual(fake.alias, original)
+        self.assertTrue(all(method == "GET" for method, _, _ in fake.calls))
+        self.assertNotIn(TOKEN, json.dumps(report))
+        # Exactly the same state must still block the destructive execution.
+        fake.calls.clear()
+        with self.assertRaisesRegex(
+            demo.AcceptanceFailure, "existing_rollback_history_requires_manual_review"
+        ):
+            demo.collect(token=TOKEN, name=NAME, baseline=A, candidate=B,
+                         execute=True, sequential_load=True, fetch=fake)
+        self.assertTrue(all(method == "GET" for method, _, _ in fake.calls))
+        self.assertEqual(fake.alias, original)
+
+    def test_read_only_candidate_inspection_reports_missing_approval_with_history(self):
+        fake = FakeLocalAPI()
+        fake.alias["previous_tag"], fake.alias["previous_digest"] = B, DB
+        fake.models[1]["approved"] = False
+        with self.assertRaisesRegex(
+            demo.AcceptanceFailure, "candidate_registered_model_not_approved"
+        ):
+            demo.collect(token=TOKEN, name=NAME, baseline=A, candidate=B,
+                         execute=False, sequential_load=True, fetch=fake)
+        self.assertTrue(all(method == "GET" for method, _, _ in fake.calls))
+
     def test_stop_error_does_not_leave_alias_paused(self):
         fake = FakeLocalAPI()
         fake.force_external_change = True
