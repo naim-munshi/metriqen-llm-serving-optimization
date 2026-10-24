@@ -4,11 +4,14 @@ from __future__ import annotations
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+from io import BytesIO
 from pathlib import Path
 import tempfile
 import threading
 import time
 import unittest
+from unittest.mock import patch
+from urllib.error import HTTPError
 
 from tools.benchmark import runner
 
@@ -122,6 +125,36 @@ class BenchmarkRunnerTests(unittest.TestCase):
         self.assertEqual(result["failures"], 3)
         self.assertEqual(result["errors"], {"http_429": 3})
         self.assertIsNone(result["output_tokens_per_second"])
+
+    def test_http_error_body_is_closed_without_reading_or_leaking(self):
+        """HTTP 429 must release urllib's socket even with a secret body."""
+        class NoBodyRead(BytesIO):
+            def read(self, *_args, **_kwargs):
+                raise AssertionError("private HTTP error body must remain unread")
+
+        class ErrorOpener:
+            def __init__(self, error):
+                self.error = error
+
+            def open(self, *_args, **_kwargs):
+                raise self.error
+
+        endpoint = "http://127.0.0.1:8081/v1/chat/completions"
+        for stream in (False, True):
+            with self.subTest(stream=stream):
+                body = NoBodyRead(b"PRIVATE_SYNTHETIC_RESPONSE_NOT_FOR_LOGS")
+                error = HTTPError(endpoint, 429, "Too Many Requests", {}, body)
+                with patch.object(runner, "build_opener", return_value=ErrorOpener(error)):
+                    observation = runner.request_once(
+                        endpoint, "sample", [{"role": "user", "content": "synthetic"}],
+                        stream=stream, max_tokens=16, timeout=1,
+                    )
+                self.assertTrue(body.closed)
+                self.assertFalse(observation.success)
+                self.assertEqual(observation.status, 429)
+                self.assertEqual(observation.error, "http_429")
+                self.assertIsNone(observation.completion_tokens)
+                self.assertNotIn("PRIVATE_SYNTHETIC_RESPONSE", str(observation))
 
     def test_missing_token_usage_does_not_invent_throughput(self):
         samples = [runner.Sample(200, True, 100, 40, 10, 20), runner.Sample(200, True, 110, 45, None, None)]
