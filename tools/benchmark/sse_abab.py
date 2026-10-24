@@ -245,7 +245,14 @@ def _load_phase(path: Path, expected: str) -> dict:
             or data.get("causal_optimization_verified") is not False):
         raise PhaseRefused("phase_contract_invalid")
     process = data.get("gateway_process")
+    expected_evidence = (
+        "process_env_4096" if PHASE_BUFFER[expected] == 4096
+        else "env_unset_assumed_default"
+    )
     if (not isinstance(process, dict) or
+            type(process.get("pid")) is not int or process["pid"] < 2 or
+            process.get("buffer_bytes") != PHASE_BUFFER[expected] or
+            process.get("evidence") != expected_evidence or
             process.get("binary_path_verified") is not True or
             not isinstance(process.get("binary_sha256"), str) or
             _SHA.fullmatch(process["binary_sha256"]) is None or
