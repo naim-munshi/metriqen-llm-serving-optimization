@@ -267,13 +267,32 @@ def _load_phase(path: Path, expected: str) -> dict:
         if (any(type(x) is not int or x < 0 for x in (count, success, failure))
                 or count < 8 or count > 36 or success + failure != count):
             raise PhaseRefused("phase_request_accounting_invalid")
+        coverage = v.get("completion_token_coverage")
+        if type(coverage) is not int or not 0 <= coverage <= success:
+            raise PhaseRefused("phase_completion_token_coverage_invalid")
         for k in ("requests_per_second", "p95_latency_ms_success_only",
                   "p95_ttft_ms_success_only"):
             n = v.get(k)
             if n is not None and (type(n) not in (int, float) or
                                   not 0 <= n < 10**9):
                 raise PhaseRefused("phase_nonfinite_metric")
+        rps = v["requests_per_second"]
+        latency = v["p95_latency_ms_success_only"]
+        ttft = v["p95_ttft_ms_success_only"]
+        # A successful streaming request always has a first content token;
+        # the runner also returns a latency for every successful request.
+        if (rps is None or
+                (success and (rps <= 0 or latency is None or ttft is None)) or
+                (not success and (rps != 0 or latency is not None or ttft is not None))):
+            raise PhaseRefused("phase_success_metrics_inconsistent")
     return data
+
+
+def _relative_change_pct(first: float | None, last: float | None) -> float | None:
+    """Descriptive later-vs-earlier drift only; zero/missing denominators are N/A."""
+    if first is None or last is None or first <= 0:
+        return None
+    return round((last - first) * 100.0 / first, 4)
 
 
 def review(paths: dict[str, Path]) -> dict:
@@ -313,6 +332,11 @@ def review(paths: dict[str, Path]) -> dict:
     by_c = {}
     for index, c in enumerate(LEVELS):
         values = {p: data[p]["results"][index] for p in PHASE_BUFFER}
+        drift_metrics = {
+            "throughput_rps": "requests_per_second",
+            "p95_ttft_ms_success_only": "p95_ttft_ms_success_only",
+            "p95_latency_ms_success_only": "p95_latency_ms_success_only",
+        }
         by_c[str(c)] = {
             "throughput_rps_by_phase": {
                 p: values[p]["requests_per_second"] for p in PHASE_BUFFER
@@ -323,8 +347,25 @@ def review(paths: dict[str, Path]) -> dict:
             "p95_latency_ms_by_phase": {
                 p: values[p]["p95_latency_ms_success_only"] for p in PHASE_BUFFER
             },
+            "successes_by_phase": {
+                p: values[p]["successes"] for p in PHASE_BUFFER
+            },
             "failures_by_phase": {
                 p: values[p]["failures"] for p in PHASE_BUFFER
+            },
+            "completion_token_coverage_by_phase": {
+                p: values[p]["completion_token_coverage"] for p in PHASE_BUFFER
+            },
+            "missing_completion_usage_by_phase": {
+                p: values[p]["successes"] - values[p]["completion_token_coverage"]
+                for p in PHASE_BUFFER
+            },
+            "within_setting_drift_pct": {
+                label: {
+                    "A1_to_A2": _relative_change_pct(values["A1"][key], values["A2"][key]),
+                    "B1_to_B2": _relative_change_pct(values["B1"][key], values["B2"][key]),
+                }
+                for label, key in drift_metrics.items()
             },
             "quality_verified": False,
         }
@@ -333,6 +374,10 @@ def review(paths: dict[str, Path]) -> dict:
         "order": list(PHASE_BUFFER),
         "by_concurrency": by_c,
         "within_setting_drift_requires_human_review": True,
+        "incomplete_provider_token_usage_requires_human_review": any(
+            vals["missing_completion_usage_by_phase"][phase] > 0
+            for vals in by_c.values() for phase in PHASE_BUFFER
+        ),
         "runtime_binary_and_slots_human_attestation_required": True,
         "quality_human_review_required": True,
         "causal_speedup_verified": False,
