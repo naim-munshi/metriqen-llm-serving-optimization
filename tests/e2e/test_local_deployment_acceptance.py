@@ -209,6 +209,31 @@ class OperatorLifecycleTests(unittest.TestCase):
         self.assertIn("candidate_approved_revision_available", result["checks_passed"])
         self.assertTrue(all(method == "GET" for method, _, _ in fake.calls))
 
+    def test_sequential_readonly_preflight_explains_which_revision_is_blocked(self):
+        # An Ollama idle eviction and an unapproved candidate must be
+        # distinguishable without mutating the local deployment.
+        scenarios = (
+            ("baseline_evicted", "baseline_approved_model_not_loaded"),
+            ("candidate_unapproved", "candidate_registered_model_not_approved"),
+            ("candidate_missing", "candidate_approved_model_missing"),
+            ("candidate_bad_digest", "candidate_registered_model_digest_invalid"),
+        )
+        for condition, reason in scenarios:
+            with self.subTest(condition=condition):
+                fake = FakeLocalAPI()
+                if condition == "baseline_evicted":
+                    fake.loaded[A] = False
+                elif condition == "candidate_unapproved":
+                    fake.models[1]["approved"] = False
+                elif condition == "candidate_missing":
+                    fake.models = fake.models[:1]
+                else:
+                    fake.models[1]["digest"] = "invalid-synthetic-digest"
+                with self.assertRaisesRegex(demo.AcceptanceFailure, reason):
+                    demo.collect(token=TOKEN, name=NAME, baseline=A, candidate=B,
+                                 execute=False, sequential_load=True, fetch=fake)
+                self.assertTrue(all(method == "GET" for method, _, _ in fake.calls))
+
     def test_sequential_full_acceptance_reloads_each_revision_before_switch(self):
         fake = FakeLocalAPI()
         fake.capacity_one = True
