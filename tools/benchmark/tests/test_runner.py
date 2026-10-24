@@ -37,6 +37,8 @@ class FakeChat(BaseHTTPRequestHandler):
             if body.get("stream_options") == {"include_usage": True} and body["model"] != "no-usage":
                 self.wfile.write(b'data: {"choices":[],"usage":{"completion_tokens":2,"prompt_tokens":3}}\n\n')
             self.wfile.write(b'data: [DONE]\n\n')
+            if body["model"] == "post-done-error":
+                self.wfile.write(b'event: error\ndata: {"message":"synthetic error"}\n\n')
             self.wfile.flush()
         else:
             data = json.dumps({"choices": [{"message": {"content": "ok"}}],
@@ -161,6 +163,21 @@ class BenchmarkRunnerTests(unittest.TestCase):
         self.assertEqual(report["completion_token_coverage"], 3)
         self.assertEqual(report["output_tokens"], 6)
         self.assertGreater(report["output_tokens_per_second"], 0)
+
+    def test_post_done_error_is_counted_as_failed_not_success(self):
+        with server() as endpoint:
+            result = runner.run(
+                endpoint, "post-done-error",
+                [[{"role": "user", "content": "synthetic prompt"}]],
+                stream=True, max_tokens=32, concurrency=2, requests=3,
+                warmup=0, timeout=5,
+            )
+        self.assertEqual(result["successes"], 0)
+        self.assertEqual(result["failures"], 3)
+        self.assertEqual(result["errors"], {"sse_data_after_terminator": 3})
+        self.assertEqual(result["completion_token_coverage"], 0)
+        self.assertIsNone(result["output_tokens"])
+        self.assertIsNone(result["output_tokens_per_second"])
 
     def test_requested_usage_may_still_be_missing(self):
         with server() as endpoint:
