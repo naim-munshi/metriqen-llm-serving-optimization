@@ -145,13 +145,29 @@ def _model_ready(fetch, token: str, tag: str, *, require_loaded: bool = True) ->
         raise AcceptanceFailure("approved_model_missing")
     model, loaded = entries[0], readiness[0]
     digest = model.get("digest")
-    if (not model.get("approved") or not isinstance(digest, str) or
-            DIGEST.fullmatch(digest) is None or
-            loaded.get("approved") is not True or
-            (require_loaded and loaded.get("loaded") is not True) or
-            loaded.get("digest_matches_loaded") is not True):
+    if not isinstance(digest, str) or DIGEST.fullmatch(digest) is None:
+        raise AcceptanceFailure("registered_model_digest_invalid")
+    if model.get("approved") is not True or loaded.get("approved") is not True:
+        raise AcceptanceFailure("registered_model_not_approved")
+    if loaded.get("digest_matches_loaded") is not True:
+        raise AcceptanceFailure("registered_model_loaded_digest_mismatch")
+    if require_loaded and loaded.get("loaded") is not True:
         raise AcceptanceFailure("approved_model_not_loaded")
     return digest
+
+
+def _preflight_model_ready(fetch, token: str, tag: str, *, role: str,
+                           require_loaded: bool = True) -> str:
+    # The strict read-only preflight tests both revisions. Without a role
+    # the same error masks whether Ollama's baseline idle TTL expired or the
+    # separate candidate was never approved. Labels are fixed strings,
+    # never an HTTP error body or private credential.
+    if role not in ("baseline", "candidate"):
+        raise AcceptanceFailure("invalid_model_role")
+    try:
+        return _model_ready(fetch, token, tag, require_loaded=require_loaded)
+    except AcceptanceFailure as exc:
+        raise AcceptanceFailure(f"{role}_{exc}") from None
 
 
 def _load_exact(fetch, token: str, tag: str, digest: str) -> None:
@@ -211,15 +227,15 @@ def collect(*, token: str, name: str, baseline: str, candidate: str | None,
     # restore an idle-evicted baseline, but only after authenticating the
     # pinned approved revision and matching original deployment identity.
     reload_baseline = sequential_load and execute
-    original_digest = _model_ready(fetch, token, baseline,
-                                   require_loaded=not reload_baseline)
+    original_digest = _preflight_model_ready(fetch, token, baseline, role="baseline",
+                                             require_loaded=not reload_baseline)
     _check(fetch, token, name, tag=baseline, digest=original_digest,
            enabled=True, ready=None if reload_baseline else True)
     # Never overwrite an existing rollback target without operator review.
     if original.get("previous_tag") is not None and candidate is not None:
         raise AcceptanceFailure("existing_rollback_history_requires_manual_review")
-    candidate_digest = (_model_ready(fetch, token, candidate,
-                                     require_loaded=not sequential_load)
+    candidate_digest = (_preflight_model_ready(fetch, token, candidate, role="candidate",
+                                               require_loaded=not sequential_load)
                         if candidate is not None else None)
     checks = ["deployment_active_revision_and_readiness",
               "original_approved_model_loaded"]
