@@ -29,7 +29,7 @@ PRIVATE_SUFFIXES = (
 
 def rejected_reason(path: str) -> str | None:
     """Return a stable non-sensitive category, or None for an allowed path."""
-    if not path or "\\x00" in path or "\\\\" in path:
+    if not path or "\x00" in path or "\\" in path:
         return "invalid_path"
     pieces = tuple(part.casefold() for part in PurePosixPath(path).parts)
     if not pieces or pieces[0] in (".", "..") or ".." in pieces:
@@ -62,7 +62,7 @@ def tracked_paths(root: Path = ROOT) -> list[str]:
     if result.returncode != 0:
         raise RuntimeError("tracked-file inspection unavailable")
     return [name.decode("utf-8", "surrogateescape")
-            for name in result.stdout.split(b"\\0") if name]
+            for name in result.stdout.split(b"\0") if name]
 
 
 def main() -> int:
