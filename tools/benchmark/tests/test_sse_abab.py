@@ -29,6 +29,7 @@ class SSEABABContracts(unittest.TestCase):
         target_patch = patch.object(exp, "PRIVATE", self.private)
         target_patch.start()
         self.addCleanup(target_patch.stop)
+        self.native_executable_probe = exp._macos_running_executable
         # CI runs on Linux; live Darwin PID inspection is exercised separately.
         # All synthetic gateway probes use an explicitly expected main binary.
         process_patch = patch.object(
@@ -141,6 +142,9 @@ class SSEABABContracts(unittest.TestCase):
         self.assertFalse((self.private / "A1.json").exists())
 
     def test_macos_proc_pidpath_reads_kernel_executable_and_fails_closed(self):
+        # setUp installs a fake native probe for all cross-platform synthetic
+        # gateway tests; test the *actual* implementation here.
+        probe = self.native_executable_probe
         expected = str(self.binary.resolve()).encode()
         def fake_path(pid, target, size):
             self.assertEqual(pid, 71234)
@@ -150,18 +154,18 @@ class SSEABABContracts(unittest.TestCase):
         with patch.object(exp.ctypes, "CDLL", return_value=type(
             "FakeLib", (), {"proc_pidpath": staticmethod(fake_path)}
         )()):
-            self.assertEqual(exp._macos_running_executable(71234), self.binary.resolve())
+            self.assertEqual(probe(71234), self.binary.resolve())
 
         def unavailable(_pid, _target, _size):
             return 0
         with patch.object(exp.ctypes, "CDLL", return_value=type(
             "FakeLib", (), {"proc_pidpath": staticmethod(unavailable)}
         )()), self.assertRaisesRegex(exp.PhaseRefused, "mac_executable_identity_unavailable"):
-            exp._macos_running_executable(71234)
+            probe(71234)
 
         with patch.object(exp.ctypes, "CDLL", side_effect=OSError("not Darwin")), \
                 self.assertRaisesRegex(exp.PhaseRefused, "mac_executable_identity_unavailable"):
-            exp._macos_running_executable(71234)
+            probe(71234)
 
     def test_offline_rejects_historical_phase_without_kernel_pid_attestation(self):
         paths = {}
