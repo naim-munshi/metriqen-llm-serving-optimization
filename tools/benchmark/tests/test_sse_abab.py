@@ -184,6 +184,32 @@ class SSEABABContracts(unittest.TestCase):
         self.assertEqual(calls, [])
         self.assertFalse((self.private / "A1.json").exists())
 
+    def test_upstream_snapshot_change_midphase_refuses_private_report(self):
+        seen = []
+        def inspect():
+            seen.append(True)
+            return {
+                "pid": 71234,
+                "buffer_bytes": 1024,
+                "evidence": "env_unset_assumed_default",
+                "binary_path_verified": True,
+                "binary_sha256": self.bin_sha,
+                "binary_source_sha_verified": False,
+                "upstream_origin_verified": True,
+                "upstream_origin": (
+                    exp.EXPECTED_UPSTREAM if len(seen) < 3
+                    else "http://127.0.0.1:11435"
+                ),
+            }
+        attempted = []
+        def measure(*args, **kwargs):
+            attempted.append(kwargs["concurrency"])
+            return self.fake_measure(*args, **kwargs)
+        with self.assertRaisesRegex(exp.PhaseRefused, "process_changed_during_phase"):
+            self.collect("A1", inspect=inspect, measure=measure)
+        self.assertEqual(attempted, [1])
+        self.assertFalse((self.private / "A1.json").exists())
+
     def test_historical_unattested_upstream_report_is_not_comparable(self):
         paths = {}
         for phase in exp.PHASE_BUFFER:
