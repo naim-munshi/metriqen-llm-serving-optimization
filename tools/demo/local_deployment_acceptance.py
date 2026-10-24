@@ -231,8 +231,13 @@ def collect(*, token: str, name: str, baseline: str, candidate: str | None,
                                              require_loaded=not reload_baseline)
     _check(fetch, token, name, tag=baseline, digest=original_digest,
            enabled=True, ready=None if reload_baseline else True)
-    # Never overwrite an existing rollback target without operator review.
-    if original.get("previous_tag") is not None and candidate is not None:
+    # Read-only candidate inspection must not be blocked merely because a
+    # prior rollback target exists. A new candidate execution would overwrite
+    # that history, so the mutation path continues to fail closed.
+    history_blocks_candidate_execution = (
+        original.get("previous_tag") is not None and candidate is not None
+    )
+    if execute and history_blocks_candidate_execution:
         raise AcceptanceFailure("existing_rollback_history_requires_manual_review")
     candidate_digest = (_preflight_model_ready(fetch, token, candidate, role="candidate",
                                                require_loaded=not sequential_load)
@@ -250,6 +255,8 @@ def collect(*, token: str, name: str, baseline: str, candidate: str | None,
             "deployment": name, "original_tag": baseline,
             "candidate_tag": candidate, "sequential_model_load": sequential_load,
             "checks_passed": checks,
+            "candidate_lifecycle_blocked_by_existing_rollback_history":
+                history_blocks_candidate_execution,
             "portfolio_p1_complete": False,
         }
 
@@ -378,6 +385,9 @@ def main(argv: list[str] | None = None) -> int:
             private_report(args.output, result)
         print("P1 local deployment " + ("lifecycle" if args.execute else "preflight") + ": PASS")
         print("Checks: " + ", ".join(result["checks_passed"]))
+        if result.get("candidate_lifecycle_blocked_by_existing_rollback_history"):
+            print("SAFETY: existing rollback history retained; candidate --execute is BLOCKED "
+                  "pending operator review. Read-only candidate readiness is not lifecycle approval.")
         print("Result is local operator evidence only; browser, GPU and benchmark gates remain separate.")
         if args.output:
             print("Private report saved under reports/local.")
