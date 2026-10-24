@@ -6,10 +6,12 @@ released; not a production SaaS.** This is the current-state summary; the
 [October 14 historical status](PROJECT_STATUS.md) remains an archive, not
 a current feature inventory.
 
-The most recent verified source head at authoring is
-`39e6f697be1e1170569238fc792269910abff992`. The
-[11-job post-merge main GitHub CI](https://github.com/naim-munshi/metriqen-llm-serving-optimization/actions/runs/40078021744)
-passed **11/11** on October 24. These are source and synthetic CI checks,
+The latest source milestone independently verified before this documentation update
+is `3fe88796584140705c2989059e251bf6933723cb` (PR #139). Its
+[12-job post-merge main GitHub CI](https://github.com/naim-munshi/metriqen-llm-serving-optimization/actions/runs/40091080351)
+passed **12/12** on October 24, including the new public tracked-file
+safety check. This is a dated source milestone, **not** a guarantee
+about the head of any future branch or commit. These are source and synthetic CI checks,
 not independent owner-Mac or browser acceptance. The last **separately supplied Mac source test transcript** ran at
 earlier SHA `243bd1f` (545 FastAPI, 70 E2E, 268 benchmark, 16 NLP,
 17 Node = 916 explicitly passed; plus Go race/vet, 20 skips).
@@ -32,7 +34,7 @@ Mac must pull latest main for current-source verification.
 | GPU scaling design | Pure offline cost/queue/cooldown capacity planner plus generation-fenced **simulation** of intended worker count | **No actual GPU provider, workers, autoscaling events or enforced billing cap** |
 | Public hosting safeguards | Docker/Go/FastAPI localhost restrictions and static regression tests | Separate production-only HTTPS ingress/BFF, TLS databases, private model workers, real security review |
 | Recruiter demo | Offline deterministic real-Go fake-model demo, 3 UIs, operator-run real Mac demo launcher | Video, privacy-approved original screenshots, keyboard/mobile real visual QA |
-| Release | Public repo, documentation, CI, changelog, six-gate release contract | Owner LICENSE decision, main branch protection, verified P1–P6 human evidence and v1.0.0 GitHub release |
+| Release | Public repo, documentation, 12-job CI, changelog, six-gate release contract; force-tracked local/private path guard | Owner LICENSE decision, unprotected `main`, GitHub Security alerts verification, verified P1–P6 evidence and v1.0.0 GitHub release |
 
 ## Performance findings, not claims
 
@@ -59,6 +61,34 @@ Mac must pull latest main for current-source verification.
   review. **No fresh real Mac A/B/A/B comparison has yet been supplied
   for acceptance**, and P3 remains unapproved. Old private evidence
   stays unchanged and excluded from speedup claims.
+
+## Recent source-level security and benchmark fixes (October 24)
+
+- [PR #135](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/135):
+  the dedicated SSE operator collector fails closed unless the running
+  Gateway explicitly uses the pinned localhost Ollama origin; the runbook
+  no longer silently strips inherited auth environment variables.
+- [PR #136](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/136):
+  macOS kernel `libproc.proc_pidpath` checks the actual main executable,
+  not just an `lsof -d txt` mapped-file entry. Native Mac acceptance is still
+  required; Linux CI uses synthetic native-call fixtures.
+- [PR #137](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/137):
+  source preflight refuses a Gateway PID with both localhost and any
+  extra wildcard/public/IPv6 listening socket.
+- [PR #138](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/138):
+  CI now rejects tracked `.env`, private report, local SQLite state and
+  known credential-file paths. **Filenames only**: not Git history,
+  content-based secret detection or proof that GitHub secret-scanning
+  alerts are enabled.
+- [PR #139](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/139):
+  the Python SSE benchmark runner no longer considers `[DONE]` alone
+  sufficient: it validates clean transport EOF and rejects post-terminal
+  errors/duplicate events before counting success and token usage.
+
+The repository's `main` was **not branch-protected** at the last
+GitHub inspection. Repository ruleset enforcement and the owner's license
+choice remain separate human/admin actions. Nothing in these source fixes
+attests actual Mac Ollama speedup or completes P1–P6.
 
 ## Highest-value completion order
 
