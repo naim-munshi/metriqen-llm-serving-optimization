@@ -123,7 +123,11 @@ def inspect_gateway() -> dict:
     # Guard accidental public exposure during the operator experiment.
     listener = _capture(["lsof", "-nP", "-a", "-p", str(pid),
                          "-iTCP:8081", "-sTCP:LISTEN", "-F", "n"])
-    if "n127.0.0.1:8081" not in listener.splitlines():
+    # Require exactly one IPv4 loopback listener, not merely its presence.
+    # A process listening on 127.0.0.1 AND a wildcard/public interface
+    # must not be considered isolated for the local-only experiment.
+    sockets = [line[1:] for line in listener.splitlines() if line.startswith("n")]
+    if sockets != ["127.0.0.1:8081"]:
         raise PhaseRefused("gateway_listener_not_loopback")
     process = _capture(["ps", "eww", "-p", str(pid)])
     # Health only establishes some upstream answered. A different Ollama
