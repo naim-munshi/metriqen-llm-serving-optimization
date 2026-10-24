@@ -290,6 +290,97 @@ class SSEABABContracts(unittest.TestCase):
         with self.assertRaisesRegex(exp.PhaseRefused, "gateway_binary_differs_across"):
             exp.review(paths)
 
+    def test_collection_refuses_impossible_usage_coverage_before_file_write(self):
+        def invalid_measure(*args, **kwargs):
+            report = self.fake_measure(*args, **kwargs)
+            report["completion_token_coverage"] = kwargs["requests"] + 1
+            return report
+
+        with self.assertRaisesRegex(
+            exp.PhaseRefused, "invalid_runner_completion_token_coverage"
+        ):
+            self.collect("A1", measure=invalid_measure)
+        self.assertFalse((self.private / "A1.json").exists())
+
+    def test_review_exposes_usage_gaps_and_numeric_within_setting_drift(self):
+        paths = {}
+        for phase in exp.PHASE_BUFFER:
+            self.collect(phase)
+            paths[phase] = self.private / f"{phase}.json"
+        a2 = json.loads(paths["A2"].read_text())
+        a2["results"][1]["requests_per_second"] = 0.22
+        paths["A2"].write_text(json.dumps(a2), encoding="utf-8")
+        b2 = json.loads(paths["B2"].read_text())
+        b2["results"][1]["p95_ttft_ms_success_only"] = 550
+        paths["B2"].write_text(json.dumps(b2), encoding="utf-8")
+        b1 = json.loads(paths["B1"].read_text())
+        b1["results"][1]["completion_token_coverage"] = 9
+        paths["B1"].write_text(json.dumps(b1), encoding="utf-8")
+
+        reviewed = exp.review(paths)
+        c2 = reviewed["by_concurrency"]["2"]
+        self.assertEqual(c2["completion_token_coverage_by_phase"]["B1"], 9)
+        self.assertEqual(c2["missing_completion_usage_by_phase"]["B1"], 3)
+        self.assertEqual(c2["successes_by_phase"]["B1"], 12)
+        self.assertAlmostEqual(
+            c2["within_setting_drift_pct"]["throughput_rps"]["A1_to_A2"],
+            -8.3333, places=4)
+        self.assertEqual(
+            c2["within_setting_drift_pct"]["p95_ttft_ms_success_only"]["B1_to_B2"],
+            10.0)
+        self.assertTrue(reviewed["incomplete_provider_token_usage_requires_human_review"])
+        self.assertFalse(reviewed["causal_speedup_verified"])
+        self.assertFalse(reviewed["p3_gate_approved"])
+
+    def test_review_rejects_invalid_coverage_and_success_metrics(self):
+        paths = {}
+        for phase in exp.PHASE_BUFFER:
+            self.collect(phase)
+            paths[phase] = self.private / f"{phase}.json"
+        original = json.loads(paths["A1"].read_text())
+        for invalid in (-1, 13, True, "12", None):
+            with self.subTest(invalid=invalid):
+                modified = json.loads(json.dumps(original))
+                modified["results"][0]["completion_token_coverage"] = invalid
+                paths["A1"].write_text(json.dumps(modified), encoding="utf-8")
+                with self.assertRaisesRegex(exp.PhaseRefused, "coverage_invalid"):
+                    exp.review(paths)
+        for k, value in (
+            ("requests_per_second", None),
+            ("p95_latency_ms_success_only", None),
+            ("p95_ttft_ms_success_only", None),
+        ):
+            with self.subTest(metric=k):
+                modified = json.loads(json.dumps(original))
+                modified["results"][0][k] = value
+                paths["A1"].write_text(json.dumps(modified), encoding="utf-8")
+                with self.assertRaisesRegex(exp.PhaseRefused, "metrics_inconsistent"):
+                    exp.review(paths)
+
+    def test_zero_success_report_is_descriptive_and_zero_drift_is_unknown(self):
+        paths = {}
+        for phase in exp.PHASE_BUFFER:
+            self.collect(phase)
+            paths[phase] = self.private / f"{phase}.json"
+        b1 = json.loads(paths["B1"].read_text())
+        b1["results"][0].update({
+            "successes": 0,
+            "failures": 12,
+            "completion_token_coverage": 0,
+            "requests_per_second": 0.0,
+            "p95_latency_ms_success_only": None,
+            "p95_ttft_ms_success_only": None,
+        })
+        paths["B1"].write_text(json.dumps(b1), encoding="utf-8")
+        reviewed = exp.review(paths)
+        c1 = reviewed["by_concurrency"]["1"]
+        self.assertEqual(c1["failures_by_phase"]["B1"], 12)
+        self.assertIsNone(c1["within_setting_drift_pct"]["throughput_rps"]["B1_to_B2"])
+        self.assertIsNone(
+            c1["within_setting_drift_pct"]["p95_ttft_ms_success_only"]["B1_to_B2"])
+        self.assertFalse(reviewed["incomplete_provider_token_usage_requires_human_review"])
+        self.assertFalse(reviewed["p3_gate_approved"])
+
     def test_three_real_runner_calls_are_sanitized_and_not_speedup(self):
         calls = []
         def measure(*args, **kwargs):
