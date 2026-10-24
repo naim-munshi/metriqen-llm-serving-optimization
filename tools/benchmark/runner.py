@@ -105,6 +105,7 @@ def _consume_stream(response, start: float) -> tuple[float | None, int | None, i
     total_bytes = 0
     data_lines: list[bytes] = []
     event_name = b""
+    terminal_seen = False
     while True:
         line = response.readline(MAX_RESPONSE_BYTES - total_bytes + 1)
         if not line:
@@ -113,6 +114,13 @@ def _consume_stream(response, start: float) -> tuple[float | None, int | None, i
         if total_bytes > MAX_RESPONSE_BYTES:
             raise ValueError("response_too_large")
         field = line.rstrip(b"\r\n")
+        # [DONE] is terminal only after an orderly EOF. Previously returning
+        # at the marker silently ignored later error frames, duplicate [DONE]
+        # or arbitrary trailing output, inflating measured successes.
+        if terminal_seen:
+            if field:
+                raise ValueError("sse_data_after_terminator")
+            continue
         if field:
             if field.startswith(b"data:"):
                 value = field[5:]
@@ -132,7 +140,8 @@ def _consume_stream(response, start: float) -> tuple[float | None, int | None, i
             raise ValueError("upstream_stream_error")
         event_name = b""
         if data == b"[DONE]":
-            return first_token_ms, completion_tokens, prompt_tokens
+            terminal_seen = True
+            continue
         try:
             event = json.loads(data)
         except (ValueError, UnicodeDecodeError) as exc:
@@ -166,7 +175,9 @@ def _consume_stream(response, start: float) -> tuple[float | None, int | None, i
             completion_tokens = c
         if p is not None:
             prompt_tokens = p
-    raise ValueError("missing_stream_terminator")
+    if not terminal_seen:
+        raise ValueError("missing_stream_terminator")
+    return first_token_ms, completion_tokens, prompt_tokens
 
 
 def request_once(endpoint: str, model: str, messages: list[dict[str, Any]],

@@ -37,6 +37,8 @@ class FakeChat(BaseHTTPRequestHandler):
             if body.get("stream_options") == {"include_usage": True} and body["model"] != "no-usage":
                 self.wfile.write(b'data: {"choices":[],"usage":{"completion_tokens":2,"prompt_tokens":3}}\n\n')
             self.wfile.write(b'data: [DONE]\n\n')
+            if body["model"] == "post-done-error":
+                self.wfile.write(b'event: error\ndata: {"message":"synthetic error"}\n\n')
             self.wfile.flush()
         else:
             data = json.dumps({"choices": [{"message": {"content": "ok"}}],
@@ -162,6 +164,21 @@ class BenchmarkRunnerTests(unittest.TestCase):
         self.assertEqual(report["output_tokens"], 6)
         self.assertGreater(report["output_tokens_per_second"], 0)
 
+    def test_post_done_error_is_counted_as_failed_not_success(self):
+        with server() as endpoint:
+            result = runner.run(
+                endpoint, "post-done-error",
+                [[{"role": "user", "content": "synthetic prompt"}]],
+                stream=True, max_tokens=32, concurrency=2, requests=3,
+                warmup=0, timeout=5,
+            )
+        self.assertEqual(result["successes"], 0)
+        self.assertEqual(result["failures"], 3)
+        self.assertEqual(result["errors"], {"sse_data_after_terminator": 3})
+        self.assertEqual(result["completion_token_coverage"], 0)
+        self.assertIsNone(result["output_tokens"])
+        self.assertIsNone(result["output_tokens_per_second"])
+
     def test_requested_usage_may_still_be_missing(self):
         with server() as endpoint:
             report = runner.run(
@@ -276,6 +293,43 @@ class StreamProtocolTests(unittest.TestCase):
     def test_missing_done_rejected_even_after_content(self):
         with self.assertRaisesRegex(ValueError, "missing_stream_terminator"):
             self.parse(b'data: {"choices":[{"delta":{"content":"partial"}}]}\n\n')
+
+    def test_post_done_frames_and_duplicate_terminal_are_not_success(self):
+        prefix = (
+            b'data: {"choices":[{"delta":{"content":"answer"}}]}\n\n'
+            b'data: [DONE]\n\n'
+        )
+        for trailer in (
+            b'data: [DONE]\n\n',
+            b'event: error\ndata: {"error":"private"}\n\n',
+            b'data: {"choices":[{"delta":{"content":"late"}}]}\n\n',
+            b': unexpected heartbeat after DONE\n\n',
+            b'junk after DONE',
+        ):
+            with self.subTest(trailer=trailer), self.assertRaisesRegex(
+                ValueError, "sse_data_after_terminator"
+            ):
+                self.parse(prefix + trailer)
+
+    def test_post_done_whitespace_and_crlf_are_allowed(self):
+        prefix = (
+            b'data: {"choices":[{"delta":{"content":"ok"}}]}\r\n\r\n'
+            b'data: [DONE]\r\n\r\n'
+        )
+        self.assertIsNotNone(self.parse(prefix + b'\r\n\n')[0])
+
+    def test_done_without_complete_event_separator_fails_closed(self):
+        prefix = b'data: {"choices":[{"delta":{"content":"ok"}}]}\n\n'
+        with self.assertRaisesRegex(ValueError, "missing_stream_terminator"):
+            self.parse(prefix + b'data: [DONE]\n')
+
+    def test_byte_budget_applies_even_after_terminal_marker(self):
+        prefix = (
+            b'data: {"choices":[{"delta":{"content":"ok"}}]}\n\n'
+            b'data: [DONE]\n\n'
+        )
+        with self.assertRaisesRegex(ValueError, "response_too_large"):
+            self.parse(prefix + b'\n' * runner.MAX_RESPONSE_BYTES)
 
     def test_byte_limit_rejects_unbounded_sse(self):
         with self.assertRaisesRegex(ValueError, "response_too_large"):

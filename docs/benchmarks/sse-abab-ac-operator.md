@@ -25,6 +25,16 @@ compute, quantization, GPU acceleration or batching.
   semantic quality and hardware attestation as unverified. Drift and
   usage coverage are not quality scores, model speedup or significance.
 
+  **Stream completion integrity:** the common benchmark runner now requires
+  a fully delimited `data: [DONE]` SSE event followed by clean transport EOF
+  before recording a successful response. Any nonempty SSE data or error
+  frame after `[DONE]`, a duplicate terminal marker, oversized trailer or
+  a truncated terminal event counts as a failed request; trailing empty
+  line separators are allowed. This avoids treating partial/corrupted
+  provider streams as completed requests or inflating success-only RPS.
+  The runner does not store generated model text, but source tests still
+  cannot prove actual remote provider semantics or answer correctness.
+
 `collect` fails closed if AC power is not verified, the exact
 `llama3.2:1b` installed digest differs, the gateway upstream is not
 healthy, the listener is missing/duplicated, its actual executable is
