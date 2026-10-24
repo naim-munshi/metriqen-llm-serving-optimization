@@ -31,10 +31,14 @@ healthy, the listener is missing/duplicated, its actual executable is
 not **exactly** the owner-built `reports/local/sse-abab-gateway`, its
 listener is not bound to `127.0.0.1:8081`, the live process
 does not explicitly attest `METRIQEN_UPSTREAM_URL=http://127.0.0.1:11434`,
-or its SSE environment setting differs from the A/B phase. A macOS `lsof` text-vnode check and SHA-256
-of that executable are required before/between/after measured loads.
-**Four-phase review rejects unverified executables and different binary
-hashes across phases.** It never logs full `ps eww` output, which can
+or its SSE environment setting differs from the A/B phase. A macOS `lsof` text-vnode check, an independent kernel `libproc.proc_pidpath`
+main-executable check, and SHA-256 of the compiled binary are required
+before/between/after measured loads. An `lsof -d txt` entry **alone**
+is not proof that the matching file is the running main executable:
+other mapped executable files can appear. If kernel PID-path inspection
+is unavailable the collector fails closed rather than guessing.
+**Four-phase review rejects missing executable attestations or different
+binary hashes across phases.** It never logs full `ps eww` output, which can
 contain credentials. Missing `METRIQEN_SSE_RELAY_BUFFER_BYTES` is
 accepted as 1 KiB **only on the expected executable**.
 
@@ -142,8 +146,10 @@ Keep the old private A1 report unchanged for audit, but select a **fresh
 run name/output path** for every replacement phase.
 
 The updated collector now refuses to run while a `go run` cache
-binary owns port 8081. A historical A1 report lacking a verified
-executable fingerprint is refused by the four-phase offline review.
+binary owns port 8081. A historical A1 report lacking a verified executable fingerprint
+or kernel main-executable attestation is refused by the four-phase
+offline review. Previously created phase files are retained unchanged;
+a fresh four-phase run is required after any evidence-contract update.
 
 ## 3. Four sequential phases
 
