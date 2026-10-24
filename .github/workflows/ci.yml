@@ -16,6 +16,19 @@ permissions:
   contents: read
 
 jobs:
+  public-repository-file-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Test tracked-file guard with synthetic filenames
+        run: python -m unittest discover -s tools/security/tests -v
+      - name: Block force-tracked private artifact and credential-file paths
+        run: python -m tools.security.repo_publication_guard
+
   control-api-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
