@@ -277,6 +277,43 @@ class StreamProtocolTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "missing_stream_terminator"):
             self.parse(b'data: {"choices":[{"delta":{"content":"partial"}}]}\n\n')
 
+    def test_post_done_frames_and_duplicate_terminal_are_not_success(self):
+        prefix = (
+            b'data: {"choices":[{"delta":{"content":"answer"}}]}\n\n'
+            b'data: [DONE]\n\n'
+        )
+        for trailer in (
+            b'data: [DONE]\n\n',
+            b'event: error\ndata: {"error":"private"}\n\n',
+            b'data: {"choices":[{"delta":{"content":"late"}}]}\n\n',
+            b': unexpected heartbeat after DONE\n\n',
+            b'junk after DONE',
+        ):
+            with self.subTest(trailer=trailer), self.assertRaisesRegex(
+                ValueError, "sse_data_after_terminator"
+            ):
+                self.parse(prefix + trailer)
+
+    def test_post_done_whitespace_and_crlf_are_allowed(self):
+        prefix = (
+            b'data: {"choices":[{"delta":{"content":"ok"}}]}\r\n\r\n'
+            b'data: [DONE]\r\n\r\n'
+        )
+        self.assertIsNotNone(self.parse(prefix + b'\r\n\n')[0])
+
+    def test_done_without_complete_event_separator_fails_closed(self):
+        prefix = b'data: {"choices":[{"delta":{"content":"ok"}}]}\n\n'
+        with self.assertRaisesRegex(ValueError, "missing_stream_terminator"):
+            self.parse(prefix + b'data: [DONE]\n')
+
+    def test_byte_budget_applies_even_after_terminal_marker(self):
+        prefix = (
+            b'data: {"choices":[{"delta":{"content":"ok"}}]}\n\n'
+            b'data: [DONE]\n\n'
+        )
+        with self.assertRaisesRegex(ValueError, "response_too_large"):
+            self.parse(prefix + b'\n' * runner.MAX_RESPONSE_BYTES)
+
     def test_byte_limit_rejects_unbounded_sse(self):
         with self.assertRaisesRegex(ValueError, "response_too_large"):
             self.parse(b":" + b"x" * runner.MAX_RESPONSE_BYTES + b"\n\n")
