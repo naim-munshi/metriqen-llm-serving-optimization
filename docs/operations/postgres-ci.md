@@ -29,7 +29,7 @@ using a separate privileged psycopg connection with explicit SQL
 `BEGIN` / `COMMIT`. It does not silently use SQLAlchemy
 `metadata.create_all` as a substitute for the migration.
 
-Six integration tests verify:
+The migration-backed integration suite verifies:
 
 - PostgreSQL tables, composite foreign keys, unique constraints and
   role check constraint from the checked-in migration.
@@ -43,6 +43,12 @@ Six integration tests verify:
   the next authorized HTTP request; cascade deletion revokes grants.
 - Missing/invalid JWTs return HTTP 401 without exposing database
   metadata in the response.
+- An injected PostgreSQL store-read transport exception **after valid JWT
+  verification** returns only a generic HTTP 503, never a private DSN or
+  a cached authorization. Once the injection ends, the real CI PostgreSQL
+  permissions are checked again, including cross-tenant denials. This
+  simulates a connection error; it **does not** restart the server or prove
+  operational failover/backups on the owner's Mac.
 
 The job runs **beside**, rather than replacing, the SQLite-backed
 contract suite, Go race tests, model-free E2E, local benchmark and NLP
