@@ -29,8 +29,9 @@ compute, quantization, GPU acceleration or batching.
 `llama3.2:1b` installed digest differs, the gateway upstream is not
 healthy, the listener is missing/duplicated, its actual executable is
 not **exactly** the owner-built `reports/local/sse-abab-gateway`, its
-listener is not bound to `127.0.0.1:8081`, the live process
-does not explicitly attest `METRIQEN_UPSTREAM_URL=http://127.0.0.1:11434`,
+listener has anything other than **one exclusive** `127.0.0.1:8081`
+listening socket (including a second wildcard/public or IPv6 socket),
+the live process does not explicitly attest `METRIQEN_UPSTREAM_URL=http://127.0.0.1:11434`,
 or its SSE environment setting differs from the A/B phase. A macOS `lsof` text-vnode check, an independent kernel `libproc.proc_pidpath`
 main-executable check, and SHA-256 of the compiled binary are required
 before/between/after measured loads. An `lsof -d txt` entry **alone**
