@@ -25,9 +25,11 @@ PRIVATE = ROOT / "reports" / "local"
 EXPERIMENT_BINARY = PRIVATE / "sse-abab-gateway"
 DATASET = ROOT / "docs" / "benchmarks" / "workload.v1.jsonl"
 ENDPOINT = "http://127.0.0.1:8081/v1/chat/completions"
+EXPECTED_UPSTREAM = "http://127.0.0.1:11434"
 PHASE_BUFFER = {"A1": 1024, "B1": 4096, "A2": 1024, "B2": 4096}
 LEVELS = (1, 2, 4)
 _ENV = re.compile(r"(?:^|\s)METRIQEN_SSE_RELAY_BUFFER_BYTES=([^\s]+)")
+_UPSTREAM_ENV = re.compile(r"(?:^|\s)METRIQEN_UPSTREAM_URL=([^\s]+)")
 _SHA = re.compile(r"[0-9a-f]{64}\Z")
 
 
@@ -96,6 +98,12 @@ def inspect_gateway() -> dict:
     if "n127.0.0.1:8081" not in listener.splitlines():
         raise PhaseRefused("gateway_listener_not_loopback")
     process = _capture(["ps", "eww", "-p", str(pid)])
+    # Health only establishes some upstream answered. A different Ollama
+    # service could otherwise skew a real comparison while sharing this Go
+    # binary. Require exact observed process config, without logging ps eww.
+    origins = _UPSTREAM_ENV.findall(process)
+    if origins != [EXPECTED_UPSTREAM]:
+        raise PhaseRefused("gateway_upstream_origin_not_verified")
     found = _ENV.findall(process)
     if len(found) > 1 or (found and found[0] != "4096"):
         raise PhaseRefused("unsupported_running_sse_setting")
@@ -105,6 +113,8 @@ def inspect_gateway() -> dict:
         "evidence": "process_env_4096" if found else "env_unset_assumed_default",
         "binary_path_verified": True,
         "binary_sha256": actual_sha,
+        "upstream_origin_verified": True,
+        "upstream_origin": EXPECTED_UPSTREAM,
         # Hash and vnode identify the owner-built binary, but cannot
         # independently prove its source SHA or its mapped image bytes.
         "binary_source_sha_verified": False,
@@ -258,6 +268,8 @@ def _load_phase(path: Path, expected: str) -> dict:
             type(process.get("pid")) is not int or process["pid"] < 2 or
             process.get("buffer_bytes") != PHASE_BUFFER[expected] or
             process.get("evidence") != expected_evidence or
+            process.get("upstream_origin_verified") is not True or
+            process.get("upstream_origin") != EXPECTED_UPSTREAM or
             process.get("binary_path_verified") is not True or
             not isinstance(process.get("binary_sha256"), str) or
             _SHA.fullmatch(process["binary_sha256"]) is None or
