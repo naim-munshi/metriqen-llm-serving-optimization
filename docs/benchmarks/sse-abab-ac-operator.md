@@ -15,10 +15,15 @@ compute, quantization, GPU acceleration or batching.
   gateway mode** at concurrency 1/2/4 with the same streaming workload,
   12 measured requests at each level by default and one warmup per level.
 - `review` reads all four sanitized private files **offline** and
-  prints RPS, p95 TTFT, p95 latency and all failed request counts for
-  each level and A1/B1/A2/B2. This report **always marks** actual
-  speedup, P3 approval, semantic quality and hardware attestation as
-  unverified. It does not manufacture a percentage improvement.
+  prints RPS, p95 TTFT, p95 latency, successful/failed request counts,
+  and completion-token usage coverage for each level and A1/B1/A2/B2.
+  It also calculates **descriptive** A1→A2 and B1→B2 percentage drift
+  separately for RPS and both success-only p95 metrics (the percentage
+  is null where the earlier measurement is missing or zero). Missing
+  provider usage is reported explicitly and cannot masquerade as complete
+  coverage. The output **always marks** actual speedup, P3 approval,
+  semantic quality and hardware attestation as unverified. Drift and
+  usage coverage are not quality scores, model speedup or significance.
 
 `collect` fails closed if AC power is not verified, the exact
 `llama3.2:1b` installed digest differs, the gateway upstream is not
@@ -212,8 +217,10 @@ python3 -m tools.benchmark.sse_abab review \
 Share **only sanitized aggregate** comparisons. Retain phase files
 privately and check that they were produced in chronological order.
 Interpret RPS, p95 TTFT, p95 latency and failures *together*, including
-run-to-run A1–A2 and B1–B2 drift, thermal/slot changes and any missing
-token coverage. **P3 requires additional matched 36-sample model
+the explicit A1–A2 and B1–B2 drift percentages, thermal/slot changes,
+success counts and any missing completion-token usage coverage. All-failure
+phases remain visible, with unavailable p95/drift shown as null rather
+than manufacturing a comparison. **P3 requires additional matched 36-sample model
 quality evaluation** and independent review of the real binary,
 gateway process settings and offer/load fairness; the script deliberately
 does not certify those facts.
