@@ -8,6 +8,33 @@ There is **no tagged Portfolio v1.0 release yet**. Do not interpret this
 document as a claim of commercial SaaS readiness, trusted token billing,
 independent hardware attestation or a production security audit.
 
+## October 24 — SSE completion integrity and repository safety (unreleased)
+
+- [PR #135](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/135)
+  requires the exact pinned live Ollama upstream for the operator SSE
+  experiment and avoids an `env -i` runbook example that could strip
+  existing gateway authorization environment configuration.
+- [PR #136](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/136)
+  verifies the Gateway PID's main executable through macOS libproc,
+  independently of the `lsof` text-mapping list. Synthetic CI is not
+  proof that the native check was run on the owner's Mac.
+- [PR #137](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/137)
+  rejects a mixed local/public listener during SSE benchmark preflight,
+  rather than accepting any loopback entry.
+- [PR #138](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/138)
+  adds a twelfth CI check to reject known private artifact and credential
+  **paths** accidentally committed to a public repository. It is not
+  credential-content or historical-secret scanning.
+- [PR #139](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/139)
+  ensures a Python streaming benchmark counts success only after a
+  completed `[DONE]` event and clean transport EOF, rejecting duplicate
+  terminal and later error/data frames. Adds protocol and synthetic HTTP
+  regressions; no retrospective model improvement is claimed.
+- The source tests are green (12/12 on the documented Oct 24 `main`
+  milestone). Branch protection, owner license choice, native Mac
+  performance/quality, real UI/security acceptance and P1–P6 remain open.
+  No `v1.0.0` release has been published.
+
 ## October 23 — reject stale Go gateway binaries in AC A/B/A/B
 
 - Corrected a real operator-observed invalid A1: a newly built binary
