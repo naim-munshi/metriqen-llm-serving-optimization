@@ -128,10 +128,10 @@ class SSEABABContracts(unittest.TestCase):
     def test_kernel_main_executable_must_match_even_if_lsof_txt_lists_expected(self):
         def mapped_only(argv):
             if "-t" in argv:
-                return "71234\\n"
+                return "71234\n"
             if "-d" in argv:
                 # A helper process can map this file without executing it.
-                return "p71234\\nftxt\\nn" + str(self.binary.resolve()) + "\\n"
+                return "p71234\nftxt\nn" + str(self.binary.resolve()) + "\n"
             raise AssertionError("Mismatched main executable must block before env inspection")
 
         with patch.object(exp, "_capture", side_effect=mapped_only), patch.object(
@@ -145,7 +145,7 @@ class SSEABABContracts(unittest.TestCase):
         def fake_path(pid, target, size):
             self.assertEqual(pid, 71234)
             self.assertGreater(size, len(expected))
-            exp.ctypes.memmove(target, expected + b"\\0", len(expected) + 1)
+            exp.ctypes.memmove(target, expected + b"\0", len(expected) + 1)
             return len(expected) + 1
         with patch.object(exp.ctypes, "CDLL", return_value=type(
             "FakeLib", (), {"proc_pidpath": staticmethod(fake_path)}
