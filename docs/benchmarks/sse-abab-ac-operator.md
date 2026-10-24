@@ -29,8 +29,9 @@ compute, quantization, GPU acceleration or batching.
 `llama3.2:1b` installed digest differs, the gateway upstream is not
 healthy, the listener is missing/duplicated, its actual executable is
 not **exactly** the owner-built `reports/local/sse-abab-gateway`, its
-listener is not bound to `127.0.0.1:8081`, or its process env setting
-differs from the A/B phase. A macOS `lsof` text-vnode check and SHA-256
+listener is not bound to `127.0.0.1:8081`, the live process
+does not explicitly attest `METRIQEN_UPSTREAM_URL=http://127.0.0.1:11434`,
+or its SSE environment setting differs from the A/B phase. A macOS `lsof` text-vnode check and SHA-256
 of that executable are required before/between/after measured loads.
 **Four-phase review rejects unverified executables and different binary
 hashes across phases.** It never logs full `ps eww` output, which can
@@ -38,9 +39,12 @@ contain credentials. Missing `METRIQEN_SSE_RELAY_BUFFER_BYTES` is
 accepted as 1 KiB **only on the expected executable**.
 
 These checks still do not independently attest the original Git source
-SHA, in-memory mapped binary bytes, uninterrupted power or Ollama
-worker slots. The operator must independently inspect source revision,
-runtime slots and thermals.
+SHA, in-memory mapped binary bytes, uninterrupted power, Ollama
+worker slots, or auth-policy equivalence. A missing/uninspectable live
+upstream process setting **fails closed**, even if gateway health
+returns 200: a healthy different provider is not the pinned Ollama.
+The operator must independently inspect source revision, runtime
+slots and thermals.
 
 No script action changes gateway settings, terminates a process,
 installs a model, downloads weights, provisions a GPU, or sends
@@ -146,11 +150,21 @@ executable fingerprint is refused by the four-phase offline review.
 Use **two Terminal windows**. In *Terminal A*, start the newly compiled
 binary in the foreground, bound only to 127.0.0.1.
 
+**Safety:** the commands below inherit other existing Gateway environment
+variables rather than using `env -i`, which could silently strip bearer-token,
+project authorization, quota and routing enforcement settings. They are
+illustrative commands for an owner-approved local experiment. Inspect
+the original Gateway runtime policy first; do not replace an authenticated
+service with a weaker configuration. The current benchmark client does not
+attach authorization credentials, so a guarded Gateway may refuse
+requests. **Treat this as a blocked benchmark, not a reason to disable
+security settings.** Restart only a confirmed owner-controlled process.
+
 For A1 (**default 1 KiB**):
 
 ```bash
 cd ~/metriqen-llm-serving-optimization
-env -i PATH="$PATH" HOME="$HOME" TMPDIR=/tmp \
+env -u METRIQEN_SSE_RELAY_BUFFER_BYTES \
   METRIQEN_UPSTREAM_URL=http://127.0.0.1:11434 \
   METRIQEN_ALLOWED_MODELS=llama3.2:1b METRIQEN_QUEUE_DEPTH=0 \
   ./reports/local/sse-abab-gateway
@@ -178,8 +192,7 @@ gateway in Terminal A, wait for 8081 to be free, then start B1 with
 the **same binary** and the single explicit 4 KiB setting:
 
 ```bash
-env -i PATH="$PATH" HOME="$HOME" TMPDIR=/tmp \
-  METRIQEN_UPSTREAM_URL=http://127.0.0.1:11434 \
+env METRIQEN_UPSTREAM_URL=http://127.0.0.1:11434 \
   METRIQEN_ALLOWED_MODELS=llama3.2:1b METRIQEN_QUEUE_DEPTH=0 \
   METRIQEN_SSE_RELAY_BUFFER_BYTES=4096 \
   ./reports/local/sse-abab-gateway
