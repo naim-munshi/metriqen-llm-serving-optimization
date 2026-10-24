@@ -283,6 +283,31 @@ def test_session_revocation_and_redis_outage_are_fail_closed(fixture):
     assert client.get("/auth/profile").status_code == 503
 
 
+def test_bff_session_outage_does_not_log_out_or_silently_reauthorize(fixture):
+    client, cache, _, _, _ = fixture
+    complete_login(fixture)
+    active = client.get("/auth/session").json()
+    assert active["authenticated"] is True
+    csrf = active["csrf"]
+    assert client.get("/auth/organizations").status_code == 200
+
+    cache.fail = True
+    denied = client.get("/auth/organizations")
+    assert denied.status_code == 503
+    assert "secret test redis backend" not in denied.text
+    assert client.post("/auth/logout", headers=browser_headers(csrf)).status_code == 503
+
+    cache.fail = False
+    # Recovered Redis does not permit unprotected logout, and a successfully
+    # revoked ticket cannot be replayed using a previously valid CSRF.
+    assert client.get("/auth/session").json()["authenticated"] is True
+    assert client.post("/auth/logout").status_code == 403
+    assert client.post("/auth/logout", headers=browser_headers(csrf)).status_code == 204
+    assert client.get("/auth/session").json() == {"authenticated": False}
+    assert client.get("/auth/organizations").status_code == 401
+    assert client.post("/auth/logout", headers=browser_headers(csrf)).status_code == 401
+
+
 def test_local_only_auth_routes_reject_remote_clients(fixture):
     client, _, _, _, _ = fixture
     remote = TestClient(client.app, client=("192.0.2.22", 4333))

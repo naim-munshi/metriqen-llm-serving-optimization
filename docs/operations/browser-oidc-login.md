@@ -33,6 +33,24 @@ With fully configured identity and Redis, open:
   A repeated/expired callback cannot create a new session, and a revoked
   session immediately loses access.
 
+## Session outage/recovery integration evidence (CI only)
+
+The isolated GitHub Actions Redis 7 job now exercises the **real** Redis
+`GETDEL`, `SET NX EX`, `GET`, and `DEL` commands with a scoped synthetic
+ACL account across two client instances. It tests single-use OIDC flow
+state, session revocation across replicas, TTL expiry, namespace isolation,
+and an intentionally unavailable **separate localhost transport** that
+must fail with a generic HTTP 503. A healthy connection is restored and
+previously revoked sessions remain invalid. The control API's synthetic
+BFF HTTP test also checks that an outage cannot authorize a workspace
+request or silently complete a logout.
+
+Run only with the repository's disposable GitHub CI service. These tests do
+**not** restart the actual operator's Redis, use real sessions/OIDC
+credentials, verify a mobile browser's cookie policy, or attest live
+PostgreSQL/IdP recovery. Real Mac recovery and Google login remain P5
+operator-only acceptance tasks.
+
 ## Google sign-in compatibility (explicit local opt-in)
 
 A separate `METRIQEN_BROWSER_PROVIDER=google` option now accepts Google's

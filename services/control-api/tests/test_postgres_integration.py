@@ -226,6 +226,40 @@ def test_cross_tenant_and_untrusted_jwt_claims_do_not_grant_access(seeded):
     ) is None
 
 
+def test_database_transport_failure_denies_verified_access_then_recovers(seeded):
+    """Real disposable PG rows + injected store connection error; no production outage."""
+    from unittest.mock import patch
+
+    _, store, client, signing = seeded
+    token = issue(signing)
+    assert get(client, PROJECT_A, token).status_code == 200
+    assert get(client, PROJECT_B, token).status_code == 404
+
+    # A verified JWT is NOT enough if the authoritative PostgreSQL read
+    # becomes unavailable. Never turn an outage into a cached permission.
+    with patch.object(store, "get_project", side_effect=psycopg.OperationalError(
+        "PRIVATE_SYNTHETIC_DB_DSN_SHOULD_NOT_APPEAR"
+    )):
+        denied = get(client, PROJECT_A, token)
+        assert denied.status_code == 503
+        assert "PRIVATE_SYNTHETIC_DB_DSN" not in denied.text
+        assert denied.json() == {"detail": "project authorization unavailable"}
+
+    with patch.object(store, "get_membership", side_effect=psycopg.OperationalError(
+        "PRIVATE_SYNTHETIC_POSTGRES_CREDENTIAL"
+    )):
+        denied = get(client, PROJECT_A, token)
+        assert denied.status_code == 503
+        assert "PRIVATE_SYNTHETIC_POSTGRES_CREDENTIAL" not in denied.text
+
+    # This is a simulated transport exception on a real migrated CI DB,
+    # NOT an actual PostgreSQL restart. Restored connectivity still enforces
+    # the same current SQL tenant authorization and cannot grant cross-tenant.
+    assert get(client, PROJECT_A, token).status_code == 200
+    assert get(client, PROJECT_B, token).status_code == 404
+    assert get(client, PROJECT_A, issue(signing, subject="unknown")).status_code == 404
+
+
 def test_postgres_enforces_composite_cross_tenant_fk_and_role_constraint(seeded):
     engine, _, _, _ = seeded
     with pytest.raises(IntegrityError):

@@ -165,7 +165,7 @@ jobs:
         working-directory: services/control-api
         env:
           METRIQEN_REDIS_CI: "1"
-        run: python -m pytest -q tests/test_project_quota_redis_ci.py tests/test_project_inflight_redis_ci.py
+        run: python -m pytest -q tests/test_project_quota_redis_ci.py tests/test_project_inflight_redis_ci.py tests/test_browser_session_redis_ci.py
 
   local-load-balancer-config:
     runs-on: ubuntu-latest
