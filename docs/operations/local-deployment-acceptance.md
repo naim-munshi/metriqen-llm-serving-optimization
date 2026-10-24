@@ -18,9 +18,16 @@ approval, or unloads models. It is disabled by default unless the operator
 passes `--execute`. The `--candidate` model must already be registered,
 approved and loaded; it must be **different** from the baseline.
 
-The script refuses to replace an existing rollback history, rejects an
-unready baseline/candidate before any write, checks the exact active digest,
-and attempts a guarded restoration if a later request fails. This recovery
+The script refuses to replace an existing rollback history on **candidate
+`--execute`**, rejects an unready baseline/candidate before any write,
+checks the exact active digest, and attempts a guarded restoration if a
+later request fails. A **read-only** candidate preflight may inspect
+registration/approval even when history exists; it explicitly prints
+`SAFETY: existing rollback history retained` and reports
+`candidate_lifecycle_blocked_by_existing_rollback_history: true`.
+Such a read-only `PASS` only confirms the candidate's readiness checks,
+**not** authorization to run Promote/Rollback. Never erase the existing
+rollback history or edit the SQLite file to make the checker pass. This recovery
 is best-effort: model eviction or a concurrent operator action may require
 **manual recovery**. Inspect `04 / Model Routing` if the command fails.
 
