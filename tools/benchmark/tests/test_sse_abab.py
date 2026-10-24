@@ -290,6 +290,18 @@ class SSEABABContracts(unittest.TestCase):
         with self.assertRaisesRegex(exp.PhaseRefused, "gateway_binary_differs_across"):
             exp.review(paths)
 
+    def test_collection_refuses_impossible_usage_coverage_before_file_write(self):
+        def invalid_measure(*args, **kwargs):
+            report = self.fake_measure(*args, **kwargs)
+            report["completion_token_coverage"] = kwargs["requests"] + 1
+            return report
+
+        with self.assertRaisesRegex(
+            exp.PhaseRefused, "invalid_runner_completion_token_coverage"
+        ):
+            self.collect("A1", measure=invalid_measure)
+        self.assertFalse((self.private / "A1.json").exists())
+
     def test_review_exposes_usage_gaps_and_numeric_within_setting_drift(self):
         paths = {}
         for phase in exp.PHASE_BUFFER:
