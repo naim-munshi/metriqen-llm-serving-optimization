@@ -149,6 +149,129 @@ class SSEABABContracts(unittest.TestCase):
                         gateway_check=exp.inspect_gateway)
         self.assertFalse((self.private / "A1.json").exists())
 
+    def test_binary_missing_symlink_and_nonexecutable_fail_closed(self):
+        expected, sha = exp._verified_experiment_binary()
+        self.assertEqual(expected, self.binary.resolve())
+        self.assertEqual(sha, self.bin_sha)
+        self.binary.unlink()
+        with self.assertRaisesRegex(exp.PhaseRefused, "missing_or_untrusted"):
+            exp._verified_experiment_binary()
+        alternate = self.private / "alternate"
+        alternate.write_bytes(b"synthetic")
+        self.binary.symlink_to(alternate)
+        with self.assertRaisesRegex(exp.PhaseRefused, "missing_or_untrusted"):
+            exp._verified_experiment_binary()
+        self.binary.unlink()
+        self.binary.write_bytes(b"synthetic-no-execute")
+        self.binary.chmod(0o600)
+        with self.assertRaisesRegex(exp.PhaseRefused, "not_executable_or_bounded"):
+            exp._verified_experiment_binary()
+
+    def test_wrong_listener_and_unsupported_buffer_are_refused(self):
+        def capture(listener="n127.0.0.1:8081", setting=""):
+            def fake(argv):
+                if "-t" in argv:
+                    return "71234\n"
+                if "-d" in argv:
+                    return "p71234\nftxt\nn" + str(self.binary.resolve()) + "\n"
+                if argv[0] == "ps":
+                    return "COMMAND gateway " + setting + "\n"
+                return "p71234\n" + listener + "\n"
+            return fake
+
+        for listener in ("n0.0.0.0:8081", "n[::1]:8081", "n127.0.0.1:9999"):
+            with self.subTest(listener=listener), patch.object(
+                exp, "_capture", side_effect=capture(listener=listener)
+            ), self.assertRaisesRegex(exp.PhaseRefused, "not_loopback"):
+                exp.inspect_gateway()
+        for setting in (
+            "METRIQEN_SSE_RELAY_BUFFER_BYTES=1024",
+            "METRIQEN_SSE_RELAY_BUFFER_BYTES=8192",
+            "METRIQEN_SSE_RELAY_BUFFER_BYTES=not-a-number",
+        ):
+            with self.subTest(setting=setting), patch.object(
+                exp, "_capture", side_effect=capture(setting=setting)
+            ), self.assertRaisesRegex(exp.PhaseRefused, "unsupported_running_sse_setting"):
+                exp.inspect_gateway()
+        with patch.object(exp, "_capture", return_value="71234\n81234\n"):
+            with self.assertRaisesRegex(exp.PhaseRefused, "exactly_one_gateway_listener"):
+                exp.inspect_gateway()
+
+    def test_stale_go_run_cannot_run_measured_requests(self):
+        attempted = []
+        def stale_gateway(argv):
+            if "-t" in argv:
+                return "75718\n"
+            if "-d" in argv:
+                return "p75718\nftxt\nn/Users/test/Library/Caches/go-build/server\n"
+            raise AssertionError("must stop before probing other process fields")
+        with patch.object(exp, "_capture", side_effect=stale_gateway):
+            with self.assertRaisesRegex(exp.PhaseRefused, "preflight_failed"):
+                self.collect("A1", inspect=exp.inspect_gateway,
+                             measure=lambda *_a, **_kw: attempted.append(True))
+        self.assertFalse(attempted)
+        self.assertFalse((self.private / "A1.json").exists())
+
+    def test_live_binary_fingerprint_mutation_aborts_without_report(self):
+        def capture(argv):
+            if "-t" in argv:
+                return "71234\n"
+            if "-d" in argv:
+                return "p71234\nftxt\nn" + str(self.binary.resolve()) + "\n"
+            if argv[0] == "ps":
+                return "COMMAND gateway\n"
+            return "p71234\nn127.0.0.1:8081\n"
+
+        calls = []
+        def change_binary_after_first_level(*args, **kwargs):
+            calls.append(kwargs["concurrency"])
+            self.binary.write_bytes(b"synthetic-binary-changed-during-phase")
+            return self.fake_measure(*args, **kwargs)
+
+        with patch.object(exp, "_capture", side_effect=capture):
+            with self.assertRaisesRegex(exp.PhaseRefused, "process_changed_during_phase"):
+                self.collect("A1", inspect=exp.inspect_gateway,
+                             measure=change_binary_after_first_level)
+        self.assertEqual(calls, [1])
+        self.assertFalse((self.private / "A1.json").exists())
+
+    def test_offline_review_rejects_inconsistent_gateway_snapshot(self):
+        paths = {}
+        for phase in exp.PHASE_BUFFER:
+            self.collect(phase)
+            paths[phase] = self.private / f"{phase}.json"
+        self.assertFalse(exp.review(paths)["p3_gate_approved"])
+        b1 = json.loads(paths["B1"].read_text())
+        b1["gateway_process"]["buffer_bytes"] = 1024
+        paths["B1"].write_text(json.dumps(b1), encoding="utf-8")
+        with self.assertRaisesRegex(exp.PhaseRefused, "active_gateway_binary_not_verified"):
+            exp.review(paths)
+        b1["gateway_process"]["buffer_bytes"] = 4096
+        b1["gateway_process"]["evidence"] = "env_unset_assumed_default"
+        paths["B1"].write_text(json.dumps(b1), encoding="utf-8")
+        with self.assertRaisesRegex(exp.PhaseRefused, "active_gateway_binary_not_verified"):
+            exp.review(paths)
+        b1["gateway_process"]["evidence"] = "process_env_4096"
+        b1["gateway_process"]["pid"] = 1
+        paths["B1"].write_text(json.dumps(b1), encoding="utf-8")
+        with self.assertRaisesRegex(exp.PhaseRefused, "active_gateway_binary_not_verified"):
+            exp.review(paths)
+
+    def test_offline_review_rejects_missing_files_and_phase_relabeling(self):
+        paths = {}
+        for phase in exp.PHASE_BUFFER:
+            self.collect(phase)
+            paths[phase] = self.private / f"{phase}.json"
+        absent = dict(paths)
+        absent["A1"] = self.private / "does-not-exist.json"
+        with self.assertRaisesRegex(exp.PhaseRefused, "phase_missing"):
+            exp.review(absent)
+        doc = json.loads(paths["A2"].read_text())
+        doc["phase"] = "A1"
+        paths["A2"].write_text(json.dumps(doc), encoding="utf-8")
+        with self.assertRaisesRegex(exp.PhaseRefused, "phase_contract_invalid"):
+            exp.review(paths)
+
     def test_old_A1_without_binary_attestation_and_changed_binary_hash_cannot_be_reviewed(self):
         paths = {}
         for phase in exp.PHASE_BUFFER:

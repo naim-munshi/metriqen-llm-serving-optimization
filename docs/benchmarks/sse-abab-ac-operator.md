@@ -80,8 +80,24 @@ go build -o ../../reports/local/sse-abab-gateway ./cmd/server
 cd ../..
 ```
 
-Inspect the current server with
-`lsof -nP -iTCP:8081 -sTCP:LISTEN`. **If it is the existing
+Verify the immutable experiment executable and record the fingerprint locally:
+
+```bash
+git rev-parse HEAD
+shasum -a 256 reports/local/sse-abab-gateway
+lsof -nP -iTCP:8081 -sTCP:LISTEN
+```
+
+If port 8081 is occupied, inspect the *current* listener, not an
+old recorded PID. Confirm process ownership and path with
+`ps -p <verified-PID> -o pid,ppid,command` and
+`lsof -nP -a -p <verified-PID> -d txt` (substitute the actual
+numeric PID). Stop only the confirmed owner-controlled local gateway
+through its foreground terminal/supervisor. Never kill an unknown
+process or alter Ollama, FastAPI, credentials, or project auth. The
+collector validates the active executable and loopback socket again.
+
+**If it is the existing
 owner-controlled Go development server**, terminate that specific
 process gracefully using its owning terminal/process supervisor
 and confirm the port is free. **Do not copy commands that kill an
