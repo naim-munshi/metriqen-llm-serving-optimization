@@ -336,11 +336,22 @@ class SSEABABContracts(unittest.TestCase):
                 return "p71234\n" + listener + "\n"
             return fake
 
-        for listener in ("n0.0.0.0:8081", "n[::1]:8081", "n127.0.0.1:9999"):
+        for listener in (
+            "n0.0.0.0:8081", "n[::1]:8081", "n127.0.0.1:9999",
+            "n127.0.0.1:8081\nn0.0.0.0:8081",
+            "n127.0.0.1:8081\nn[::]:8081",
+            "n127.0.0.1:8081\nn192.0.2.10:8081",
+            "n127.0.0.1:8081\nn127.0.0.1:8081",
+            "n127.0.0.1:8081 (LISTEN)",
+            "",
+        ):
             with self.subTest(listener=listener), patch.object(
                 exp, "_capture", side_effect=capture(listener=listener)
             ), self.assertRaisesRegex(exp.PhaseRefused, "not_loopback"):
                 exp.inspect_gateway()
+        # A normal single loopback listener remains fully acceptable.
+        with patch.object(exp, "_capture", side_effect=capture()):
+            self.assertEqual(exp.inspect_gateway()["pid"], 71234)
         for setting in (
             "METRIQEN_SSE_RELAY_BUFFER_BYTES=1024",
             "METRIQEN_SSE_RELAY_BUFFER_BYTES=8192",
