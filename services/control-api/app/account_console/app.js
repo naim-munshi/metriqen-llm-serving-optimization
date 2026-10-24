@@ -37,6 +37,14 @@ async function jsonRequest(path, method = "GET", payload = null, csrfRequired = 
   if (response.status !== 204) {
     body = await response.json();
   }
+  if (response.status === 401) {
+    // Revocation/expiry must immediately remove the former user's data
+    // from a still-open tab. A 401 is not a transient PostgreSQL failure.
+    // This changes local presentation only; the server remains the authority.
+    clearSignedOutIdentity();
+    el("member").hidden = true;
+    el("guest").hidden = false;
+  }
   if (!response.ok) {
     const detail = body && typeof body.detail === "string"
       ? body.detail.slice(0, 180) : "Request rejected";
@@ -51,6 +59,7 @@ async function boot() {
   try {
     const current = await jsonRequest("/auth/session");
     if (!current.authenticated) {
+      clearSignedOutIdentity();
       el("guest").hidden = false;
       el("member").hidden = true;
       status("Not signed in. Use your configured identity provider to continue.");
@@ -427,6 +436,7 @@ function clearSignedOutIdentity() {
   el("save").textContent = "Save profile";
   el("pending-invitations").replaceChildren();
   el("workspace-list").replaceChildren();
+  // Never leave a stale account screen visible on subsequent local sessions.
 }
 
 el("logout").addEventListener("click", async () => {
