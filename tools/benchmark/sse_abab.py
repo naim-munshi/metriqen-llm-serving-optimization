@@ -128,7 +128,7 @@ def inspect_gateway() -> dict:
     # must not be considered isolated for the local-only experiment.
     sockets = [line[1:] for line in listener.splitlines() if line.startswith("n")]
     if sockets != ["127.0.0.1:8081"]:
-        raise PhaseRefused("gateway_listener_not_exclusively_loopback")
+        raise PhaseRefused("gateway_listener_not_loopback")
     process = _capture(["ps", "eww", "-p", str(pid)])
     # Health only establishes some upstream answered. A different Ollama
     # service could otherwise skew a real comparison while sharing this Go
