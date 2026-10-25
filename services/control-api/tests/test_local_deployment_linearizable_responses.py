@@ -44,7 +44,8 @@ def test_all_write_results_are_captured_without_postcommit_get(tmp_path, monkeyp
 
     stopped = store.set_enabled("acceptance-test", False)
     assert stopped["enabled"] is False
-    restarted = store.set_enabled("acceptance-test", True)
+    restarted = store.set_enabled("acceptance-test", True,
+                              expected_current=store.get("acceptance-test"))
     assert restarted["enabled"] is True
 
     # Every result above is a persisted write, not an uncommitted in-memory
