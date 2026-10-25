@@ -167,14 +167,26 @@ class OllamaRuntime:
         if not isinstance(raw, list) or len(raw) > 256:
             raise HTTPException(503, "local Ollama model listing is invalid")
         models = []
+        seen = set()
         for item in raw:
             if not isinstance(item, dict):
                 raise HTTPException(503, "local Ollama model listing is invalid")
-            name = item.get("name") or item.get("model")
-            if not isinstance(name, str) or not isinstance(item.get("digest"), str):
+            name, model = item.get("name"), item.get("model")
+            # Ollama can report both aliases for one revision. A contradictory
+            # response must never be silently resolved by list/field order.
+            if (name is not None and model is not None and name != model):
+                raise HTTPException(503, "local Ollama model identity is ambiguous")
+            tag = name or model
+            if not isinstance(tag, str) or not isinstance(item.get("digest"), str):
                 raise HTTPException(503, "local Ollama model identity is missing")
-            if MODEL_TAG.fullmatch(name) and DIGEST.fullmatch(item["digest"]):
-                models.append({"tag": name, "digest": item["digest"]})
+            if MODEL_TAG.fullmatch(tag) and DIGEST.fullmatch(item["digest"]):
+                # Admission/approval/rollback checks take one model per tag.
+                # A duplicate (even same digest) would make the identity
+                # dependent on response ordering; reject the whole snapshot.
+                if tag in seen:
+                    raise HTTPException(503, "local Ollama model identity is ambiguous")
+                seen.add(tag)
+                models.append({"tag": tag, "digest": item["digest"]})
         return models
 
     def installed(self) -> list[dict]:
