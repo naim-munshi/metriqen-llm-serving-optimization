@@ -37,6 +37,66 @@ permissions, and uses only fixed `127.0.0.1:8000` API endpoints.
 No browser cookies, raw prompts/completions, request identifiers,
 model-output text or secret values are written to the result.
 
+## Separate alias setup for full Promote/Rollback acceptance
+
+**Do not overwrite the active `assistant` alias** merely to make the
+candidate lifecycle checker pass. On the operator Mac (not in hosted CI)
+the existing `assistant` alias may have a protected rollback target
+`llama3.2:latest`. The isolated setup helper only allows names beginning
+with `acceptance-`, checks both exact registered and installed digests
+and refuses reuse if an existing test alias has any prior rollback history,
+a changed active revision or disabled state.
+
+Start with a **read-only GET-only** plan, which never changes model memory
+or creates a deployment and honestly reports if baseline is not loaded:
+
+```bash
+cd ~/metriqen-llm-serving-optimization
+source .venv/bin/activate
+python3 -m tools.demo.isolated_deployment_setup \
+  --name acceptance-test --baseline llama3.2:1b \
+  --candidate llama3.2:latest
+```
+
+For a quiet, owner-controlled loopback development Mac only, with both
+models already registered/approved and with the desired name **absent**,
+the following explicitly permits (1) preloading the exact approved
+baseline if it expired, then (2) creating the separate local alias:
+
+```bash
+python3 -m tools.demo.isolated_deployment_setup \
+  --name acceptance-test --baseline llama3.2:1b \
+  --candidate llama3.2:latest --execute --load-baseline
+```
+
+This command does **not** change the `assistant` alias, its rollback
+history, project grants or Go Gateway configuration. It refuses a competing
+existing `acceptance-test` with a different revision, old history or
+disabled state; an already-identical clean test alias is reused without
+changing its routing. Model preload can evict another Ollama resident model,
+so `--load-baseline` needs separate opt-in. Nothing is pulled or approved.
+The helper creates a pinned alias only; it does **not** measure inference,
+perform promotion, or automatically authorize candidate gateway traffic.
+
+Once the alias is reported ready, check the **actual running gateway**
+security configuration and confirm that the candidate tag can complete
+a real approved model inference (a generic HTTP 503 or a failure is not
+proof of a compatible allowlist). Then run a separate, read-only preflight:
+
+```bash
+python3 -m tools.demo.local_deployment_acceptance \
+  --name acceptance-test --baseline llama3.2:1b \
+  --candidate llama3.2:latest --sequential-load
+```
+
+Only after independent operator review confirms the separate alias is
+unused, the Gateway allows both revisions, model licenses are acceptable
+and the test alias has **no** existing rollback history should the owner
+consider the subsequent opt-in `--sequential-load --execute` lifecycle.
+A CLI check is not Safari/mobile browser or P1/P6 release acceptance.
+If Ollama evicts the baseline after setup, the explicit sequential
+execute mode can reload the pinned baseline only when separately authorized.
+
 ## Step 1: read-only preflight (no mutations)
 
 On your Mac, check the operator Model Manager and ensure the existing
