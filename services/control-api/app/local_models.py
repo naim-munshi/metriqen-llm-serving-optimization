@@ -420,7 +420,7 @@ def local_model_router(token: str, store: Registry, runtime: LocalModelRuntime,
         if record is None:
             raise HTTPException(404, "local deployment not found")
         require_ready(record["active_tag"], record["active_digest"])
-        return deployments.set_enabled(name, True)
+        return deployments.set_enabled(name, True, expected_current=record)
 
     @router.post("/deployments/{name}/chat")
     def chat_deployment(name: str, payload: ChatInput) -> dict:

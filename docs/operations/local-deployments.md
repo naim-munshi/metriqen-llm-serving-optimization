@@ -35,7 +35,11 @@ a prompt field.
 - **Stop routing** disables inference through this alias without unloading
   Ollama model weights, which might be used by other aliases or clients.
 - **Start routing** checks that the active model revision is approved and
-  loaded before re-enabling the alias.
+  loaded before re-enabling the alias. It also compare-and-swaps the full
+  trusted deployment state under SQLite's write lock: if another operator
+  changes model revision, rollback history or paused state during the
+  readiness check, Start returns HTTP 409 without enabling that unverified
+  revision. Stop remains unconditionally available to pause a route.
 
 The deployment record is persisted in the *same private local SQLite file*
 as the opt-in model registry, with a maximum of 20 named deployment
