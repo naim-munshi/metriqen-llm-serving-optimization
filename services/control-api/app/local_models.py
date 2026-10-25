@@ -150,7 +150,15 @@ class OllamaRuntime:
                 if not isinstance(value, dict):
                     raise ValueError("Ollama response is not an object")
                 return value
-        except (OSError, URLError, HTTPError, ValueError, json.JSONDecodeError):
+        except HTTPError as exc:
+            # A rejected Ollama request still owns an HTTP response/socket.
+            # Never inspect the provider's error body, which may contain
+            # private model details; explicitly release it.
+            try:
+                raise HTTPException(503, "local Ollama model API unavailable or invalid") from None
+            finally:
+                exc.close()
+        except (OSError, URLError, ValueError, json.JSONDecodeError):
             raise HTTPException(503, "local Ollama model API unavailable or invalid") from None
 
     def _models(self, path: str) -> list[dict]:
