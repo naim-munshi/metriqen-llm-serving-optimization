@@ -47,7 +47,12 @@ def endpoint(method: str, path: str) -> str:
     """Allowlist exact loopback endpoint families, disallow URL injection."""
     if method == "GET" and path in (
         API + "/models", API + "/model-statuses", API + "/deployments",
+        API + "/available-models",
     ):
+        return ORIGIN + path
+    # Used only by the separately opt-in isolated alias setup command.
+    # The acceptance lifecycle runner itself never issues a create request.
+    if method == "POST" and path == API + "/deployments":
         return ORIGIN + path
     parts = path.split("/")
     if (method == "POST" and len(parts) == 7 and
