@@ -175,17 +175,31 @@ class LocalDeploymentStore:
             ).fetchone()
             return self._record(persisted)
 
-    def set_enabled(self, name: str, enabled: bool) -> dict:
+    def set_enabled(self, name: str, enabled: bool, *,
+                    expected_current: dict | None = None) -> dict:
+        # Start is guarded by an approved/loaded check against a pinned
+        # revision. If the alias changed while Ollama was queried, NEVER
+        # enable a different or unverified model revision.
+        # Stop remains unconditional so the operator can always pause.
+        if enabled and not isinstance(expected_current, dict):
+            raise HTTPException(409, "deployment start preflight state missing")
         with closing(self._connect()) as conn, conn:
             conn.execute("BEGIN IMMEDIATE")
-            count = conn.execute("""UPDATE local_deployments
-                SET enabled = ?, updated_at_utc = ? WHERE name = ?""",
-                                 (int(enabled), datetime.now(timezone.utc).isoformat(), name))
-            if count.rowcount != 1:
+            current = conn.execute(
+                "SELECT * FROM local_deployments WHERE name = ?", (name,)
+            ).fetchone()
+            if current is None:
                 raise HTTPException(404, "local deployment not found")
-            # Return the row observed under the same write transaction.
-            # A concurrent operator must not replace this operation's
-            # confirmation with a later routing/rollback state.
+            if expected_current is not None:
+                for field in ("active_tag", "active_digest", "previous_tag",
+                              "previous_digest", "updated_at_utc"):
+                    if current[field] != expected_current.get(field):
+                        raise HTTPException(409, "deployment state changed; refresh first")
+                if bool(current["enabled"]) is not expected_current.get("enabled"):
+                    raise HTTPException(409, "deployment state changed; refresh first")
+            conn.execute("""UPDATE local_deployments
+                SET enabled = ?, updated_at_utc = ? WHERE name = ?""",
+                         (int(enabled), datetime.now(timezone.utc).isoformat(), name))
             persisted = conn.execute(
                 "SELECT * FROM local_deployments WHERE name = ?", (name,)
             ).fetchone()
