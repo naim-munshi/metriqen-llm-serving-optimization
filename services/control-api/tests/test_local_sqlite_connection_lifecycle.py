@@ -82,6 +82,7 @@ def test_deployment_connection_handles_close_after_success_and_rollback(tmp_path
                           expected_previous_digest=DA,
                           expected_current=store.get("acceptance-test"))["active_tag"] == A
     assert store.set_enabled("acceptance-test", False)["enabled"] is False
-    assert store.set_enabled("acceptance-test", True)["enabled"] is True
+    assert store.set_enabled("acceptance-test", True,
+                              expected_current=store.get("acceptance-test"))["enabled"] is True
     assert store.list()[0]["previous_tag"] == B
     assert_all_closed(seen)
