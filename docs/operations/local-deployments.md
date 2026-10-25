@@ -22,7 +22,10 @@ a prompt field.
   /api/v1/local/deployments/{name}/chat`, with a stable name regardless of
   which model is active. The control API looks up the current pinned tag,
   verifies approval and the installed/loaded digest, and forwards a bounded
-  single-turn request to the fixed loopback Go gateway.
+  single-turn request to the fixed loopback Go gateway. The local response
+  adapter also rejects replies whose reported `model` is absent or differs
+  from the selected tag (sanitized HTTP 503), preventing false model labels.
+  This is not cryptographic proof of the model executing on the GPU.
 - **Promote** switches to a different already-registered, approved and loaded
   model. The previous active tag and digest are saved atomically as the
   one-step rollback target.
