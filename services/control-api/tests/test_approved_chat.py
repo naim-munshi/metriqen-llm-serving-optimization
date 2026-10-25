@@ -117,8 +117,9 @@ def test_local_gateway_client_forwards_only_bounded_contract():
             assert self.headers.get("Authorization") is None
             payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             seen.append(payload)
-            body = json.dumps({"choices": [{"message": {"role": "assistant", "content": "RESULT"},
-                                             "finish_reason": "stop"}]}).encode()
+            body = json.dumps({"model": TAG,
+                               "choices": [{"message": {"role": "assistant", "content": "RESULT"},
+                                            "finish_reason": "stop"}]}).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
