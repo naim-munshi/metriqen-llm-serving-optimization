@@ -384,14 +384,16 @@ def local_model_router(token: str, store: Registry, runtime: LocalModelRuntime,
     @router.post("/deployments/{name}/promote")
     def promote_deployment(name: str, payload: DeploymentChoice) -> dict:
         name = clean_name(name)
-        if deployments.get(name) is None:
+        original = deployments.get(name)
+        if original is None:
             raise HTTPException(404, "local deployment not found")
         tag = _tag(payload.tag)
         registered = store.get(tag)
         if registered is None:
             raise HTTPException(404, "candidate model must be registered")
         require_ready(tag, registered["digest"])
-        return deployments.promote(name, tag, registered["digest"])
+        return deployments.promote(name, tag, registered["digest"],
+                                   expected_current=original)
 
     @router.post("/deployments/{name}/rollback")
     def rollback_deployment(name: str) -> dict:

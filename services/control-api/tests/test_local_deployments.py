@@ -197,3 +197,58 @@ def test_local_deployment_cap_prevents_unbounded_persistence(env):
     with pytest.raises(Exception) as exc:
         store.create("overflow", A, DIGEST_A)
     assert "local deployment limit reached" in str(exc.value)
+
+
+def test_promote_refuses_stale_pinned_state_without_overwriting_rollback(tmp_path):
+    store = LocalDeploymentStore(tmp_path / "routing.sqlite3")
+    store.initialize()
+    assert store.create("acceptance-test", A, DIGEST_A)["previous_tag"] is None
+    initial = store.get("acceptance-test")
+    assert store.promote("acceptance-test", B, DIGEST_B,
+                         expected_current=initial)["previous_tag"] == A
+    switched = store.get("acceptance-test")
+
+    with pytest.raises(Exception) as rejected:
+        store.promote("acceptance-test", A, DIGEST_A,
+                      expected_current=initial)
+    assert getattr(rejected.value, "status_code", None) == 409
+    assert store.get("acceptance-test") == switched
+
+    # A start/stop change during model-readiness verification is also a
+    # concurrent state change. Do not clobber it with a stale promotion.
+    store.set_enabled("acceptance-test", False)
+    stopped = store.get("acceptance-test")
+    with pytest.raises(Exception) as rejected:
+        store.promote("acceptance-test", A, DIGEST_A,
+                      expected_current=switched)
+    assert getattr(rejected.value, "status_code", None) == 409
+    assert store.get("acceptance-test") == stopped
+
+
+def test_promote_http_conflict_when_other_operator_switches_during_ready_check(env):
+    client, runtime, gateway, path = env
+    prepare(client, runtime, A)
+    prepare(client, runtime, B)
+    assert deploy(client).status_code == 201
+    store = LocalDeploymentStore(path)
+    original_loaded = runtime.loaded
+    concurrent = {"ran": False}
+
+    def competing_operator_promote():
+        if not concurrent["ran"]:
+            concurrent["ran"] = True
+            first_snapshot = store.get("prod")
+            store.promote("prod", B, DIGEST_B,
+                          expected_current=first_snapshot)
+        return original_loaded()
+
+    runtime.loaded = competing_operator_promote
+    # Simulates another authenticated operator changing the alias after the
+    # HTTP request captured it, before candidate readiness completed.
+    conflict = request(client, "POST", "/api/v1/local/deployments/prod/promote",
+                       {"tag": B})
+    assert conflict.status_code == 409
+    assert concurrent["ran"]
+    assert store.get("prod")["active_tag"] == B
+    assert store.get("prod")["previous_tag"] == A
+    assert gateway.calls == []
