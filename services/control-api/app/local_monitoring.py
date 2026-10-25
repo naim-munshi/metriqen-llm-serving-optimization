@@ -82,7 +82,14 @@ class GatewayMonitoring:
             if _count(decoded.get("schema_version"), "schema_version") != expected_version:
                 raise ValueError("unexpected gateway metrics schema version")
             return {key: _count(decoded.get(key), key) for key in keys}
-        except (OSError, URLError, HTTPError, ValueError, json.JSONDecodeError):
+        except HTTPError as exc:
+            # Failed localhost metric reads must not retain an open
+            # urllib HTTPError body, or expose internal upstream data.
+            try:
+                raise HTTPException(status_code=503, detail="local inference monitoring unavailable") from None
+            finally:
+                exc.close()
+        except (OSError, URLError, ValueError, json.JSONDecodeError):
             raise HTTPException(status_code=503, detail="local inference monitoring unavailable") from None
 
     def snapshot(self) -> dict:
