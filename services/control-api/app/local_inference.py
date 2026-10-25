@@ -63,9 +63,15 @@ class LocalGatewayChat:
                     raise ValueError("gateway response too large")
                 result = json.loads(raw)
         except HTTPError as exc:
-            if exc.code == 429:
-                raise HTTPException(429, "local inference gateway overloaded") from None
-            raise HTTPException(503, "local inference gateway rejected the request") from None
+            # urllib's HTTPError owns a response body/socket. Preserve only
+            # the public failure code; never read or log an upstream body,
+            # which may contain private model/provider details.
+            try:
+                if exc.code == 429:
+                    raise HTTPException(429, "local inference gateway overloaded") from None
+                raise HTTPException(503, "local inference gateway rejected the request") from None
+            finally:
+                exc.close()
         except (URLError, OSError, ValueError, json.JSONDecodeError):
             raise HTTPException(503, "local inference gateway unavailable or invalid") from None
 
