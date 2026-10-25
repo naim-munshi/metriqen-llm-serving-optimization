@@ -5,6 +5,7 @@ authorization boundary for the independent Go inference gateway.
 """
 from __future__ import annotations
 
+from contextlib import closing
 from datetime import datetime, timezone
 import json
 import os
@@ -61,7 +62,7 @@ class Registry:
 
     def initialize(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute("""CREATE TABLE IF NOT EXISTS local_models (
                 tag TEXT PRIMARY KEY,
                 digest TEXT NOT NULL,
@@ -78,17 +79,17 @@ class Registry:
                 "registered_at_utc": row["registered_at_utc"]}
 
     def list(self) -> list[dict]:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             items = conn.execute("SELECT * FROM local_models ORDER BY tag LIMIT ?", (MAX_REGISTRY,)).fetchall()
         return [self._row(item) for item in items]
 
     def get(self, tag: str) -> dict | None:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             row = conn.execute("SELECT * FROM local_models WHERE tag = ?", (tag,)).fetchone()
         return self._row(row) if row else None
 
     def add(self, tag: str, digest: str) -> dict:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute("BEGIN IMMEDIATE")
             count = conn.execute("SELECT count(*) FROM local_models").fetchone()[0]
             if count >= MAX_REGISTRY:
@@ -104,7 +105,7 @@ class Registry:
         return value
 
     def approve(self, tag: str) -> dict:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute("UPDATE local_models SET approved = 1 WHERE tag = ?", (tag,))
         record = self.get(tag)
         if record is None:
