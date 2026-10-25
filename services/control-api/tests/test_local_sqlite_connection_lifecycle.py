@@ -67,9 +67,11 @@ def test_deployment_connection_handles_close_after_success_and_rollback(tmp_path
     assert duplicate.value.status_code == 409
     assert store.get("acceptance-test")["active_digest"] == DA
 
-    assert store.promote("acceptance-test", B, DB)["previous_tag"] == A
+    assert store.promote("acceptance-test", B, DB,
+                         expected_current=store.get("acceptance-test"))["previous_tag"] == A
     with pytest.raises(HTTPException) as already_active:
-        store.promote("acceptance-test", B, DB)
+        store.promote("acceptance-test", B, DB,
+                      expected_current=store.get("acceptance-test"))
     assert already_active.value.status_code == 409
     with pytest.raises(HTTPException) as changed_history:
         store.rollback("acceptance-test", expected_previous_tag=B,
