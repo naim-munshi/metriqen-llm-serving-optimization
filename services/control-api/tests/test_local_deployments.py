@@ -303,3 +303,47 @@ def test_direct_rollback_rejects_stale_preflight_active_or_updated_state(env):
                        expected_current=before)
     assert getattr(rejected.value, "status_code", None) == 409
     assert store.get("prod") == changed
+
+
+def test_start_refuses_new_revision_promoted_during_readiness_probe(env):
+    client, runtime, gateway, path = env
+    prepare(client, runtime, A)
+    prepare(client, runtime, B)
+    assert deploy(client).status_code == 201
+    assert request(client, "POST", "/api/v1/local/deployments/prod/stop").status_code == 200
+    store = LocalDeploymentStore(path)
+    baseline = store.get("prod")
+    assert baseline["active_tag"] == A
+    assert baseline["enabled"] is False
+    old_loaded = runtime.loaded
+    interleaving = {"performed": False}
+
+    def competing_model_promotion():
+        if not interleaving["performed"]:
+            interleaving["performed"] = True
+            store.promote("prod", B, DIGEST_B,
+                          expected_current=store.get("prod"))
+        return old_loaded()
+
+    runtime.loaded = competing_model_promotion
+    response = request(client, "POST", "/api/v1/local/deployments/prod/start")
+    assert response.status_code == 409
+    assert interleaving["performed"]
+    final = store.get("prod")
+    assert final["enabled"] is False
+    assert final["active_tag"] == B
+    assert final["active_digest"] == DIGEST_B
+    assert final["previous_tag"] == A
+    assert gateway.calls == []
+
+
+def test_start_requires_trusted_preflight_snapshot_even_in_store(env):
+    client, runtime, gateway, path = env
+    prepare(client, runtime, A)
+    assert deploy(client).status_code == 201
+    store = LocalDeploymentStore(path)
+    with pytest.raises(Exception) as rejected:
+        store.set_enabled("prod", True)
+    assert getattr(rejected.value, "status_code", None) == 409
+    assert store.get("prod")["active_tag"] == A
+    assert store.get("prod")["previous_tag"] is None
