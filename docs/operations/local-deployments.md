@@ -64,6 +64,10 @@ those fields in between, promotion returns HTTP 409 and does **not**
 overwrite the newer routing/rollback history. A rollback independently
 rejects a concurrent change to its previously verified target. An API-ready
 indicator is a point-in-time snapshot, not proof of future model availability.
+All alias writes (Create, Promote, Rollback, Stop and Start) now
+construct the returned confirmation from the same locked SQLite write
+transaction. Another operator cannot modify the row between the write
+and the result snapshot; a later GET may legitimately show newer state.
 Inference routes always verify the pinned model revision again.
 
 **No remote model pulls, separate inference process creation, replica

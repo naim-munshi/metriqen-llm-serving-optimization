@@ -94,7 +94,13 @@ class LocalDeploymentStore:
                     VALUES (?, ?, ?, NULL, NULL, 1, ?)""", (name, tag, digest, now))
             except sqlite3.IntegrityError:
                 raise HTTPException(409, "deployment name already exists") from None
-        return self.get(name)
+            # Return the row observed under the same write transaction.
+            # A concurrent operator must not replace this operation's
+            # confirmation with a later routing/rollback state.
+            persisted = conn.execute(
+                "SELECT * FROM local_deployments WHERE name = ?", (name,)
+            ).fetchone()
+            return self._record(persisted)
 
     def promote(self, name: str, tag: str, digest: str, *,
                 expected_current: dict) -> dict:
@@ -122,7 +128,13 @@ class LocalDeploymentStore:
                 SET previous_tag = active_tag, previous_digest = active_digest,
                     active_tag = ?, active_digest = ?, updated_at_utc = ?
                 WHERE name = ?""", (tag, digest, now, name))
-        return self.get(name)
+            # Return the row observed under the same write transaction.
+            # A concurrent operator must not replace this operation's
+            # confirmation with a later routing/rollback state.
+            persisted = conn.execute(
+                "SELECT * FROM local_deployments WHERE name = ?", (name,)
+            ).fetchone()
+            return self._record(persisted)
 
     def rollback(self, name: str, *, expected_previous_tag: str, expected_previous_digest: str) -> dict:
         now = datetime.now(timezone.utc).isoformat()
@@ -142,7 +154,13 @@ class LocalDeploymentStore:
                     updated_at_utc = ?
                 WHERE name = ?""",
                          (row["active_tag"], row["active_digest"], now, name))
-        return self.get(name)
+            # Return the row observed under the same write transaction.
+            # A concurrent operator must not replace this operation's
+            # confirmation with a later routing/rollback state.
+            persisted = conn.execute(
+                "SELECT * FROM local_deployments WHERE name = ?", (name,)
+            ).fetchone()
+            return self._record(persisted)
 
     def set_enabled(self, name: str, enabled: bool) -> dict:
         with closing(self._connect()) as conn, conn:
@@ -152,4 +170,10 @@ class LocalDeploymentStore:
                                  (int(enabled), datetime.now(timezone.utc).isoformat(), name))
             if count.rowcount != 1:
                 raise HTTPException(404, "local deployment not found")
-        return self.get(name)
+            # Return the row observed under the same write transaction.
+            # A concurrent operator must not replace this operation's
+            # confirmation with a later routing/rollback state.
+            persisted = conn.execute(
+                "SELECT * FROM local_deployments WHERE name = ?", (name,)
+            ).fetchone()
+            return self._record(persisted)
