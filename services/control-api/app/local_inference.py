@@ -77,6 +77,12 @@ class LocalGatewayChat:
 
         if not isinstance(result, dict):
             raise HTTPException(503, "local inference gateway returned invalid completion")
+        # The local approved-model and deployment APIs pin the requested tag.
+        # Never label an upstream reply as that model if the Go gateway
+        # reports a different model (or omits identity altogether). This is
+        # consistency validation, not cryptographic runtime attestation.
+        if result.get("model") != tag:
+            raise HTTPException(503, "local inference gateway model identity unverified")
         choices = result.get("choices")
         if not isinstance(choices, list) or not choices:
             raise HTTPException(503, "local inference gateway returned invalid completion")
