@@ -64,8 +64,11 @@ snapshot obtained **before** candidate readiness validation (active tag,
 active digest, previous rollback tag/digest, enabled flag, update time)
 with the row locked for writing. If another operator changes any of
 those fields in between, promotion returns HTTP 409 and does **not**
-overwrite the newer routing/rollback history. A rollback independently
-rejects a concurrent change to its previously verified target. An API-ready
+overwrite the newer routing/rollback history. Rollback uses the same
+complete-state comparison under the write lock, in addition to verifying
+the previously pinned rollback tag and digest. A concurrent Stop/Start,
+promotion or stale state during readiness validation returns HTTP 409
+without changing active model or rollback history. An API-ready
 indicator is a point-in-time snapshot, not proof of future model availability.
 All alias writes (Create, Promote, Rollback, Stop and Start) now
 construct the returned confirmation from the same locked SQLite write
