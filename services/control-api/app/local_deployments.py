@@ -5,6 +5,7 @@ They do not create, start, stop or scale independent inference workers.
 """
 from __future__ import annotations
 
+from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 import re
@@ -45,7 +46,7 @@ class LocalDeploymentStore:
 
     def initialize(self) -> None:
         # Invoked only under the existing opt-in local operator feature.
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute("""CREATE TABLE IF NOT EXISTS local_deployments (
                 name TEXT PRIMARY KEY,
                 active_tag TEXT NOT NULL,
@@ -70,20 +71,20 @@ class LocalDeploymentStore:
         }
 
     def list(self) -> list[dict]:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             rows = conn.execute("SELECT * FROM local_deployments ORDER BY name LIMIT ?",
                                 (MAX_DEPLOYMENTS,)).fetchall()
         return [self._record(row) for row in rows]
 
     def get(self, name: str) -> dict | None:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             row = conn.execute("SELECT * FROM local_deployments WHERE name = ?",
                                (name,)).fetchone()
         return self._record(row) if row is not None else None
 
     def create(self, name: str, tag: str, digest: str) -> dict:
         now = datetime.now(timezone.utc).isoformat()
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute("BEGIN IMMEDIATE")
             if conn.execute("SELECT count(*) FROM local_deployments").fetchone()[0] >= MAX_DEPLOYMENTS:
                 raise HTTPException(409, "local deployment limit reached")
@@ -97,7 +98,7 @@ class LocalDeploymentStore:
 
     def promote(self, name: str, tag: str, digest: str) -> dict:
         now = datetime.now(timezone.utc).isoformat()
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute("BEGIN IMMEDIATE")
             row = conn.execute("SELECT * FROM local_deployments WHERE name = ?", (name,)).fetchone()
             if row is None:
@@ -112,7 +113,7 @@ class LocalDeploymentStore:
 
     def rollback(self, name: str, *, expected_previous_tag: str, expected_previous_digest: str) -> dict:
         now = datetime.now(timezone.utc).isoformat()
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute("BEGIN IMMEDIATE")
             row = conn.execute("SELECT * FROM local_deployments WHERE name = ?", (name,)).fetchone()
             if row is None:
@@ -131,7 +132,7 @@ class LocalDeploymentStore:
         return self.get(name)
 
     def set_enabled(self, name: str, enabled: bool) -> dict:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute("BEGIN IMMEDIATE")
             count = conn.execute("""UPDATE local_deployments
                 SET enabled = ?, updated_at_utc = ? WHERE name = ?""",
