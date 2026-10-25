@@ -56,10 +56,15 @@ loopback caller; no public routes are enabled by default.
 | POST | `/api/v1/local/deployments/{name}/chat` | Single-turn local chat: `{"prompt":"hello","max_tokens":128}` |
 
 Database writes are transactionally serialized via SQLite immediate
-transactions. A rollback rejects a concurrent change to its previously
-verified target. An API-ready indicator is a point-in-time snapshot,
-not proof of future model availability. Inference routes always verify
-the pinned model revision again.
+transactions. Promotion also compares the complete trusted deployment
+snapshot obtained **before** candidate readiness validation (active tag,
+active digest, previous rollback tag/digest, enabled flag, update time)
+with the row locked for writing. If another operator changes any of
+those fields in between, promotion returns HTTP 409 and does **not**
+overwrite the newer routing/rollback history. A rollback independently
+rejects a concurrent change to its previously verified target. An API-ready
+indicator is a point-in-time snapshot, not proof of future model availability.
+Inference routes always verify the pinned model revision again.
 
 **No remote model pulls, separate inference process creation, replica
 management, autoscaling, GPU scheduling, Kubernetes, health reconciliation,
