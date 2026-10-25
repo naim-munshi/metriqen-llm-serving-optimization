@@ -405,7 +405,8 @@ def local_model_router(token: str, store: Registry, runtime: LocalModelRuntime,
             raise HTTPException(409, "deployment has no previous revision")
         require_ready(record["previous_tag"], record["previous_digest"])
         return deployments.rollback(name, expected_previous_tag=record["previous_tag"],
-                                    expected_previous_digest=record["previous_digest"])
+                                    expected_previous_digest=record["previous_digest"],
+                                    expected_current=record)
 
     @router.post("/deployments/{name}/stop")
     def stop_deployment(name: str) -> dict:
