@@ -96,13 +96,26 @@ class LocalDeploymentStore:
                 raise HTTPException(409, "deployment name already exists") from None
         return self.get(name)
 
-    def promote(self, name: str, tag: str, digest: str) -> dict:
+    def promote(self, name: str, tag: str, digest: str, *,
+                expected_current: dict) -> dict:
+        # Model loading/approval checks occur outside the SQLite transaction.
+        # A separate operator can change the active route or rollback history
+        # during those checks. Compare the COMPLETE trusted preflight snapshot
+        # while holding the write lock, never overwrite a concurrent update.
+        if not isinstance(expected_current, dict):
+            raise HTTPException(409, "deployment preflight state missing")
         now = datetime.now(timezone.utc).isoformat()
         with closing(self._connect()) as conn, conn:
             conn.execute("BEGIN IMMEDIATE")
             row = conn.execute("SELECT * FROM local_deployments WHERE name = ?", (name,)).fetchone()
             if row is None:
                 raise HTTPException(404, "local deployment not found")
+            for field in ("active_tag", "active_digest", "previous_tag",
+                          "previous_digest", "updated_at_utc"):
+                if row[field] != expected_current.get(field):
+                    raise HTTPException(409, "deployment state changed; refresh first")
+            if bool(row["enabled"]) is not expected_current.get("enabled"):
+                raise HTTPException(409, "deployment state changed; refresh first")
             if row["active_tag"] == tag and row["active_digest"] == digest:
                 raise HTTPException(409, "model revision is already active")
             conn.execute("""UPDATE local_deployments
