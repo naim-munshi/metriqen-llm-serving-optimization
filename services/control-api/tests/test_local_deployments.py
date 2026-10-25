@@ -252,3 +252,54 @@ def test_promote_http_conflict_when_other_operator_switches_during_ready_check(e
     assert store.get("prod")["active_tag"] == B
     assert store.get("prod")["previous_tag"] == A
     assert gateway.calls == []
+
+
+def test_rollback_rejects_stale_state_when_alias_paused_during_model_check(env):
+    client, runtime, gateway, path = env
+    prepare(client, runtime, A)
+    assert deploy(client).status_code == 201
+    prepare(client, runtime, B)
+    assert request(client, "POST", "/api/v1/local/deployments/prod/promote",
+                   {"tag": B}).status_code == 200
+    store = LocalDeploymentStore(path)
+    original = store.get("prod")
+    old_loaded = runtime.loaded
+    interleaving = {"performed": False}
+
+    def competing_operator_pause():
+        if not interleaving["performed"]:
+            interleaving["performed"] = True
+            store.set_enabled("prod", False)
+        return old_loaded()
+
+    runtime.loaded = competing_operator_pause
+    result = request(client, "POST", "/api/v1/local/deployments/prod/rollback")
+    assert result.status_code == 409
+    assert interleaving["performed"]
+    final = store.get("prod")
+    assert final["enabled"] is False
+    assert final["active_tag"] == B
+    assert final["previous_tag"] == A
+    assert final["previous_digest"] == DIGEST_A
+    assert final["updated_at_utc"] != original["updated_at_utc"]
+    assert gateway.calls == []
+
+
+def test_direct_rollback_rejects_stale_preflight_active_or_updated_state(env):
+    client, runtime, gateway, path = env
+    prepare(client, runtime, A)
+    assert deploy(client).status_code == 201
+    prepare(client, runtime, B)
+    assert request(client, "POST", "/api/v1/local/deployments/prod/promote",
+                   {"tag": B}).status_code == 200
+    store = LocalDeploymentStore(path)
+    before = store.get("prod")
+    changed = store.set_enabled("prod", False)
+    assert changed["previous_tag"] == before["previous_tag"]
+    assert changed["active_tag"] == before["active_tag"]
+    with pytest.raises(Exception) as rejected:
+        store.rollback("prod", expected_previous_tag=A,
+                       expected_previous_digest=DIGEST_A,
+                       expected_current=before)
+    assert getattr(rejected.value, "status_code", None) == 409
+    assert store.get("prod") == changed

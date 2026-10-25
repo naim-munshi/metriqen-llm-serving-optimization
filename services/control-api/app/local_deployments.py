@@ -136,13 +136,26 @@ class LocalDeploymentStore:
             ).fetchone()
             return self._record(persisted)
 
-    def rollback(self, name: str, *, expected_previous_tag: str, expected_previous_digest: str) -> dict:
+    def rollback(self, name: str, *, expected_previous_tag: str,
+                 expected_previous_digest: str, expected_current: dict) -> dict:
+        # The previous tag/digest guard alone cannot detect Stop/Start,
+        # active-state changes or ABA updates during model readiness probes.
+        # Compare the complete authoritative preflight snapshot inside
+        # the same write lock before swapping the rollback revisions.
+        if not isinstance(expected_current, dict):
+            raise HTTPException(409, "deployment preflight state missing")
         now = datetime.now(timezone.utc).isoformat()
         with closing(self._connect()) as conn, conn:
             conn.execute("BEGIN IMMEDIATE")
             row = conn.execute("SELECT * FROM local_deployments WHERE name = ?", (name,)).fetchone()
             if row is None:
                 raise HTTPException(404, "local deployment not found")
+            for field in ("active_tag", "active_digest", "previous_tag",
+                          "previous_digest", "updated_at_utc"):
+                if row[field] != expected_current.get(field):
+                    raise HTTPException(409, "deployment state changed; refresh first")
+            if bool(row["enabled"]) is not expected_current.get("enabled"):
+                raise HTTPException(409, "deployment state changed; refresh first")
             if row["previous_tag"] is None:
                 raise HTTPException(409, "deployment has no previous revision")
             if (row["previous_tag"] != expected_previous_tag or

@@ -36,6 +36,7 @@ def test_all_write_results_are_captured_without_postcommit_get(tmp_path, monkeyp
     rolled_back = store.rollback(
         "acceptance-test", expected_previous_tag=A,
         expected_previous_digest=DA,
+        expected_current=promoted,
     )
     assert rolled_back["active_tag"] == A
     assert rolled_back["previous_tag"] == B
