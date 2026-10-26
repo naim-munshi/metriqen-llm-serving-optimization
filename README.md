@@ -6,16 +6,16 @@
 
 **Engineering case study:** [architecture, implementation decisions, measured results and trade-offs](docs/PORTFOLIO_CASE_STUDY.md) · [Unreleased changelog](CHANGELOG.md)
 
-**Current evidence status (2026-10-24):** [What actually works, honest strengths, weak points, benchmark limitations, and remaining gates](docs/PORTFOLIO_CURRENT_STATUS.md). The separate [October 14 historical implementation status](docs/PROJECT_STATUS.md) is **not** today's feature matrix. Current source CI is green, but **P1–P6 remain open**.
+**Final closeout audit (2026-10-27):** [Owner evidence and release NO-GO decision](docs/operations/v1-final-closeout.md). The [current evidence matrix](docs/PORTFOLIO_CURRENT_STATUS.md) records actual local behavior, observed benchmark weaknesses and source-level limitations; the [October 14 historical implementation status](docs/PROJECT_STATUS.md) is not the current matrix. **P1–P6 still require human-reviewed evidence and are not signed off.**
 
-**Current source verification:** The latest source milestone recorded in the
-[honest evidence matrix](docs/PORTFOLIO_CURRENT_STATUS.md) passed
-[12/12 post-merge CI jobs](https://github.com/naim-munshi/metriqen-llm-serving-optimization/actions/runs/40091080351),
-including public private-file-path safety and SSE streaming regression
-tests. This does not certify any real Mac/GPU speedup. `main` branch
-protection and Security alert settings remain
-[owner-only administrative tasks](docs/operations/repository-branch-hygiene.md);
-`v1.0.0` remains blocked by P1–P6.
+**Latest independently verified GitHub source baseline (Oct 27 audit):**
+[`61d62ce`](https://github.com/naim-munshi/metriqen-llm-serving-optimization/commit/61d62ce577826904b4d83991793ee6a4873cd91d)
+passed [all 12 post-merge CI jobs](https://github.com/naim-munshi/metriqen-llm-serving-optimization/actions/runs/40159749284).
+Source tests include local deployment stale-state protections, but **do not
+verify real Mac model throughput, physical GPU use or browser/mobile UX**.
+At the last read-only GitHub inspection `main` was **not branch-protected**;
+review settings with [owner instructions](docs/operations/repository-branch-hygiene.md).
+Owner license choice, approved demo media and `v1.0.0` release are pending.
 
 **P1 deployment lifecycle acceptance:** [read-only preflight and explicit local Stop/Start/Promote/Rollback command](docs/operations/local-deployment-acceptance.md), with synthetic CI contract coverage. The operator has now reported real Mac Stop/Start/Promote/Rollback and matching private smoke/lifecycle consistency PASS, with genuine Safari snapshots of the final `assistant` routing state; private evidence remains unpublished and release/browser accessibility sign-off is still pending.
 
