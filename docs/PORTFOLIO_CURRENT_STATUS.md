@@ -1,4 +1,40 @@
-# Metriqen — Current evidence and limitations (2026-10-24)
+# Metriqen — Current evidence and limitations (2026-10-27 review)
+
+## October 27 source audit and release decision
+
+The repository has **not** passed human-reviewed Portfolio v1.0 P1–P6
+acceptance and **has not published `v1.0.0`**. The latest independently
+verified merged GitHub commit at this review is
+[`61d62ce`](https://github.com/naim-munshi/metriqen-llm-serving-optimization/commit/61d62ce577826904b4d83991793ee6a4873cd91d)
+with [12/12 successful post-merge CI jobs](https://github.com/naim-munshi/metriqen-llm-serving-optimization/actions/runs/40159749284).
+This is source and synthetic/ephemeral-service evidence, not an actual
+Mac/GPU benchmark or hosted deployment.
+
+**Recent code improvements (#146–#155):** safe isolated operator alias
+setup (Mac execution still pending), sanitized HTTP error-handle cleanup,
+fail-closed duplicated/contradictory Ollama model identity, explicit
+SQLite connection closure, race-safe deployment Promote/Rollback/Start,
+atomic deployment write receipts and exact reported model-tag matching
+at the FastAPI → Go completion boundary. These make local routing
+and error handling more robust but do not establish runtime attestation,
+semantic AI quality or a serving speedup. The original `assistant`
+history remains protected; the new `acceptance-test` helper has not
+yet been operator-executed on the Mac.
+
+**Release blockers:** P1 final real UI/isolated lifecycle evidence;
+P2 independently reviewed live-slot/AC/thermal controls and replication
+drift; P3 one credible Metriqen-owned measurable serving-path result
+without hidden regressions; P4 real desktop/mobile/keyboard captures and
+privacy-approved demo video; P5 operator-enabled auth/recovery acceptance;
+P6 owner's explicit license choice, verified `main` ruleset (last API
+read `protected=false`), final media and release authorization.
+The [exact final owner handoff](operations/v1-final-closeout.md) and
+[release tracker #81](https://github.com/naim-munshi/metriqen-llm-serving-optimization/issues/81)
+are the release decision references. Public hosted GPU, Google OAuth and
+production internet access remain separate optional v2 issues and are
+not v1 blockers.
+
+## Historical October 24 feature/evidence inventory (measurements unchanged)
 
 **Current category:** tested, local-only LLM serving research prototype and
 AI Infrastructure Engineering portfolio candidate. **Not yet portfolio v1.0
