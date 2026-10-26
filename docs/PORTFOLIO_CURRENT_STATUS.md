@@ -2,7 +2,7 @@
 
 ## October 27 source audit and release decision
 
-The repository has **not** passed human-reviewed Portfolio v1.0 P1–P6
+**Release decision: NO-GO pending operator/owner evidence.** The repository has **not** passed human-reviewed Portfolio v1.0 P1–P6
 acceptance and **has not published `v1.0.0`**. The latest independently
 verified merged GitHub commit at this review is
 [`61d62ce`](https://github.com/naim-munshi/metriqen-llm-serving-optimization/commit/61d62ce577826904b4d83991793ee6a4873cd91d)
