@@ -10,7 +10,7 @@
 
 **Latest independently verified GitHub source baseline (Oct 27 audit):**
 [`61d62ce`](https://github.com/naim-munshi/metriqen-llm-serving-optimization/commit/61d62ce577826904b4d83991793ee6a4873cd91d)
-passed [all 12 post-merge CI jobs](https://github.com/naim-munshi/metriqen-llm-serving-optimization/actions/runs/40159749284).
+passed [12/12 post-merge CI jobs](https://github.com/naim-munshi/metriqen-llm-serving-optimization/actions/runs/40159749284).
 Source tests include local deployment stale-state protections, but **do not
 verify real Mac model throughput, physical GPU use or browser/mobile UX**.
 At the last read-only GitHub inspection `main` was **not branch-protected**;
