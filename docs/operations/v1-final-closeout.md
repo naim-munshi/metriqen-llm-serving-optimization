@@ -97,7 +97,7 @@ and limits. Do not upload secrets or fake observations.
 - [ ] P6 — branch rules/license/public evidence/final CI/release approval
 
 Repository **`main` reported `protected=false`** in the GitHub read-only
-audit on October 27. A source file, issue comment or green check does not
+audit on October 27, so it is **not branch-protected**. A source file, issue comment or green check does not
 enable GitHub branch protection; use the
 [owner/admin ruleset procedure](repository-branch-hygiene.md). The owner's
 license choice has **not** been made and no `v1.0.0` release exists as
