@@ -15,3 +15,8 @@ main[id],section[id]{scroll-margin-top:18px}
 
 /* Mobile model navigation: keyboard-visible 44px targets, never hidden. */
 @media(max-width:680px){.sidebar nav{gap:8px;overscroll-behavior-x:contain;scrollbar-width:thin;padding-bottom:4px}.sidebar nav a{flex:0 0 auto;display:inline-flex;align-items:center;min-height:44px}.sidebar nav a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}}
+
+/* Keep deployment-specific inference progress/errors beside its own action. */
+.inference-feedback{margin:0;padding:9px 11px;border:1px solid #295c59;border-radius:8px;background:#102c32;color:#b7f3ea;font-size:12px;overflow-wrap:anywhere}
+.inference-feedback.error{border-color:#864157;background:#39222c;color:#ffe0e6}
+.inference-feedback[hidden]{display:none}

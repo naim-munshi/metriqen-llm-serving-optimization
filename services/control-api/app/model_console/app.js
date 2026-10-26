@@ -380,22 +380,50 @@ function renderDeployments(rows, registered, statuses) {
     const output = document.createElement("pre");
     output.className = "inference-output";
     output.hidden = true;
+    // Deployment cards can be far below the page-level notice. Keep
+    // validation, pending state and request failures next to the button
+    // so a missing prompt never looks like a broken or silent click.
+    const feedback = document.createElement("p");
+    feedback.className = "inference-feedback";
+    feedback.setAttribute("role", "status");
+    feedback.setAttribute("aria-live", "polite");
+    feedback.hidden = true;
     const run = action("Run deployment inference", async () => {
       const prompt = input.value.trim();
-      if (!prompt) throw new Error("Enter a prompt.");
-      if (!row.ready) throw new Error("Load the approved active model and enable routing first.");
-      const result = await call(prefix + "/chat", "POST", {prompt, max_tokens: 128});
-      if (typeof result.content !== "string") throw new Error("Invalid inference response.");
-      output.textContent = result.content;
-      output.hidden = false;
-      notify("Deployment " + row.name + " responded using " + result.tag + ".");
-      await refreshMonitoring();
+      output.hidden = true;
+      output.textContent = "";
+      feedback.hidden = false;
+      feedback.className = "inference-feedback";
+      if (!prompt) {
+        feedback.className = "inference-feedback error";
+        feedback.textContent = "Enter a prompt in this deployment card first.";
+        input.focus();
+        return;
+      }
+      if (!row.ready) {
+        feedback.className = "inference-feedback error";
+        feedback.textContent = "Load the active approved model and enable routing first.";
+        return;
+      }
+      feedback.textContent = "Running inference on " + row.name + "…";
+      try {
+        const result = await call(prefix + "/chat", "POST", {prompt, max_tokens: 128});
+        if (typeof result.content !== "string") throw new Error("Invalid inference response.");
+        output.textContent = result.content || "(Model returned empty text.)";
+        output.hidden = false;
+        feedback.textContent = "Response received from " + row.name + " (" + result.tag + ").";
+        notify("Deployment " + row.name + " responded using " + result.tag + ".");
+        await refreshMonitoring();
+      } catch (error) {
+        feedback.className = "inference-feedback error";
+        feedback.textContent = error instanceof Error ? error.message : "Inference failed. Check the local services.";
+      }
     }, "primary");
     if (!row.ready) {
       run.disabled = true;
       run.dataset.locked = "true";
     }
-    playground.append(promptLabel, input, run, output);
+    playground.append(promptLabel, input, run, feedback, output);
     card.append(heading, state, digest, former, controls, promotePanel, playground);
     list.append(card);
   }
