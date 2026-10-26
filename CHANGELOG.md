@@ -8,6 +8,32 @@ There is **no tagged Portfolio v1.0 release yet**. Do not interpret this
 document as a claim of commercial SaaS readiness, trusted token billing,
 independent hardware attestation or a production security audit.
 
+## October 25–27 — local lifecycle hardening and final evidence handoff (unreleased)
+
+- [PR #146](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/146)
+  adds an operator-controlled `acceptance-*` local test alias setup:
+  read-only by default, approved/installed pinned-digest validation and
+  separate opt-in baseline preload/alias creation. No mutation of the
+  historical `assistant` rollback target; Mac execution not yet observed.
+- [PRs #147–#149](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/149)
+  close upstream Ollama, Gateway and monitoring HTTP-error response handles;
+  reject duplicate or conflicting Ollama tag/digest discovery snapshots.
+- [PRs #150–#152](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/152)
+  explicitly close local SQLite connections, reject stale concurrent
+  Promote attempts and return atomic write-transaction deployment receipts.
+- [PRs #153–#155](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/155)
+  verify the reported model tag on local completion responses and fail
+  closed on overlapping operator changes during Rollback and Start.
+  Synthetic real-SQLite, FastAPI and contract regressions accompany fixes.
+- October 27 evidence audit updated the README and
+  [owner closeout runbook](docs/operations/v1-final-closeout.md) with a
+  traceable **NO-GO** release decision. At audit time the latest merged
+  source baseline `61d62ce` passed
+  [12/12 post-merge CI](https://github.com/naim-munshi/metriqen-llm-serving-optimization/actions/runs/40159749284),
+  but P1–P6 independent owner acceptance, branch protection, license and
+  real Mac optimization proof remained incomplete. No `v1.0.0` release,
+  cloud GPU scaling or production identity/HTTPS service was claimed.
+
 ## October 24 — SSE completion integrity and repository safety (unreleased)
 
 - [PR #135](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/135)
