@@ -15,6 +15,7 @@ import re
 import sys
 
 from tools.benchmark import preflight, sweep, evidence_bundle, evidence_gate
+from tools.benchmark.power_monitor import PowerMonitor
 from tools.nlp_eval import online
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -98,14 +99,19 @@ def collect(*, phase: str, digest: str, hardware: str, directory: Path) -> None:
         "--repeats", "3", "--requests", "36", "--warmup", "2",
         "--output-dir", str(benchdir),
     ]
-    if sweep.main(bench_args) != 0:
-        raise PhaseError("sweep_failed_partial_reports_retained")
-    quality_args = [
-        *common, "--dataset", str(ROOT / "docs/nlp-eval/workload.v1.jsonl"),
-        "--output", str(benchdir / "quality.json"),
-    ]
-    if online.main(quality_args) != 0:
-        raise PhaseError("quality_failed_partial_reports_retained")
+    with PowerMonitor(directory / "power-monitor.json") as monitor:
+        if monitor.initial_source != "AC":
+            raise PhaseError("phase_power_not_ac_before_inference")
+        if sweep.main(bench_args) != 0:
+            raise PhaseError("sweep_failed_partial_reports_retained")
+        quality_args = [
+            *common, "--dataset", str(ROOT / "docs/nlp-eval/workload.v1.jsonl"),
+            "--output", str(benchdir / "quality.json"),
+        ]
+        if online.main(quality_args) != 0:
+            raise PhaseError("quality_failed_partial_reports_retained")
+    if monitor.status != "ac_samples_only":
+        raise PhaseError("phase_power_changed_or_unknown_preserve_private_reports")
     # Owner-only directory already protects contents; restrict regular
     # report files additionally for accidental copying/archiving.
     for file in benchdir.iterdir():
@@ -137,6 +143,21 @@ def finalize(*, phase: str, directory: Path, quantization: str,
     if (snapshot.get("status") != "preflight_checks_passed_slot_verification_required"
             or snapshot.get("expected", {}).get("configured_parallelism") != PHASES[phase]):
         raise PhaseError("preflight_not_eligible_for_phase")
+    monitor_path = directory / "power-monitor.json"
+    # Legacy phases may lack sampled power evidence. Never infer that they
+    # maintained AC; those phases still require independent human review.
+    if monitor_path.exists() or monitor_path.is_symlink():
+        if (monitor_path.is_symlink() or not monitor_path.is_file()
+                or not 0 < monitor_path.stat().st_size <= 1024 * 1024):
+            raise PhaseError("phase_power_monitor_invalid")
+        try:
+            power_report = json.loads(monitor_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, ValueError):
+            raise PhaseError("phase_power_monitor_invalid") from None
+        if (not isinstance(power_report, dict)
+                or power_report.get("schema_version") != 1
+                or power_report.get("status") != "ac_samples_only"):
+            raise PhaseError("phase_power_monitor_not_stable")
     summary = _read_summary(directory / "sweep/sweep-summary.json")
     env = summary.get("environment")
     if (not isinstance(env, dict) or
