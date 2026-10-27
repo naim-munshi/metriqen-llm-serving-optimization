@@ -32,6 +32,22 @@ class PhaseRunTests(unittest.TestCase):
             p = patch.object(phase, symbol, value)
             p.start()
             self.addCleanup(p.stop)
+        class StableSyntheticPower:
+            status = "ac_samples_only"
+            initial_source = "AC"
+
+            def __init__(self, output):
+                self.output = output
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+        monitor = patch.object(phase, "PowerMonitor", StableSyntheticPower)
+        monitor.start()
+        self.addCleanup(monitor.stop)
         self.root, self.private = root, private
 
     def snapshot(self, *, status="preflight_checks_passed_slot_verification_required"):
@@ -162,6 +178,51 @@ class PhaseRunTests(unittest.TestCase):
                 phase.collect(phase="B2", digest=DIGEST, hardware="Apple M2 Metal",
                               directory=self.private / "B2")
         p.assert_called_once_with(expected_model_digest=DIGEST, expected_parallelism=2)
+
+    def test_power_contamination_blocks_collection_after_preserving_runs(self):
+        out = self.private / "A2"
+        class BatteryPower:
+            initial_source = "AC"
+            status = "power_condition_not_maintained"
+
+            def __init__(self, output):
+                self.output = output
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+        def fake_sweep(args):
+            (out / "sweep").mkdir()
+            return 0
+
+        with patch.object(phase.preflight, "collect", return_value=self.snapshot()), \
+             patch.object(phase, "PowerMonitor", BatteryPower), \
+             patch.object(phase.sweep, "main", side_effect=fake_sweep), \
+             patch.object(phase.online, "main", return_value=0):
+            with self.assertRaisesRegex(phase.PhaseError, "power_changed_or_unknown"):
+                phase.collect(phase="A2", digest=DIGEST, hardware="Apple M2 Metal",
+                              directory=out)
+        self.assertTrue((out / "preflight.json").exists())
+        self.assertTrue((out / "sweep").exists())
+        self.assertFalse((out / "sweep/evidence-manifest.json").exists())
+
+    def test_finalize_blocks_power_contaminated_phase(self):
+        out = self.private / "A2"
+        sw = out / "sweep"
+        sw.mkdir(parents=True)
+        (out / "preflight.json").write_text(json.dumps(self.snapshot()))
+        (out / "power-monitor.json").write_text(json.dumps({
+            "schema_version": 1, "status": "power_condition_not_maintained",
+        }))
+        with patch.object(phase.evidence_bundle, "main") as bundle:
+            with self.assertRaisesRegex(phase.PhaseError, "power_monitor_not_stable"):
+                phase.finalize(phase="A2", directory=out, quantization="Q8_0",
+                               host_os="macOS 15", notes="Battery during the sweep",
+                               confirm_real=True)
+        bundle.assert_not_called()
 
     def test_invalid_cli_args_do_not_create_reports(self):
         with redirect_stderr(StringIO()):
