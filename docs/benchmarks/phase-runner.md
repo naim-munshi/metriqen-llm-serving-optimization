@@ -35,6 +35,25 @@ No phase names, paths, or reports are reused. Nothing is sent to
 GitHub; outputs stay in ignored `reports/local/` under new private
 directories. The entire phase can take considerable time on Apple M2.
 
+### AC power monitoring during a new phase
+
+The collector now also samples `pmset -g batt` at the start, every five
+seconds during the nine sweeps and quality evaluation, and once more on
+exit. It writes a private, non-overwriting `power-monitor.json` into
+the phase directory, including when a run fails. Any sampled Battery or
+unknown power state **blocks collection success** and prevents
+`finalize` from approving its evidence manifest. Keep the entire
+partial directory and do not use it as a clean A/B/A/B phase.
+
+The monitor is observational and cannot prevent a disconnected charger
+or prove uninterrupted AC between samples. Compare timestamped macOS
+power-history events as well; independently review runtime model slots
+and thermal/background workload stability. Original phases from older
+versions may lack this file: that is **missing power evidence**, not proof
+of continuous AC. Never retroactively fill in `power-monitor.json`
+with invented samples. Existing private historical evidence is not
+modified by this change.
+
 ### Phase A1 example (on Mac, not in CI)
 
 First record the model digest independently:
