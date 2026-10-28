@@ -25,13 +25,15 @@ An authenticated GitHub read-only comparison of **94 remote branches**
 This is a dated snapshot. **Do not reuse the counts to justify future
 destructive actions.** Classification must recheck GitHub's current state.
 
-## Current owner-only main protection task (October 24, 2026)
+## Current owner-only main protection task (October 29, 2026)
 
-The latest read-only GitHub check still returned `protected=false` for
-`main`. Passing CI **does not enforce** PR reviews or prevent direct
-pushes. The connected GitHub tooling can create/test/merge PRs but does not
-offer safe administrative mutation of branch rulesets. No ruleset was
-enabled by these source changes.
+The October 29 GitHub API inspection returned **`protected=false`** for
+`main`, and **zero active repository rulesets**. Passing CI **does not
+enforce** PR reviews or prevent direct pushes. The connected GitHub tooling
+can create/test/merge PRs but does not offer administrative mutation of
+branch rulesets; no source commit or CI pass has enabled protections.
+The original Metriqen code now has an [MIT License](../../LICENSE),
+which closes only the owner-selected-license part of P6.
 
 From GitHub **Settings → Rules → Rulesets** (or the available
 **Settings → Branches** protections), create/enable a rule targeting the
@@ -41,16 +43,19 @@ administrator bypass permissions before saving:
 1. Require a pull request before merge; require an appropriate independent
    approval and dismiss stale reviews after new commits as supported.
 2. Prevent force pushes and branch deletion. Require branches to be up to
-   date before merge if that suits the repository workflow.
+   date before merge if that suits the repository workflow. **Do not
+   require an outside approval if no independent reviewer is available
+   without first arranging a collaborator; that setting can block a
+   solo-maintainer repository.**
 3. Require the check names from the **actual CI** workflow, not inferred
-   action labels or a stale screenshot. At the Oct 24 source baseline these
-   were: `public-repository-file-safety`, `control-api-tests`,
+   action labels or a stale screenshot. **The current October 29 CI
+   workflow has 13 job keys** to review before selecting any required checks: `public-repository-file-safety`, `control-api-tests`,
    `postgres-integration-tests`, `team-postgres-integration-tests`,
    `durable-deployments-postgres-integration-tests`,
    `redis-project-quota-integration-tests`, `local-load-balancer-config`,
    `gateway-tests`, `gateway-model-selection-microbench`,
-   `local-benchmark-tests`, `local-inference-e2e`, and
-   `nlp-evaluation-tests`.
+   `local-benchmark-tests`, `local-inference-e2e`,
+   `p4-synthetic-chromium-responsive`, and `nlp-evaluation-tests`.
 4. Check whether the repository currently offers **Dependabot alerts,
    secret scanning, push protection, code scanning**, and private
    vulnerability reporting in its **Security** settings. The presence
@@ -60,8 +65,10 @@ administrator bypass permissions before saving:
    state as an admin. A README or issue comment cannot enable protections.
    Do **not** put keys or token values into an issue as evidence.
 
-The 12 passing GitHub jobs are source-level acceptance gates only; real
-Mac operator P1–P5 and owner-approved licensing/P6 remain open. If
+The 13 GitHub CI jobs are **source-level checks only**; real Mac operator
+P1–P5, branch protection, demo media and owner-reviewed P6 signoff remain
+open. The owner-requested MIT license is recorded separately in
+[licensing and third-party rights](licensing-and-third-party.md). If
 GitHub's account or plan cannot enforce a particular setting, document
 the limitation rather than reporting it as enabled.
 
