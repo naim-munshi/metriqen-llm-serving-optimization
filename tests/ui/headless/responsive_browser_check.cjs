@@ -104,7 +104,7 @@ async function renderAt(browser, viewport) {
   try {
     await page.route("**/*", intercept);
     await page.goto(BASE + "/console", { waitUntil: "load", timeout: 15000 });
-    await page.locator("#data-state").getByText("Gateway & upstream responding").waitFor({ timeout: 10000 });
+    await page.waitForFunction(() => document.querySelector("#data-state")?.textContent === "Gateway & upstream responding", null, {timeout:10000});
 
     const shape = await page.evaluate(() => {
       const main = document.querySelector("main");
@@ -169,7 +169,7 @@ async function renderAt(browser, viewport) {
     const refresh = page.locator("#refresh");
     await refresh.focus();
     await page.keyboard.press("Enter");
-    await page.locator("#data-state").getByText("Gateway & upstream responding").waitFor();
+    await page.waitForFunction(() => document.querySelector("#data-state")?.textContent === "Gateway & upstream responding");
     assert.equal(await refresh.isDisabled(), false);
     console.log("PASS synthetic Chromium " + viewport.width +
       "px: viewport, scrollable nav, keyboard skip/links/pause/refresh, no external requests");
