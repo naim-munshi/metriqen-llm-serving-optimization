@@ -46,6 +46,7 @@ def cancel_after_first_delta(*, model: str) -> None:
         "stream": True, "max_tokens": STREAM_MAX_TOKENS, "temperature": 0,
     }, separators=(",", ":"))
     conn = http.client.HTTPConnection(HOST, PORT, timeout=40)
+    response = None
     try:
         conn.request("POST", ENDPOINT, body=data,
                      headers={"Content-Type": "application/json",
@@ -85,6 +86,8 @@ def cancel_after_first_delta(*, model: str) -> None:
     except (OSError, TimeoutError, http.client.HTTPException):
         raise CancelBlocked("stream_transport_unavailable") from None
     finally:
+        if response is not None:
+            response.close()  # getresponse may detach the socket from HTTPConnection
         conn.close()
 
 
