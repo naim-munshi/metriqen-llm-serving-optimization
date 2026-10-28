@@ -273,6 +273,8 @@ jobs:
         run: tests/ui/headless/node_modules/.bin/playwright install --with-deps chromium
       - name: Exercise real embedded Operations UI at 320, 390, 768, 1440px
         run: node tests/ui/headless/responsive_browser_check.cjs
+      - name: Exercise local Model Manager and Account Console at 320 and 390px
+        run: node tests/ui/headless/three_consoles_check.cjs
       # Synthetic fixture only: no real Mac, Ollama, browser account,
       # customer data or screenshots are read/published by this job.
 
