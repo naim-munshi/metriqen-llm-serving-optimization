@@ -45,7 +45,8 @@ def cancel_after_first_delta(*, model: str) -> None:
         "model": model, "messages": [{"role": "user", "content": CANCEL_PROMPT}],
         "stream": True, "max_tokens": STREAM_MAX_TOKENS, "temperature": 0,
     }, separators=(",", ":"))
-    conn = http.client.HTTPConnection(HOST, PORT, timeout=40)
+    conn = http.client.HTTPConnection(HOST, PORT, timeout=10)
+    deadline = time.monotonic() + 30
     response = None
     try:
         conn.request("POST", ENDPOINT, body=data,
@@ -59,6 +60,8 @@ def cancel_after_first_delta(*, model: str) -> None:
             raise CancelBlocked("stream_content_type_invalid")
         received = 0
         for _ in range(MAX_LINES):
+            if time.monotonic() > deadline:
+                raise CancelBlocked("first_delta_deadline_expired")
             line = response.readline(8193)
             received += len(line)
             if len(line) > 8192 or received > READ_CAP:
