@@ -54,7 +54,7 @@ class FinalCloseoutContractTests(unittest.TestCase):
         # completed PR-head count is internally consistent without freezing
         # the repository forever at 12 jobs; source CI is NOT release proof.
         milestone = re.search(
-            r"\\*\\*Current source milestone.*?\\*\\*.*?after \\*\\*(\\d+)/(\\d+) green final PR-head CI jobs\\*\\*",
+            r"\*\*Current source milestone.*?\*\*.*?after \*\*(\d+)/(\d+) green final PR-head CI jobs\*\*",
             readme, flags=re.DOTALL,
         )
         self.assertIsNotNone(milestone)
