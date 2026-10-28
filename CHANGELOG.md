@@ -8,6 +8,11 @@ There is **no tagged Portfolio v1.0 release yet**. Do not interpret this
 document as a claim of commercial SaaS readiness, trusted token billing,
 independent hardware attestation or a production security audit.
 
+## October 29 — headless browser viewport and keyboard regression coverage (unreleased)
+
+- [PR #165](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/165) adds a thirteenth isolated CI job for **actual Chromium browser rendering** of all three local HTML/CSS/JavaScript consoles. Synthetic fixtures exercise the Operations UI at 320, 390, 768 and 1440px and Model Manager/optional Account Console at 320/390px. The checks cover overflow, mobile nav, focus/skip link, Pause/Refresh keyboard behavior and anonymous UI. All 13 CI jobs passed on final PR head.
+- Browser tests do not contact real Ollama, authenticate users, read the Mac, save screenshots or claim visual approval. Actual Safari/mobile/VoiceOver and operator-approved demo media remain **P4 blockers**. No new performance or release claim is made.
+
 ## October 28–29 — verified local recovery evidence and bounded safety tooling (unreleased)
 
 - The operator on the actual Mac completed an isolated local
