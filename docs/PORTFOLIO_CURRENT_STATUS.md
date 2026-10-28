@@ -1,4 +1,41 @@
-# Metriqen — Current evidence and limitations (2026-10-27 review)
+# Metriqen — Current evidence and limitations (2026-10-28 update)
+
+## Verified operator observations, remaining portfolio gates
+
+**Release decision: NO-GO.** The latest merged source milestone at this
+review is [PR #161](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/161)
+at `8979aec1b556cd0255f75982f45f36ecc427c042` (12/12 successful
+CI jobs on its final PR head). CI is synthetic/ephemeral source evidence,
+not operator-Mac GPU, browser or production auth attestation.
+
+| Gate | New 2026-10-28 operator evidence | Still open |
+| --- | --- | --- |
+| **P1** | Native real Ollama + Go JSON/SSE, a real Model Manager chat, isolated fresh alias `acceptance-028e486b1e` completing **11/11 real Stop/Start/Promote/Rollback checks** on approved `llama3.2:1b` ↔ `llama3.2:latest`, and distinct private smoke/full-lifecycle reports passing deterministic pinned-digest/required-check **CLI consistency review** | Independent Mac/browser approval of promotion/rollback and sanitized genuine screenshots; no hardware attestation |
+| **P2** | Historical Ollama parallelism experiments retained, including large drift and contaminated power phases | New uninterrupted AC-only A1/B1/A2/B2 slot/thermal checks; no defensible speedup yet |
+| **P3** | FIFO overload and SSE buffer studies reveal tradeoffs, not a proven serving speedup | Attributable Metriqen-owned optimization test, matched quality/regressions or explicit negative conclusion |
+| **P4** | Private actual Mac desktop UI screenshots (Go Operations/Model Manager), real inference and routing views, source-level responsive/keyboard CI | Human Safari 390/320px, Tab/Shift+Tab/Enter, Pause/Refresh/VoiceOver checks and owner-approved public demo |
+| **P5** | **7/7 required healthy GET** and **10/10 unauthorized/invalid Bearer HTTP401** checks; Ollama, Go and FastAPI listener snapshots IPv4 loopback on ports 11434, 8081, 8000. Real graceful Ollama outage yielded gateway upstream HTTP503 and failed chat HTTP502 while Go PID `39701` stayed live; restore yielded upstream HTTP200 and **real nonstream chat PASS** with same PID. Three distinct private health-state reports passed offline healthy/outage/recovered review. Subsequent bounded real SSE chat gave nonempty delta, terminal `[DONE]`, exactly one admitted stream, validated counters, and **active slots released to zero** | Sanitized 502 *response body* not yet checked; live SSE client cancel not exercised; opt-in OIDC/tenant/PostgreSQL/Redis authorization and lease security have no real Mac end-to-end signoff |
+| **P6** | All above summarized in [tracking issue #81](https://github.com/naim-munshi/metriqen-llm-serving-optimization/issues/81), private reports/screenshots retained | License owner decision, release SHA CI, reviewed demo media, branch protection/rulesets and P1–P6 manual acceptance; no v1.0.0 |
+
+**Evidence boundary:** The offline three-report P5 reviewer verifies HTTP-health
+snapshot consistency only. The recovered chat and unchanged gateway PID were
+observed **separately**. Earlier mistakenly named `p5-outage-*` reports
+actually captured healthy service and are *excluded* from verified outage
+evidence. None of these observations measure GPU execution, TTFT/p95/RPS,
+hosted-tenant security or production availability. Port 8000 optional account
+console HTTP404 means no configured OIDC account UI in that local run; its
+absence must not be reported as a successful OAuth security test. These
+local unguarded-development listeners must **never be publicly exposed**.
+
+Existing October 27 findings and earlier experimental details are preserved
+below as dated history; where observations disagree, the above October 28
+operator updates supersede the older state notes only. The formal finish
+line remains [P1–P6 acceptance](PORTFOLIO_V1_ACCEPTANCE.md).
+
+---
+
+## Historical October 27 audit (preserved)
+
 
 ## October 27 source audit and release decision
 
