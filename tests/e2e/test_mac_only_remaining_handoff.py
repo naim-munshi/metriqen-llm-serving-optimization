@@ -59,7 +59,6 @@ class MacOnlyHandoffContracts(unittest.TestCase):
             "http.StatusServiceUnavailable",
         ):
             self.assertIn(fragment, go)
-        self.assertIn("not the actual Mac", (ROOT / "docs/operations/mac-only-remaining-acceptance.md").read_text(encoding="utf-8").lower().replace("**", "")) if False else None
 
     def test_readiness_still_fails_closed_and_license_is_not_release(self):
         from tools.demo.portfolio_readiness import collect_source_status
