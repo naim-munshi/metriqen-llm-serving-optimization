@@ -46,4 +46,4 @@ This gateway has no authentication on its inference endpoint. **Do not bind it t
 
 ## Licensing note
 
-**No open-source license has been selected.** Although the repository is public for inspection, reuse and redistribution rights are not granted by public visibility alone. The maintainer will select a license separately. Please coordinate proposed external contributions with the maintainer.
+The original Metriqen repository software and documentation are distributed under the [MIT License](LICENSE), Copyright © 2026 Md Naim, where the contributor/copyright holder has the rights to grant that license. By proposing a contribution for inclusion, confirm that you have permission to submit it on MIT-compatible terms; do not submit third-party code, datasets, images, model weights or other assets whose license is incompatible or unknown. MIT is a software copyright license, not an authorization to publish private reports, prompts, user data, provider tokens or third-party model files. See [third-party boundaries](docs/operations/licensing-and-third-party.md).
