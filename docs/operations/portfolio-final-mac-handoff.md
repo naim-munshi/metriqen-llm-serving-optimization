@@ -197,7 +197,7 @@ and [operator recovery checklist](local-inference.md).
 - Record gateway runtime/version, component settings actually enabled,
   data redaction review, CI SHA and the recovery observations.
 
-## F. P6 — release review and license decision
+## F. P6 — release review and license compliance
 
 Follow the [owner-operated repository branch hygiene procedure](repository-branch-hygiene.md)
 for an audit-before-prune cleanup of stale merged PR branches. No
@@ -207,10 +207,13 @@ unmerged unique commits as a release shortcut.
 1. Update `README.md`, [engineering case study](../PORTFOLIO_CASE_STUDY.md)
    and `CHANGELOG.md` with only verified operator evidence, actual
    screenshots and versioned benchmark aggregate reports.
-2. The repository owner decides the licensing strategy (**MIT, Apache-2.0,
-   another eligible license, or keep proprietary**). Do **not** add a
-   license or claim permission without the owner's decision; check
-   dependencies, original datasets and model redistribution restrictions.
+2. **Licensing decision recorded October 29:** the owner requested the
+   standard [MIT License](../../LICENSE) for eligible original Metriqen
+   repository software, with copyright notice © 2026 Md Naim. Confirm
+   independent rights to contributions, third-party dependencies, original
+   datasets and model weights before distributing those materials. This
+   license does not authorize copying provider models or private evidence.
+   See [third-party scope](licensing-and-third-party.md).
 3. Re-run full GitHub CI on the *actual release candidate commit*;
    check that all jobs pass and GitHub Issue #81 has verifiable direct
    evidence links for **every** P1–P6 condition.
