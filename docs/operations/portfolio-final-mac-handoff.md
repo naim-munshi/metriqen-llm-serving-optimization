@@ -175,7 +175,7 @@ Link the sanitized assets in the final README only after human review.
 
 An optional [offline, read-only three-snapshot outage/recovery HTTP-health evidence reviewer](p5-readonly-recovery-evidence.md) can cross-check operator-created baseline/outage/recovered local GET reports without stopping services or performing inference. Even a valid health transition does **not** attest successful post-outage chat, gateway process continuity, cancellation, tenant security or completed P5 acceptance. Only run a real outage experiment with explicit operator control on an idle localhost-only environment.
 
-Read [Security](../../SECURITY.md),
+For the already completed Mac HTTP outage/recovery, use the optional [one-request real SSE and admission-slot release checker](p5-post-recovery-stream.md) **instead of repeating the outage**. It confirms a narrow streaming success and idle admission counters, not cancellation, error-body sanitization, OIDC/tenant security or full P5 acceptance.\n\nRead [Security](../../SECURITY.md),
 [distributed request leases](distributed-project-inflight.md),
 [local JWT/digest authorization](project-inference-authorization.md),
 and [operator recovery checklist](local-inference.md).
