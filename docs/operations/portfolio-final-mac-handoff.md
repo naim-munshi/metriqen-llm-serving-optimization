@@ -173,6 +173,8 @@ Link the sanitized assets in the final README only after human review.
 
 ## E. P5 — local reliability/security and recovery
 
+An optional [offline, read-only three-snapshot outage/recovery HTTP-health evidence reviewer](p5-readonly-recovery-evidence.md) can cross-check operator-created baseline/outage/recovered local GET reports without stopping services or performing inference. Even a valid health transition does **not** attest successful post-outage chat, gateway process continuity, cancellation, tenant security or completed P5 acceptance. Only run a real outage experiment with explicit operator control on an idle localhost-only environment.
+
 Read [Security](../../SECURITY.md),
 [distributed request leases](distributed-project-inflight.md),
 [local JWT/digest authorization](project-inference-authorization.md),
