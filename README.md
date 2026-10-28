@@ -8,14 +8,23 @@
 
 **Final closeout audit (2026-10-27):** [Owner evidence and release NO-GO decision](docs/operations/v1-final-closeout.md). The [current evidence matrix](docs/PORTFOLIO_CURRENT_STATUS.md) records actual local behavior, observed benchmark weaknesses and source-level limitations; the [October 14 historical implementation status](docs/PROJECT_STATUS.md) is not the current matrix. **P1–P6 still require human-reviewed evidence and are not signed off.**
 
-**Latest independently verified GitHub source baseline (Oct 27 audit):**
-[`61d62ce`](https://github.com/naim-munshi/metriqen-llm-serving-optimization/commit/61d62ce577826904b4d83991793ee6a4873cd91d)
-passed [12/12 post-merge CI jobs](https://github.com/naim-munshi/metriqen-llm-serving-optimization/actions/runs/40159749284).
-Source tests include local deployment stale-state protections, but **do not
-verify real Mac model throughput, physical GPU use or browser/mobile UX**.
-At the last read-only GitHub inspection `main` was **not branch-protected**;
-review settings with [owner instructions](docs/operations/repository-branch-hygiene.md).
-Owner license choice, approved demo media and `v1.0.0` release are pending.
+**Current source milestone (October 29, 2026):** [PR #163](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/163)
+merged at [`c56397a`](https://github.com/naim-munshi/metriqen-llm-serving-optimization/commit/c56397a47a0510cd9de16816f16d5b99d2aea5cb),
+after **12/12 green final PR-head CI jobs**. Source tests include opt-in
+local P5 SSE-cancellation verification and earlier model lifecycle guards,
+but **cannot certify a Mac run, physical GPU execution, p95/TTFT,
+browser/mobile UX or production tenant security**. Live gate-by-gate
+operator evidence (including the new real outage/recovery and successful
+single SSE/admission release observations) is tracked in the
+[current status matrix](docs/PORTFOLIO_CURRENT_STATUS.md) and
+[issue #81](https://github.com/naim-munshi/metriqen-llm-serving-optimization/issues/81).
+The new [P5 cancellation tool](docs/operations/p5-stream-cancel-recovery.md)
+has **not yet** been run on the Mac; do not confuse its synthetic CI with
+the earlier verified real HTTP outage. At the last GitHub inspection,
+`main` remained **unprotected**; follow
+[owner branch settings instructions](docs/operations/repository-branch-hygiene.md).
+Owner license choice, actual narrow-screen/keyboard demo and approved
+public media, controlled P2/P3 evidence and `v1.0.0` release are pending.
 
 **P1 deployment lifecycle acceptance:** [read-only preflight and explicit local Stop/Start/Promote/Rollback command](docs/operations/local-deployment-acceptance.md), with synthetic CI contract coverage. The operator has now reported real Mac Stop/Start/Promote/Rollback and matching private smoke/lifecycle consistency PASS, with genuine Safari snapshots of the final `assistant` routing state; private evidence remains unpublished and release/browser accessibility sign-off is still pending.
 

@@ -8,6 +8,43 @@ There is **no tagged Portfolio v1.0 release yet**. Do not interpret this
 document as a claim of commercial SaaS readiness, trusted token billing,
 independent hardware attestation or a production security audit.
 
+## October 28–29 — verified local recovery evidence and bounded safety tooling (unreleased)
+
+- The operator on the actual Mac completed an isolated local
+  `acceptance-028e486b1e` **11-check** Stop/Start/Promote/Rollback
+  with real baseline/candidate inference and a separate private P1
+  pinned-digest cross-report consistency review PASS. Desktop Safari
+  model operations and Gateway monitoring screenshots were supplied
+  privately; full mobile/keyboard, owner-approved public media and
+  independent P1 release acceptance remain open.
+- [PR #160](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/160)
+  introduced a strictly offline healthy → actual upstream 503 outage →
+  restored healthy three-report checker, with no automatic service
+  intervention. Operator private evidence independently reported
+  the actual Ollama unavailability, a Go HTTP502 negative request,
+  manual recovery, unchanged gateway PID and a valid post-recovery
+  real model completion. Three-report **health consistency PASS**
+  does not itself attest the chat, PID continuity or security.
+- [PR #161](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/161)
+  added one opt-in, bounded real SSE and admission-release checker.
+  Its operator Mac invocation separately reported an actual
+  `[DONE]`-terminated stream, matching per-process admission/outcome
+  counter increments, and zero residual gateway active slots.
+- [PR #162](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/162)
+  updated the truthful P1–P6 status matrix while preserving older
+  negative benchmark results and correcting a Mac handoff formatting issue.
+- [PR #163](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/163)
+  added an opt-in real HTTP SSE client-disconnect and follow-up recovery
+  smoke with synthetic fail-closed tests and a private report; **its
+  real Mac `--execute` has not been run yet**. This work does not imply
+  upstream task termination, OIDC/Redis/PostgreSQL deployment, a
+  production security audit, complete P4 mobile QA or P2/P3 speedup.
+- The source CI for PR #163 passed **12/12 jobs** on its final PR
+  commit. **Portfolio v1.0 remains unreleased**: clean prospective
+  P2/P3 evidence, genuine mobile/keyboard/video acceptance, optional
+  auth/security claims, owner license decision and protected branch
+  rules still require explicit independent verification.
+
 ## October 25–27 — local lifecycle hardening and final evidence handoff (unreleased)
 
 - [PR #146](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/146)
