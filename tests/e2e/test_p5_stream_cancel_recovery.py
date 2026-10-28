@@ -192,25 +192,21 @@ class P5CancelTests(unittest.TestCase):
             root = Path(tmp)
             target = root / "reports" / "local" / "p5-cancel.json"
             original_collect = demo.collect
+            def run(**kwargs):
+                fake = Fake()
+                return original_collect(**{**kwargs, "fetch": fake.fetch,
+                                           "stream_once": fake.stream_once,
+                                           "sleep": lambda _: None})
             with patch.object(real, "ROOT", root), patch.object(
-                demo, "collect", side_effect=lambda **kwargs: original_collect(
-                    **{**kwargs, "fetch": Fake().fetch, "stream_once": Fake().stream_once, "sleep": lambda _: None}
-                )
-            ):
-                # Use one Fake for both injected callbacks per invocation.
-                def run(**kwargs):
-                    fake = Fake()
-                    return original_collect(**{**kwargs, "fetch": fake.fetch,
-                                               "stream_once": fake.stream_once,
-                                               "sleep": lambda _: None})
-                with patch.object(demo, "collect", side_effect=run):
-                    args = ["--execute", "--model", MODEL, "--expected-digest", DIGEST, "--output", str(target)]
-                    with redirect_stdout(StringIO()):
-                        self.assertEqual(demo.main(args), 0)
-                    self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
-                    self.assertFalse(json.loads(target.read_text())["p5_reliability_security_gate_complete"])
-                    with redirect_stderr(StringIO()):
-                        self.assertEqual(demo.main(args), 2)
+                    demo, "collect", side_effect=run):
+                args = ["--execute", "--model", MODEL, "--expected-digest", DIGEST,
+                        "--output", str(target)]
+                with redirect_stdout(StringIO()):
+                    self.assertEqual(demo.main(args), 0)
+                self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
+                self.assertFalse(json.loads(target.read_text())["p5_reliability_security_gate_complete"])
+                with redirect_stderr(StringIO()):
+                    self.assertEqual(demo.main(args), 2)
 
 
 if __name__ == "__main__":
