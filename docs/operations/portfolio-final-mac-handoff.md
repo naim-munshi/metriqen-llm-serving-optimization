@@ -177,7 +177,7 @@ An optional [offline, read-only three-snapshot outage/recovery HTTP-health evide
 
 For the already completed Mac HTTP outage/recovery, use the optional [one-request real SSE and admission-slot release checker](p5-post-recovery-stream.md) **instead of repeating the outage**. It confirms a narrow streaming success and idle admission counters, not cancellation, error-body sanitization, OIDC/tenant security or full P5 acceptance.
 
-Read [Security](../../SECURITY.md),
+For one additional bounded real client-disconnect check without repeating the actual Ollama outage, use the optional [SSE client cancellation → admission release → subsequent JSON recovery smoke](p5-stream-cancel-recovery.md). This cannot sign off P5 auth/tenant security or hardware inference performance.\n\nRead [Security](../../SECURITY.md),
 [distributed request leases](distributed-project-inflight.md),
 [local JWT/digest authorization](project-inference-authorization.md),
 and [operator recovery checklist](local-inference.md).
