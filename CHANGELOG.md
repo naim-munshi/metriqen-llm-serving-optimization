@@ -8,6 +8,11 @@ There is **no tagged Portfolio v1.0 release yet**. Do not interpret this
 document as a claim of commercial SaaS readiness, trusted token billing,
 independent hardware attestation or a production security audit.
 
+## October 29 — owner-directed MIT licensing (unreleased)
+
+- Added the standard MIT license for repository-owned Metriqen software and documentation with copyright notice **© 2026 Md Naim**, upon the repository owner's request. Linked README and CONTRIBUTING; documented independent third-party dependency, Ollama/model-weight, dataset and private-evidence rights. This is a permissive code license, **not** a right to redistribute model weights or private user material.
+- Licensing removes one P6 administrative blocker only. GitHub default-branch protection, original Mac acceptance P1–P5 and explicit v1.0.0 release signoff remain pending; no tag or hosted service is published.
+
 ## October 29 — headless browser viewport and keyboard regression coverage (unreleased)
 
 - [PR #165](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/165) adds a thirteenth isolated CI job for **actual Chromium browser rendering** of all three local HTML/CSS/JavaScript consoles. Synthetic fixtures exercise the Operations UI at 320, 390, 768 and 1440px and Model Manager/optional Account Console at 320/390px. The checks cover overflow, mobile nav, focus/skip link, Pause/Refresh keyboard behavior and anonymous UI. All 13 CI jobs passed on final PR head.

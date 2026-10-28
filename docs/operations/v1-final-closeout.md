@@ -1,6 +1,6 @@
 # Metriqen Portfolio v1 — final closeout decision record
 
-**Audit date:** 2026-10-27 JST. **Verified source baseline:**
+**Audit date:** 2026-10-27 JST. **Subsequent 2026-10-29 licensing update:** The owner subsequently requested and adopted the [MIT License](../../LICENSE) for eligible original repository software. The historical initial audit below still reflects its October 27 licensing status, which is no longer the current status. Other P1–P6 acceptance requirements are unchanged. **Verified source baseline:**
 [`61d62ce577826904b4d83991793ee6a4873cd91d`](https://github.com/naim-munshi/metriqen-llm-serving-optimization/commit/61d62ce577826904b4d83991793ee6a4873cd91d);
 [post-merge GitHub CI: 12/12 successful](https://github.com/naim-munshi/metriqen-llm-serving-optimization/actions/runs/40159749284).
 This is the last independently verified source baseline at the time of this

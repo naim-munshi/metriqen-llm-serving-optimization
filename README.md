@@ -23,7 +23,7 @@ has **not yet** been run on the Mac; do not confuse its synthetic CI with
 the earlier verified real HTTP outage. At the last GitHub inspection,
 `main` remained **unprotected**; follow
 [owner branch settings instructions](docs/operations/repository-branch-hygiene.md).
-Owner license choice, actual narrow-screen/keyboard demo and approved
+MIT license added for repository-owned software (not weights/datasets); actual narrow-screen/keyboard demo and approved
 public media, controlled P2/P3 evidence and `v1.0.0` release are pending.
 
 The new [synthetic Chromium P4 browser test](docs/operations/p4-synthetic-responsive-browser-qa.md) renders the actual checked-in Operations UI at 320/390/768/1440px and both FastAPI consoles at 320/390px, asserting layout and keyboard behavior against intercepted fake data. **This does not replace genuine Mac Safari mobile screenshots, VoiceOver, real-model browser acceptance or owner-approved release media.**
@@ -345,7 +345,7 @@ tests/e2e/                  Go gateway + Python client integration tests
 - **Development-only:** legacy local inference can be unauthenticated; an optional separate local bearer token and opt-in JWT/project guards exist but do not provide production-grade identity, tenant isolation, security audit or TLS termination. **Do not expose it publicly.**
 - The current implementation does **not** include vLLM GPU serving, production deployment, optimized GPU memory scheduling, cost accounting, model training, or validated throughput improvements caused by Metriqen's new FIFO queue.
 - Benchmark reports and prompt/response artifacts under `reports/local/` are intentionally Git-ignored. Human-attested evidence does not cryptographically prove execution.
-- **License:** no open-source license has been selected. Source visibility does not grant a general right to use, modify or redistribute this repository. See [CONTRIBUTING.md](CONTRIBUTING.md).
+- **License:** [MIT License](LICENSE), Copyright © 2026 Md Naim, for the original repository software and documentation the copyright holder is entitled to license. Commercial use, redistribution, modification and sublicensing are permitted **with the license/copyright notice retained**. Third-party dependencies, model weights, datasets and separately licensed materials remain under their own terms. See [licensing and third-party boundaries](docs/operations/licensing-and-third-party.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 
 **Maintainer:** [Md Naim](https://github.com/naim-munshi) · Tokyo Polytechnic University, Faculty of Engineering.
 
