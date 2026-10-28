@@ -2,7 +2,10 @@
 
 The `p4-synthetic-chromium-responsive` GitHub CI job renders the **actual
 checked-in Go Operations HTML/CSS/JS** with headless Chromium at widths
-**320, 390, 768 and 1440 CSS pixels**.
+**320, 390, 768 and 1440 CSS pixels**, plus the original local FastAPI
+Model Manager and optional Account Console at **320 and 390 pixels**.
+The Control API tests exercise the **anonymous/not-signed-in** state only;
+they do not generate an operator token or impersonate an OIDC identity.
 
 It checks:
 - no unexpected whole-page horizontal overflow or offscreen health cards;
@@ -26,6 +29,7 @@ optional and is not required for Mac inference:
 npm install --no-save --no-package-lock --prefix tests/ui/headless playwright@1.56.1
 tests/ui/headless/node_modules/.bin/playwright install chromium
 node tests/ui/headless/responsive_browser_check.cjs
+node tests/ui/headless/three_consoles_check.cjs
 ```
 
 The test is deliberately conservative: a failure identifies a concrete
