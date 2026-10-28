@@ -16,6 +16,8 @@ as a production SaaS** just because hosted tests are green. An owner may
 choose to stop developing and present the accurately labelled research
 prototype; that is different from a verified v1.0 release.
 
+**Current post-audit shortcut (2026-10-29):** [remaining Mac/owner acceptance only](mac-only-remaining-acceptance.md). The original October 27 evidence and step-by-step wording below are kept for historical provenance, not to imply that P1/P5 progress recorded after October 27 has been lost. MIT licensing is now approved for original eligible source; all six final release signoffs and live GitHub branch protection remain open.
+
 ## What GitHub can finish without the operator Mac
 
 - [x] Go HTTP gateway, bounded local admission and JSON/SSE validation,

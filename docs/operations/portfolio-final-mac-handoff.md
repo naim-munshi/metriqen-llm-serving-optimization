@@ -11,6 +11,8 @@ the tracking issue is
 Do not silently expand the v1 scope into public SaaS/GPU/vLLM/Kubernetes
 or claim memory/quality/GPU metrics that were not measured.
 
+**Latest fast route:** [only the remaining Mac/owner steps (Oct 29)](mac-only-remaining-acceptance.md). It recognizes already verified real P1 and P5 CLI health/outage/SSE checks so they are not needlessly repeated. The detailed sections below remain as complete protocols and historical reproducibility references; no phase is certified merely by this handoff.
+
 ## A. Before enabling any service
 
 1. On the Mac, `git pull --ff-only origin main` and record the exact
