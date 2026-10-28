@@ -169,7 +169,7 @@ class P5StreamSmokeTests(unittest.TestCase):
         with self.assertRaisesRegex(smoke.SmokeBlocked, "inference_metrics_schema_mismatch"):
             smoke.collect(model=MODEL, digest=DIGEST, fetch=fake)
         fake = FakeGateway()
-        fake.inference_before["duration_bucket_counts"] = [1] * 9
+        fake.inference_before["duration_bucket_counts"] = [0] * 9
         with self.assertRaisesRegex(smoke.SmokeBlocked, "inference_duration_histogram_invalid"):
             smoke.collect(model=MODEL, digest=DIGEST, fetch=fake)
 
@@ -187,8 +187,9 @@ class P5StreamSmokeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
             path = root / "reports" / "local" / "p5-smoke.json"
+            original_collect = smoke.collect
             with patch.object(real, "ROOT", root), patch.object(
-                    smoke, "collect", side_effect=lambda **kw: smoke.collect(
+                    smoke, "collect", side_effect=lambda **kw: original_collect(
                         **{**kw, "fetch": FakeGateway()})):
                 args = ["--execute", "--model", MODEL, "--expected-digest", DIGEST,
                         "--output", str(path)]
