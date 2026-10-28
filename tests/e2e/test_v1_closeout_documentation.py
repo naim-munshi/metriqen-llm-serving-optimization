@@ -50,7 +50,18 @@ class FinalCloseoutContractTests(unittest.TestCase):
         self.assertIn("docs/operations/v1-final-closeout.md", changelog)
         self.assertIn("P1–P6", readme)
         self.assertIn("NO-GO", matrix)
-        self.assertIn("12/12", readme)
+        # CI gained a thirteenth job in P4. Verify the reported latest
+        # completed PR-head count is internally consistent without freezing
+        # the repository forever at 12 jobs; source CI is NOT release proof.
+        milestone = re.search(
+            r"\*\*Current source milestone.*?\*\*.*?after \*\*(\d+)/(\d+) green final PR-head CI jobs\*\*",
+            readme, flags=re.DOTALL,
+        )
+        self.assertIsNotNone(milestone)
+        passed, total = map(int, milestone.groups())
+        self.assertGreaterEqual(total, 12)
+        self.assertEqual(passed, total)
+        self.assertIn("cannot certify a Mac run", readme)
 
     def test_offline_source_readiness_still_explicitly_blocks_release(self):
         status = collect_source_status(ROOT)

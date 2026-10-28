@@ -8,9 +8,9 @@
 
 **Final closeout audit (2026-10-27):** [Owner evidence and release NO-GO decision](docs/operations/v1-final-closeout.md). The [current evidence matrix](docs/PORTFOLIO_CURRENT_STATUS.md) records actual local behavior, observed benchmark weaknesses and source-level limitations; the [October 14 historical implementation status](docs/PROJECT_STATUS.md) is not the current matrix. **P1–P6 still require human-reviewed evidence and are not signed off.**
 
-**Current source milestone (October 29, 2026):** [PR #163](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/163)
-merged at [`c56397a`](https://github.com/naim-munshi/metriqen-llm-serving-optimization/commit/c56397a47a0510cd9de16816f16d5b99d2aea5cb),
-after **12/12 green final PR-head CI jobs**. Source tests include opt-in
+**Current source milestone (October 29, 2026):** [PR #165](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/165)
+merged at [`9a1856c`](https://github.com/naim-munshi/metriqen-llm-serving-optimization/commit/9a1856c0e871acfdae6890b03d4c442b11bfb8db),
+after **13/13 green final PR-head CI jobs** including actual headless Chromium rendering of three separate local UIs at mobile sizes. Source tests include opt-in
 local P5 SSE-cancellation verification and earlier model lifecycle guards,
 but **cannot certify a Mac run, physical GPU execution, p95/TTFT,
 browser/mobile UX or production tenant security**. Live gate-by-gate
@@ -25,6 +25,8 @@ the earlier verified real HTTP outage. At the last GitHub inspection,
 [owner branch settings instructions](docs/operations/repository-branch-hygiene.md).
 Owner license choice, actual narrow-screen/keyboard demo and approved
 public media, controlled P2/P3 evidence and `v1.0.0` release are pending.
+
+The new [synthetic Chromium P4 browser test](docs/operations/p4-synthetic-responsive-browser-qa.md) renders the actual checked-in Operations UI at 320/390/768/1440px and both FastAPI consoles at 320/390px, asserting layout and keyboard behavior against intercepted fake data. **This does not replace genuine Mac Safari mobile screenshots, VoiceOver, real-model browser acceptance or owner-approved release media.**
 
 **P1 deployment lifecycle acceptance:** [read-only preflight and explicit local Stop/Start/Promote/Rollback command](docs/operations/local-deployment-acceptance.md), with synthetic CI contract coverage. The operator has now reported real Mac Stop/Start/Promote/Rollback and matching private smoke/lifecycle consistency PASS, with genuine Safari snapshots of the final `assistant` routing state; private evidence remains unpublished and release/browser accessibility sign-off is still pending.
 
