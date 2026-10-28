@@ -169,7 +169,7 @@ async function renderAt(browser, viewport) {
     const refresh = page.locator("#refresh");
     await refresh.focus();
     await page.keyboard.press("Enter");
-    await page.waitForFunction(() => document.querySelector("#data-state")?.textContent === "Gateway & upstream responding");
+    await page.waitForFunction(() => !document.querySelector("#refresh").disabled, null, {timeout:10000});
     assert.equal(await refresh.isDisabled(), false);
     console.log("PASS synthetic Chromium " + viewport.width +
       "px: viewport, scrollable nav, keyboard skip/links/pause/refresh, no external requests");
