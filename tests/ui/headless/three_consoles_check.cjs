@@ -103,6 +103,10 @@ async function checkPage(browser, view, width) {
       const lastLink = page.locator('nav[aria-label="Model manager sections"] a[href="#deployments"]');
       await lastLink.focus();
       await page.keyboard.press("Enter");
+      // Keyboard-driven hash navigation may settle on a later microtask
+      // even after the keypress Promise resolves. Await the actual URL
+      // rather than racing the browser and intermittently failing CI.
+      await page.waitForURL(url => url.hash === "#deployments", { timeout: 5000 });
       assert.equal(new URL(page.url()).hash, "#deployments");
     } else {
       const guest = page.locator("#guest");
