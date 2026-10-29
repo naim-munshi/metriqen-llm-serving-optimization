@@ -1,3 +1,43 @@
+# Metriqen — Current evidence and limitations (2026-10-29 review)
+
+## Current source/owner gate status (supersedes older dated milestones)
+
+**Portfolio v1.0: NO-GO.** At this review, current
+[main `aae5c1c`](https://github.com/naim-munshi/metriqen-llm-serving-optimization/commit/aae5c1c213386cbaec4e9ed3e16ef138c13157bc)
+(PR [#169](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/169))
+completed **13/13 post-merge GitHub CI jobs**. Open pull requests: 0.
+The original source/docs are published under [MIT](../LICENSE), but
+repository `main` was still **unprotected**, active rulesets: 0,
+and there is **no tagged v1.0.0 release**. A green source test is
+neither Mac Safari/Metal verification nor independent live tenant security.
+
+The [short remaining Mac/owner handoff](operations/mac-only-remaining-acceptance.md)
+is the operative to-do checklist. It does **not** repeat operator-observed
+P1 native/Go/alias lifecycle PASS, the P1 private digest-consistency PASS,
+or P5 real Ollama outage/HTTP502 → restored inference and real SSE
+`[DONE]`/admission-release PASS. PR #169 added **synthetic** upstream
+error-response redaction regression tests; the actual Mac HTTP502
+*response body* and real SSE client-disconnect cleanup are still pending.
+Historical P2 large A/B/A/B drift/AC contamination and P3 negative FIFO
+goodput tradeoff remain **valid warnings, not speedups**.
+P4's headless Chromium CI at 320px/390px on all three UIs is not real
+Safari/mobile/keyboard approval. P6 owner license-choice is settled;
+admin branch rules, approved real media, final acceptance and tag are not.
+
+**Current release blockers:**
+P1 final owner-approved authentic browser media;
+P2 AC/slot/thermal-controlled prospective A1/B1/A2/B2;
+P3 one reproducibly measured Metriqen-owned code/policy change (or
+explicitly revised contract and accurately qualified negative study);
+P4 genuine Mac Safari 320px/390px, keyboard/VoiceOver;
+P5 real client-cancel and any enabled identity/tenant paths claimed;
+P6 enforced branch rules, audited approved artifacts, release-SHA CI
+and explicit owner signoff. Keep all localhost services private.
+
+---
+
+## Historical 2026-10-28 evidence summary (preserved)
+
 # Metriqen — Current evidence and limitations (2026-10-28 update)
 
 ## Verified operator observations, remaining portfolio gates
