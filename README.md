@@ -8,9 +8,9 @@
 
 **Final closeout audit (2026-10-27):** [Owner evidence and release NO-GO decision](docs/operations/v1-final-closeout.md). The [current evidence matrix](docs/PORTFOLIO_CURRENT_STATUS.md) records actual local behavior, observed benchmark weaknesses and source-level limitations; the [October 14 historical implementation status](docs/PROJECT_STATUS.md) is not the current matrix. **P1–P6 still require human-reviewed evidence and are not signed off.**
 
-**Current source milestone (October 29, 2026):** [PR #165](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/165)
-merged at [`9a1856c`](https://github.com/naim-munshi/metriqen-llm-serving-optimization/commit/9a1856c0e871acfdae6890b03d4c442b11bfb8db),
-after **13/13 green final PR-head CI jobs** including actual headless Chromium rendering of three separate local UIs at mobile sizes. Source tests include opt-in
+**Current source milestone (October 29, 2026):** [PR #169](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/169)
+merged at [`aae5c1c`](https://github.com/naim-munshi/metriqen-llm-serving-optimization/commit/aae5c1c213386cbaec4e9ed3e16ef138c13157bc),
+after **13/13 green final PR-head CI jobs** (also 13/13 on the exact post-merge `main` SHA). This includes source Go/Python tests, ephemeral PostgreSQL/Redis CI, headless Chromium checks across three local UIs at mobile widths, and synthetic P5 error-body redaction tests. Source tests include opt-in
 local P5 SSE-cancellation verification and earlier model lifecycle guards,
 but **cannot certify a Mac run, physical GPU execution, p95/TTFT,
 browser/mobile UX or production tenant security**. Live gate-by-gate
