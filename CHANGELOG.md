@@ -8,6 +8,21 @@ There is **no tagged Portfolio v1.0 release yet**. Do not interpret this
 document as a claim of commercial SaaS readiness, trusted token billing,
 independent hardware attestation or a production security audit.
 
+## October 29 — source acceptance/handoff closeout (unreleased)
+
+- [PR #169](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/169)
+  added synthetic stream/nonstream upstream HTTP error-body/header redaction
+  regressions, plus the [single short **remaining Mac/owner** checklist](docs/operations/mac-only-remaining-acceptance.md).
+  Its final PR head and exact merged `main` commit `aae5c1c` both
+  passed **13/13 CI jobs**. No actual Mac HTTP502 *body* was observed
+  by that source test; existing P5 outage/recovery results were not rerun.
+- Updated the latest project status and README to reflect the merged
+  source milestone instead of stale PR #161/#165 references. Formal
+  P1–P6 human acceptance, P2/P3 benchmarks, actual Safari screenshots,
+  real SSE cancellation, branch-rule enforcement and owner release
+  authorization are still open. The MIT licensing decision is complete
+  but does **not** grant model-weight or dataset redistribution rights.
+
 ## October 29 — owner-directed MIT licensing (unreleased)
 
 - Added the standard MIT license for repository-owned Metriqen software and documentation with copyright notice **© 2026 Md Naim**, upon the repository owner's request. Linked README and CONTRIBUTING; documented independent third-party dependency, Ollama/model-weight, dataset and private-evidence rights. This is a permissive code license, **not** a right to redistribute model weights or private user material.
