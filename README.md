@@ -8,9 +8,9 @@
 
 **Final closeout audit (2026-10-27):** [Owner evidence and release NO-GO decision](docs/operations/v1-final-closeout.md). The [current evidence matrix](docs/PORTFOLIO_CURRENT_STATUS.md) records actual local behavior, observed benchmark weaknesses and source-level limitations; the [October 14 historical implementation status](docs/PROJECT_STATUS.md) is not the current matrix. **P1–P6 still require human-reviewed evidence and are not signed off.**
 
-**Current source milestone (October 29, 2026):** [PR #169](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/169)
-merged at [`aae5c1c`](https://github.com/naim-munshi/metriqen-llm-serving-optimization/commit/aae5c1c213386cbaec4e9ed3e16ef138c13157bc),
-after **13/13 green final PR-head CI jobs** (also 13/13 on the exact post-merge `main` SHA). This includes source Go/Python tests, ephemeral PostgreSQL/Redis CI, headless Chromium checks across three local UIs at mobile widths, and synthetic P5 error-body redaction tests. Source tests include opt-in
+**Current source milestone (October 30, 2026):** [PR #171](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/171)
+merged at [`dd5c3f4`](https://github.com/naim-munshi/metriqen-llm-serving-optimization/commit/dd5c3f4cf209150abed9a6969187539cda35cfa9),
+after **13/13 green final PR-head CI jobs** (also 13/13 on the exact post-merge `main` SHA). This includes source Go/Python tests, ephemeral PostgreSQL/Redis CI, headless Chromium checks across three local UIs, and new Go **real loopback HTTP/TCP** client-disconnect tests (synthetic backend), for 1 KiB and 4 KiB SSE relay-buffer modes. Source tests include opt-in
 local P5 SSE-cancellation verification and earlier model lifecycle guards,
 but **cannot certify a Mac run, physical GPU execution, p95/TTFT,
 browser/mobile UX or production tenant security**. Live gate-by-gate

@@ -133,6 +133,31 @@ measurements**.
 
 ## 4. P3 — attributable engineering finding, not an invented speedup
 
+**Use the already-implemented Metriqen-owned candidate, not a new
+unreviewed idea:** the [1 KiB default ↔ opt-in 4 KiB SSE relay buffer](../benchmarks/sse-relay-buffer-candidate.md)
+in the Go gateway. A precise, predeclared
+[AC-only A1/B1/A2/B2 operator protocol](../benchmarks/sse-abab-ac-operator.md)
+and `python3 -m tools.benchmark.sse_abab plan|collect|review` are already
+implemented. The tool verifies the **exact same compiled Gateway
+executable**, loopback listener, digest, AC and expected per-phase
+buffer, and refuses to change services itself. The new P5 Go
+test from [PR #171](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/171)
+also verifies both buffer modes preserve streaming client-disconnect
+and admission release through a **synthetic** real TCP integration
+test. This is not a throughput or real Ollama cancellation attestation.
+
+**Before measuring:** independently verify the real model slots,
+actual owner-controlled Go binary, runtime, power/thermals and
+unchanged security configuration. The A/B/A/B phases are **one
+explicit operator action each**, never an unattended script restarting
+your existing private Gateway. Compare all concurrency levels,
+RPS, p95 TTFT/latency, failures/429, provider usage coverage and
+matched 36-question quality. If the 4 KiB mode has no repeatable
+gain or worse tail latency, keep/restore the original 1 KiB default.
+Do not claim speedup from the CPU microbenchmark or any single
+favorable phase. Preserve all failures and the earlier FIFO
+negative result.
+
 Follow [optimization signal runbook](../benchmarks/portfolio-optimization-signal.md)
 and [P3 acceptance](../PORTFOLIO_V1_ACCEPTANCE.md).
 Define exactly **one Metriqen-owned code/serving-policy variation**,

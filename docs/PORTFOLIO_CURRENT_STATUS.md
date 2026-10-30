@@ -1,10 +1,10 @@
-# Metriqen — Current evidence and limitations (2026-10-29 review)
+# Metriqen — Current evidence and limitations (2026-10-30 review)
 
 ## Current source/owner gate status (supersedes older dated milestones)
 
 **Portfolio v1.0: NO-GO.** At this review, current
-[main `aae5c1c`](https://github.com/naim-munshi/metriqen-llm-serving-optimization/commit/aae5c1c213386cbaec4e9ed3e16ef138c13157bc)
-(PR [#169](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/169))
+[main `dd5c3f4`](https://github.com/naim-munshi/metriqen-llm-serving-optimization/commit/dd5c3f4cf209150abed9a6969187539cda35cfa9)
+(PR [#171](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/171))
 completed **13/13 post-merge GitHub CI jobs**. Open pull requests: 0.
 The original source/docs are published under [MIT](../LICENSE), but
 repository `main` was still **unprotected**, active rulesets: 0,
@@ -16,8 +16,12 @@ is the operative to-do checklist. It does **not** repeat operator-observed
 P1 native/Go/alias lifecycle PASS, the P1 private digest-consistency PASS,
 or P5 real Ollama outage/HTTP502 → restored inference and real SSE
 `[DONE]`/admission-release PASS. PR #169 added **synthetic** upstream
-error-response redaction regression tests; the actual Mac HTTP502
-*response body* and real SSE client-disconnect cleanup are still pending.
+error-response redaction regression tests; PR #171 added real **local HTTP/TCP
+stream-disconnect integration** tests on a fake upstream for both 1 KiB and 4
+KiB relay buffers, with exact slot-release and follow-up-chat accounting.
+These source tests do **not** substitute for the actual Mac HTTP502
+*response body* or real Ollama client-disconnect acceptance; both remain
+pending.
 Historical P2 large A/B/A/B drift/AC contamination and P3 negative FIFO
 goodput tradeoff remain **valid warnings, not speedups**.
 P4's headless Chromium CI at 320px/390px on all three UIs is not real

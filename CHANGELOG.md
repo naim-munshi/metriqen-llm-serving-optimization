@@ -8,6 +8,22 @@ There is **no tagged Portfolio v1.0 release yet**. Do not interpret this
 document as a claim of commercial SaaS readiness, trusted token billing,
 independent hardware attestation or a production security audit.
 
+## October 30 — P5 real TCP source regression and P3 chosen candidate handoff (unreleased)
+
+- [PR #171](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/171)
+  added a **real loopback HTTP socket** client-disconnect test in Go with
+  a synthetic local upstream. It checks upstream cancellation, one
+  gateway admission returned to idle, exact outcome counters and one
+  subsequent JSON completion in **both default 1 KiB and opt-in 4 KiB**
+  SSE relay modes. After fixing Go formatting, PR and main CI passed
+  all 13 jobs. This is not a native Mac/Ollama test.
+- The short Mac acceptance handoff now selects the existing
+  Metriqen-owned [SSE read-buffer candidate](docs/benchmarks/sse-relay-buffer-candidate.md)
+  and strict [operator A1/B1/A2/B2 protocol](docs/benchmarks/sse-abab-ac-operator.md)
+  as a concrete **P3 experiment to attempt**, not a validated speedup.
+  Genuine AC/slots/thermals, output quality, latency/TTFT/RPS,
+  causal attribution and owner signoff remain open.
+
 ## October 29 — source acceptance/handoff closeout (unreleased)
 
 - [PR #169](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/169)
