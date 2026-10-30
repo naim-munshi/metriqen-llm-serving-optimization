@@ -8,9 +8,9 @@
 
 **Final closeout audit (2026-10-27):** [Owner evidence and release NO-GO decision](docs/operations/v1-final-closeout.md). The [current evidence matrix](docs/PORTFOLIO_CURRENT_STATUS.md) records actual local behavior, observed benchmark weaknesses and source-level limitations; the [October 14 historical implementation status](docs/PROJECT_STATUS.md) is not the current matrix. **P1–P6 still require human-reviewed evidence and are not signed off.**
 
-**Current source milestone (October 30, 2026):** [PR #171](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/171)
-merged at [`dd5c3f4`](https://github.com/naim-munshi/metriqen-llm-serving-optimization/commit/dd5c3f4cf209150abed9a6969187539cda35cfa9),
-after **13/13 green final PR-head CI jobs** (also 13/13 on the exact post-merge `main` SHA). This includes source Go/Python tests, ephemeral PostgreSQL/Redis CI, headless Chromium checks across three local UIs, and new Go **real loopback HTTP/TCP** client-disconnect tests (synthetic backend), for 1 KiB and 4 KiB SSE relay-buffer modes. Source tests include opt-in
+**Current source milestone (October 30, 2026):** [PR #172](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/172)
+merged at [`7c403b9`](https://github.com/naim-munshi/metriqen-llm-serving-optimization/commit/7c403b99ec59d4aec10dce457f388e82b1935745),
+after **13/13 green final PR-head CI jobs** (also 13/13 on the exact post-merge `main` SHA). This includes Go/Python tests, ephemeral PostgreSQL/Redis CI, headless Chromium checks across three local UIs, synthetic-backend real loopback TCP cancellation tests in both SSE buffer modes and the chosen P3 controlled experiment handoff. Source tests include opt-in
 local P5 SSE-cancellation verification and earlier model lifecycle guards,
 but **cannot certify a Mac run, physical GPU execution, p95/TTFT,
 browser/mobile UX or production tenant security**. Live gate-by-gate
@@ -18,9 +18,14 @@ operator evidence (including the new real outage/recovery and successful
 single SSE/admission release observations) is tracked in the
 [current status matrix](docs/PORTFOLIO_CURRENT_STATUS.md) and
 [issue #81](https://github.com/naim-munshi/metriqen-llm-serving-optimization/issues/81).
-The new [P5 cancellation tool](docs/operations/p5-stream-cancel-recovery.md)
-has **not yet** been run on the Mac; do not confuse its synthetic CI with
-the earlier verified real HTTP outage. At the last GitHub inspection,
+**New October 31 operator observation:** the [real Mac P5 streaming-client cancellation tool](docs/operations/p5-stream-cancel-recovery.md)
+ran with `--execute` and a previously pinned private model digest. The
+owner's Terminal reported **PASS** for client-cancellation counters, released
+admission slots and a recovered follow-up JSON inference; a private sanitized
+report was saved, but GitHub has **not inspected its bytes**. Separately,
+authentic Safari 390×844 screenshots show readable Operations and Model Manager
+initial views. This is not proof of real Mac 320px, VoiceOver/keyboard walkthrough,
+a public media release, 502 body inspection or production tenant security. At the last GitHub inspection,
 `main` remained **unprotected**; follow
 [owner branch settings instructions](docs/operations/repository-branch-hygiene.md).
 MIT license added for repository-owned software (not weights/datasets); actual narrow-screen/keyboard demo and approved
