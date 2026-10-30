@@ -68,6 +68,15 @@ the sanitized `reports/local/p5-cancel-recovery-*.json` result.
 **Fail closed** if the model was evicted, another client is running or
 the cancellation did not occur; do not fabricate a PASS.
 
+**October 30 source-level enhancement:** Go CI also exercises an actual
+ephemeral loopback HTTP client **TCP disconnect in the middle of an SSE
+stream**. Its fake upstream must observe cancellation, the gateway must
+release admission and reconcile metrics, and a subsequent JSON completion
+must succeed, for both default 1024-byte and opted-in 4096-byte relay
+buffer sizes. This is stronger than a synthetic canceled request context,
+but it is **not** the real Mac/Ollama cancellation smoke above. The
+operator's one real local test remains necessary for P5 signoff.
+
 Go source CI now explicitly tests non-2xx and unavailable-upstream
 **sanitized HTTP error envelopes** using a fake local backend. That
 is useful source-level error-body evidence, **not** the actual Mac
