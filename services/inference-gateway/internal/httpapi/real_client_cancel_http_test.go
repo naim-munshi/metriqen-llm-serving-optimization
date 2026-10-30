@@ -138,7 +138,7 @@ func TestRealHTTPClientDisconnectReleasesGatewayAndUpstreamThenRecovers(t *testi
 			}
 			defer recovered.Body.Close()
 			var completion struct {
-				Model string `json:"model"`
+				Model   string `json:"model"`
 				Choices []struct {
 					Message struct {
 						Content string `json:"content"`
