@@ -1,10 +1,10 @@
-# Metriqen — Current evidence and limitations (2026-10-30 review)
+# Metriqen — Current evidence and limitations (2026-10-31 review)
 
 ## Current source/owner gate status (supersedes older dated milestones)
 
 **Portfolio v1.0: NO-GO.** At this review, current
-[main `dd5c3f4`](https://github.com/naim-munshi/metriqen-llm-serving-optimization/commit/dd5c3f4cf209150abed9a6969187539cda35cfa9)
-(PR [#171](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/171))
+[main `7c403b9`](https://github.com/naim-munshi/metriqen-llm-serving-optimization/commit/7c403b99ec59d4aec10dce457f388e82b1935745)
+(PR [#172](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/172))
 completed **13/13 post-merge GitHub CI jobs**. Open pull requests: 0.
 The original source/docs are published under [MIT](../LICENSE), but
 repository `main` was still **unprotected**, active rulesets: 0,
@@ -19,13 +19,23 @@ or P5 real Ollama outage/HTTP502 → restored inference and real SSE
 error-response redaction regression tests; PR #171 added real **local HTTP/TCP
 stream-disconnect integration** tests on a fake upstream for both 1 KiB and 4
 KiB relay buffers, with exact slot-release and follow-up-chat accounting.
-These source tests do **not** substitute for the actual Mac HTTP502
-*response body* or real Ollama client-disconnect acceptance; both remain
-pending.
+These source tests do **not** attest a real Ollama cancellation by
+themselves. **On October 31**, the operator separately ran the real Mac
+bounded client-disconnect/recovery CLI with `--execute` and private pinned
+digest; its Terminal reported **PASS** for gateway cancellation,
+admission-slot release and recovered JSON inference, with a private
+sanitized report saved. The report bytes have not been independently
+inspected. **Actual Mac HTTP502 error *body* redaction is still unverified**;
+server-side native Ollama task termination is not attested.
 Historical P2 large A/B/A/B drift/AC contamination and P3 negative FIFO
 goodput tradeoff remain **valid warnings, not speedups**.
 P4's headless Chromium CI at 320px/390px on all three UIs is not real
-Safari/mobile/keyboard approval. P6 owner license-choice is settled;
+Safari/mobile/keyboard approval. Owner-supplied **real Safari 390×844**
+screenshots of Operations and Model Manager show readable headers/cards
+and initial controls without apparent page-wide overflow. The remaining
+below-fold, internal horizontal scrolling, 320px real Safari, Tab/Shift+Tab,
+VoiceOver, signed-in model-management journey and sanitized public media
+review have not been independently demonstrated. P6 owner license-choice is settled;
 admin branch rules, approved real media, final acceptance and tag are not.
 
 **Current release blockers:**
@@ -33,8 +43,9 @@ P1 final owner-approved authentic browser media;
 P2 AC/slot/thermal-controlled prospective A1/B1/A2/B2;
 P3 one reproducibly measured Metriqen-owned code/policy change (or
 explicitly revised contract and accurately qualified negative study);
-P4 genuine Mac Safari 320px/390px, keyboard/VoiceOver;
-P5 real client-cancel and any enabled identity/tenant paths claimed;
+P4 genuine Mac Safari 320px and full 390px scrolling/keyboard/VoiceOver;
+P5 actual 502 error-body inspection, and configured identity/tenant
+authorization only if those opt-in features are claimed;
 P6 enforced branch rules, audited approved artifacts, release-SHA CI
 and explicit owner signoff. Keep all localhost services private.
 
