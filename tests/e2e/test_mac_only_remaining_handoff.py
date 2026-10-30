@@ -32,7 +32,10 @@ class MacOnlyHandoffContracts(unittest.TestCase):
             else:
                 self.assertIn(phrase.casefold(), page.casefold(), phrase)
         self.assertIn("Do not publish private screenshots", page)
-        self.assertIn("one still-missing real client-cancellation run", page)
+        self.assertIn("real client cancellation observed PASS; do not repeat", page)
+        self.assertIn("320px", page)
+        self.assertIn("390×844", page)
+        self.assertIn("not inspected by GitHub", page)
 
     def test_every_current_entrypoint_links_remaining_runbook(self):
         paths = (
@@ -59,6 +62,36 @@ class MacOnlyHandoffContracts(unittest.TestCase):
             "http.StatusServiceUnavailable",
         ):
             self.assertIn(fragment, go)
+
+    def test_current_operator_observations_do_not_self_approve_release(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        status = (ROOT / "docs/PORTFOLIO_CURRENT_STATUS.md").read_text(
+            encoding="utf-8")
+        acceptance = (ROOT / "docs/PORTFOLIO_V1_ACCEPTANCE.md").read_text(
+            encoding="utf-8")
+        current = status.split("## Historical 2026-10-28", 1)[0]
+        for doc in (readme, current, acceptance):
+            self.assertIn("October 31", doc)
+            self.assertIn("client", doc.lower())
+        self.assertIn("390×844", readme)
+        self.assertIn("320px", current)
+        self.assertIn("private", current)
+        self.assertIn("NO-GO", current)
+        self.assertIn("branch", current.lower())
+        self.assertNotIn("P4 final acceptance PASS", current)
+        self.assertNotIn("production tenant security verified", current)
+
+    def test_acceptance_table_keeps_exact_six_three_column_gate_rows(self):
+        # A multiline Markdown table cell silently destroys the P1-P6
+        # source-of-truth table even when CI documentation keywords pass.
+        doc = (ROOT / "docs/PORTFOLIO_V1_ACCEPTANCE.md").read_text(
+            encoding="utf-8")
+        rows = [line for line in doc.splitlines()
+                if line.startswith("| **P") and ". " in line[:13]]
+        self.assertEqual(len(rows), 6, "One gate was lost or split")
+        for index, row in enumerate(rows, 1):
+            self.assertTrue(row.startswith(f"| **P{index}."), row[:70])
+            self.assertEqual(row.count("|"), 4, f"P{index}: broken Markdown table")
 
     def test_readiness_still_fails_closed_and_license_is_not_release(self):
         from tools.demo.portfolio_readiness import collect_source_status

@@ -8,6 +8,26 @@ There is **no tagged Portfolio v1.0 release yet**. Do not interpret this
 document as a claim of commercial SaaS readiness, trusted token billing,
 independent hardware attestation or a production security audit.
 
+## October 31 — operator-reported real P5 cancel and Safari mobile observations (unreleased)
+
+- Following a successful real Mac `scripts/start-local-demo.sh` startup of
+  native Ollama, Go and FastAPI, the owner ran the **real**
+  `tools.demo.p5_stream_cancel_recovery --execute` with the previously
+  verified private 64-character model digest. Their terminal returned
+  **PASS** for one client-canceled streaming attempt, released process-local
+  admission counters and a new successfully completed JSON inference. The
+  sanitized local report stayed private; its bytes were not independently
+  reviewed and this is not an upstream native process termination claim.
+- Actual Safari Responsive Design Mode **390×844** screenshots of the
+  original Model Manager and Go Operations console showed usable initial
+  card/controls layout and healthy local process/upstream status. This does
+  **not** certify genuine **320px**, complete scroll/keyboard/VoiceOver
+  behavior, logged-in transitions or owner-approved public demo media.
+- License MIT, 13 source CI checks and reproducible P2/P3 tools are in
+  place; the owner must still finish controlled Mac experiments, remaining
+  P4/P5 checks, GitHub branch protection and explicit P1–P6 signoff before
+  the `v1.0.0` tag. No source-only evidence should substitute for those.
+
 ## October 30 — P5 real TCP source regression and P3 chosen candidate handoff (unreleased)
 
 - [PR #171](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/171)

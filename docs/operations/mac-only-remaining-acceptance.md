@@ -1,4 +1,4 @@
-# Metriqen — only the remaining Mac/owner work (October 29, 2026)
+# Metriqen — only the remaining Mac/owner work (October 31, 2026)
 
 **This is the short handoff after the GitHub-only work.** Complete the
 independent [Portfolio P1–P6 contract](../PORTFOLIO_V1_ACCEPTANCE.md)
@@ -21,9 +21,20 @@ connects to the operator's computer from GitHub or a phone.
   upstream HTTP200 and recovered nonstream chat. The three private
   baseline/true-outage/recovered reports passed **offline HTTP-health
   consistency**. A separate real SSE request returned nonempty delta,
-  `[DONE]` and exact counters with idle slots released. **Not tested
-  by these results:** sanitized 502 *response body*, client-disconnect
-  cleanup, OIDC/PG/Redis authorization configured on the Mac.
+  `[DONE]` and exact counters with idle slots released. **New October 31
+  operator-reported real run:** `p5_stream_cancel_recovery --execute`
+  returned PASS for stream client cancellation accounting, released slots
+  and recovered subsequent JSON chat; sanitized report stored privately
+  (not inspected by GitHub). **Not verified:** real 502 error *body*,
+  upstream native task termination, OIDC/PG/Redis configured tenant
+  authorization on the Mac.
+- **P4 observed real browser:** separate original Safari Responsive
+  Design Mode **390×844** initial screenshots of Model Manager and Go
+  Operations have been owner-provided; the headers, cards and key controls
+  are readable, with no obvious first-screen clipping. **Still missing:**
+  real 320px views, below-fold scroll/navigation and keyboard/VoiceOver
+  acceptance, approved public screenshot/video and complete operator
+  click-through.
 - **GitHub-source/P4 synthetic CI:** pinned Go race/vet, ephemeral
   PostgreSQL/Redis, security/unit tests, and Chromium rendering of all
   three console UIs at 320/390px plus Go Operations at 768/1440px.
@@ -49,10 +60,15 @@ connects to the operator's computer from GitHub or a phone.
    and wall-clock date. Ollama.app and a separate `ollama serve`
    must **not both** own TCP 11434.
 
-## 1. P5 — one still-missing real client-cancellation run
+## 1. P5 — real client cancellation observed PASS; do not repeat
 
-Already-built tool, **dry-run first** (no network), then optional
-explicit one-stream cancellation **only on an idle Mac gateway**:
+The operator's **October 31 Mac** invocation of the existing bounded
+client-cancellation tool reported PASS. A private sanitized report was
+created. The report bytes have not been independently reviewed, and
+end-to-end native upstream task termination is not proven. **Do not repeat
+this test merely to create another PASS.** For reproducibility, the
+already-built tool has a non-networked dry-run default and an explicit
+opt-in execution path, but it is not another mandatory Mac task:
 
 ```sh
 python3 -m tools.demo.p5_stream_cancel_recovery
@@ -74,8 +90,9 @@ stream**. Its fake upstream must observe cancellation, the gateway must
 release admission and reconcile metrics, and a subsequent JSON completion
 must succeed, for both default 1024-byte and opted-in 4096-byte relay
 buffer sizes. This is stronger than a synthetic canceled request context,
-but it is **not** the real Mac/Ollama cancellation smoke above. The
-operator's one real local test remains necessary for P5 signoff.
+but it is **not** the real Mac/Ollama cancellation smoke above. The new
+Mac operator-reported real test now also exists; full P5 security review
+remains separate.
 
 Go source CI now explicitly tests non-2xx and unavailable-upstream
 **sanitized HTTP error envelopes** using a fake local backend. That
@@ -90,12 +107,15 @@ redo the prior Ollama outage merely for another screenshot.
 1. Safari: `http://127.0.0.1:8081/console` (Go Operations) and
    `http://127.0.0.1:8000/console/models` (separate operator
    Model Manager). Never paste/share the operator token.
-2. Safari → Settings → Advanced → enable **Show features for web
+2. **390×844 initial-screen snapshots of both UIs were already supplied
+   and reviewed on October 31**; do not recapture them without a UI change.
+   Safari → Settings → Advanced → enable **Show features for web
    developers**, then Develop → Enter Responsive Design Mode.
-   Capture **390px and 320px** for each UI; verify no clipped cards,
+   Still capture **320px** for each UI, and inspect below-fold and
+   horizontal navigation scroll at **both 390px and 320px**; verify no clipped cards,
    controls, horizontal whole-page scroll or unreadable text. The
    navigation rail may scroll horizontally by design.
-3. With real keyboard, press **Tab, Shift+Tab, Enter**: test the
+3. With the real keyboard, press **Tab, Shift+Tab, Enter**: test the
    skip-to-main link, model section navigation, Pause auto/Refresh
    and focus visibility. Test VoiceOver if available; note any
    limitations, including optional account console HTTP404 if
@@ -107,6 +127,17 @@ redo the prior Ollama outage merely for another screenshot.
    regression is found.
 
 ## 3. P2 — the missing prospective A1/B1/A2/B2 experiment
+
+**Next non-destructive Mac action:** before modifying an existing
+Ollama/Gateway process, collect a *read-only* version/power/loaded-model
+and prospective preflight plan. On October 31 the operator's Ollama server
+reported **0.40.11** while CLI reported **0.30.8**; do not assume both
+binaries or a selected parallel-slot policy match until verified.
+Keep original `reports/local` history and never force-reset to
+re-run the experiment. Source CI cannot attest this Mac's actual model
+runtime or thermal conditions.
+
+
 
 Follow [one-phase guarded Mac collector](../benchmarks/phase-runner.md)
 and [A/B/A/B replication](../benchmarks/abab-replication.md). These
