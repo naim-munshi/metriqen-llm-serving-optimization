@@ -32,7 +32,11 @@ The CI/source-only `make portfolio-ci` gate does not satisfy this list.
 After the October 28–29 operator checks and GitHub source work, use the
 [short **only remaining Mac/owner tasks** handoff](operations/mac-only-remaining-acceptance.md)
 to avoid needlessly repeating previously verified P1/P5 procedures.
-For P2, the [guarded per-phase operator collector](benchmarks/phase-runner.md)
+For P2, the [safe October 31 battery/parallelism blocker guide](operations/mac-benchmark-blocker.md)
+records the operator's latest `preflight_blocked` result; no clean
+A1/B1/A2/B2 evidence exists yet. The new read-only diagnostic does not
+turn a blocked session into a PASS. The
+[guarded per-phase operator collector](benchmarks/phase-runner.md)
 reduces repeat commands but does not configure Ollama slots or replace four
 prospective operator-observed phases and strict binding.
 
