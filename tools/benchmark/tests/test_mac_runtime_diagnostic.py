@@ -97,8 +97,8 @@ class Diagnostics(unittest.TestCase):
         def fake_run(argv, **kwargs):
             if argv == ["ollama", "--version"]:
                 return SimpleNamespace(returncode=0,
-                    stdout="ollama version is 0.40.11\\n",
-                    stderr="Warning: client version is 0.30.8\\n")
+                    stdout="ollama version is 0.40.11\n",
+                    stderr="Warning: client version is 0.30.8\n")
             return SimpleNamespace(returncode=0, stdout="USER_SECRET=DO_NOT_PRINT",
                                    stderr="TOKEN=DO_NOT_PRINT")
         with patch.object(diag.subprocess, "run", side_effect=fake_run):
