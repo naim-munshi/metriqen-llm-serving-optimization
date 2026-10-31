@@ -38,6 +38,19 @@ VoiceOver, signed-in model-management journey and sanitized public media
 review have not been independently demonstrated. P6 owner license-choice is settled;
 admin branch rules, approved real media, final acceptance and tag are not.
 
+**Latest P2 real-Mac blocker (October 31):** `pmset` reported
+Battery Power (50%, discharging) and the strict prospective
+`tools.benchmark.preflight --expected-parallelism 1` returned
+`preflight_blocked`: AC not confirmed, `OLLAMA_NUM_PARALLEL`
+unset/not verified and runtime slots not attested. The native server
+API reported Ollama 0.40.11; an earlier CLI output warned client
+0.30.8. A currently unloaded model is not a missing installation.
+Use the new **read-only, redacted** `python3 -m
+tools.benchmark.mac_runtime_diagnostic` and
+[safe diagnostic/unblock runbook](operations/mac-benchmark-blocker.md).
+This does not weaken the strict preflight or claim a measured P2/P3
+result.
+
 **Current release blockers:**
 P1 final owner-approved authentic browser media;
 P2 AC/slot/thermal-controlled prospective A1/B1/A2/B2;
