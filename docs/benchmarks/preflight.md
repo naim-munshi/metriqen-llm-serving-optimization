@@ -6,6 +6,20 @@ private JSON snapshot before each new experiment phase. It does **not** launch
 Ollama, load a model, issue inference requests, change parallelism, start a
 benchmark, authenticate hardware, or inspect actual Ollama runtime slots.
 
+## Known blocked operator case (October 31, 2026)
+
+The Mac's real preflight reported Battery Power and absent
+`OLLAMA_NUM_PARALLEL`, so the prospective P2 A1 phase must **not**
+start. The server API reported 0.40.11; an earlier local CLI warned
+client 0.30.8. Use
+`python3 -m tools.benchmark.mac_runtime_diagnostic` to report only
+safe derived process/power/version status, without printing an entire
+`ps eww` environment. Read the
+[Mac diagnostic and safe owner-controlled resolution](../operations/mac-benchmark-blocker.md).
+It intentionally never marks benchmark readiness. The existing strict
+`tools.benchmark.preflight` continues to require an explicitly
+configured Ollama serve process and still never attests `n_slots`.
+
 ## Requirements
 
 - macOS developer host on AC power; do not start a new benchmark on battery.
