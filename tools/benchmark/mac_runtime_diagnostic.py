@@ -41,7 +41,7 @@ def command(argv: list[str]) -> str | None:
     # only for this exact non-sensitive version command; never append
     # stderr from ps/env or lsof, which may contain private details.
     if argv == ["ollama", "--version"]:
-        return (res.stdout + "\\n" + res.stderr)[:8192]
+        return (res.stdout + "\n" + res.stderr)[:8192]
     return res.stdout
 
 
