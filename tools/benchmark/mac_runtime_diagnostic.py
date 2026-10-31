@@ -35,7 +35,14 @@ def command(argv: list[str]) -> str | None:
                              timeout=5, check=False)
     except (OSError, subprocess.TimeoutExpired):
         return None
-    return res.stdout if res.returncode == 0 else None
+    if res.returncode != 0:
+        return None
+    # Ollama's version-skew warning may be emitted on stderr. Consume it
+    # only for this exact non-sensitive version command; never append
+    # stderr from ps/env or lsof, which may contain private details.
+    if argv == ["ollama", "--version"]:
+        return (res.stdout + "\\n" + res.stderr)[:8192]
+    return res.stdout
 
 
 def local_json(url: str) -> dict | None:
