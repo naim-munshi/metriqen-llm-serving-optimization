@@ -8,6 +8,27 @@ There is **no tagged Portfolio v1.0 release yet**. Do not interpret this
 document as a claim of commercial SaaS readiness, trusted token billing,
 independent hardware attestation or a production security audit.
 
+## October 31 — full repository review, readable README and P2 diagnostic (unreleased)
+
+- Audited the complete 420-entry repository source tree, v1 versus
+  future-v2 issue scope, 13 CI jobs, local/optional security boundaries,
+  README navigation, known benchmark limitations and remaining owner
+  obligations. Reorganized the README's opening as a concise current
+  v1 NO-GO decision and direct operator evidence/next-action links;
+  detailed architecture and historical benchmark analysis remain.
+- Added **read-only** `tools.benchmark.mac_runtime_diagnostic`, with
+  synthetic fixture tests for AC/Battery, Ollama listener ambiguity,
+  missing configured parallelism, CLI/server version warning, loaded
+  versus installed model and redacted process output. This CLI never
+  issues inference or changes running services, and deliberately never
+  marks P2/P3 as benchmark-ready.
+- The actual Mac's October 31 P2 preflight was **blocked** on Battery
+  Power, missing explicit `OLLAMA_NUM_PARALLEL` and absent runtime
+  `n_slots` attestation; 0.40.11 server/older 0.30.8 CLI warning
+  also needs private owner diagnosis. Added the
+  [safe unblock guide](docs/operations/mac-benchmark-blocker.md).
+  No benchmark, speedup or release acceptance was invented.
+
 ## October 31 — operator-reported real P5 cancel and Safari mobile observations (unreleased)
 
 - Following a successful real Mac `scripts/start-local-demo.sh` startup of

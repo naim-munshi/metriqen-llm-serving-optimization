@@ -1,51 +1,31 @@
 # Metriqen
 
-**Local LLM inference gateway, admission scheduling, and reproducible serving experiments.**
+**Local LLM inference gateway, admission control and reproducible serving experiments.** Go + FastAPI + Ollama, designed as a transparent **local AI infrastructure engineering portfolio**, not an internet-facing SaaS or new inference kernel.
 
 [![CI](https://github.com/naim-munshi/metriqen-llm-serving-optimization/actions/workflows/ci.yml/badge.svg)](https://github.com/naim-munshi/metriqen-llm-serving-optimization/actions/workflows/ci.yml)
+[MIT License](LICENSE) · [System architecture](#system-architecture) · [Engineering case study](docs/PORTFOLIO_CASE_STUDY.md) · [Actual status](docs/PORTFOLIO_CURRENT_STATUS.md) · [Unreleased changelog](CHANGELOG.md)
 
-**Engineering case study:** [architecture, implementation decisions, measured results and trade-offs](docs/PORTFOLIO_CASE_STUDY.md) · [Unreleased changelog](CHANGELOG.md)
+## Current release decision — October 31, 2026
 
-**Final closeout audit (2026-10-27):** [Owner evidence and release NO-GO decision](docs/operations/v1-final-closeout.md). The [current evidence matrix](docs/PORTFOLIO_CURRENT_STATUS.md) records actual local behavior, observed benchmark weaknesses and source-level limitations; the [October 14 historical implementation status](docs/PROJECT_STATUS.md) is not the current matrix. **P1–P6 still require human-reviewed evidence and are not signed off.**
+**Portfolio v1.0 is not released yet: NO-GO pending owner evidence.**
+**Current source milestone (October 31, 2026):** [PR #173](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/173), merged as [`c14b1fb`](https://github.com/naim-munshi/metriqen-llm-serving-optimization/commit/c14b1fb07a33922aae631a449ebcd287c914d3a1), after **13/13 green final PR-head CI jobs**; the same 13/13 checks passed on that exact post-merge `main` SHA. Source CI **cannot certify a Mac run**, hardware acceleration, actual TTFT/p95 or production tenant isolation.
 
-**Current source milestone (October 30, 2026):** [PR #172](https://github.com/naim-munshi/metriqen-llm-serving-optimization/pull/172)
-merged at [`7c403b9`](https://github.com/naim-munshi/metriqen-llm-serving-optimization/commit/7c403b99ec59d4aec10dce457f388e82b1935745),
-after **13/13 green final PR-head CI jobs** (also 13/13 on the exact post-merge `main` SHA). This includes Go/Python tests, ephemeral PostgreSQL/Redis CI, headless Chromium checks across three local UIs, synthetic-backend real loopback TCP cancellation tests in both SSE buffer modes and the chosen P3 controlled experiment handoff. Source tests include opt-in
-local P5 SSE-cancellation verification and earlier model lifecycle guards,
-but **cannot certify a Mac run, physical GPU execution, p95/TTFT,
-browser/mobile UX or production tenant security**. Live gate-by-gate
-operator evidence (including the new real outage/recovery and successful
-single SSE/admission release observations) is tracked in the
-[current status matrix](docs/PORTFOLIO_CURRENT_STATUS.md) and
-[issue #81](https://github.com/naim-munshi/metriqen-llm-serving-optimization/issues/81).
-**New October 31 operator observation:** the [real Mac P5 streaming-client cancellation tool](docs/operations/p5-stream-cancel-recovery.md)
-ran with `--execute` and a previously pinned private model digest. The
-owner's Terminal reported **PASS** for client-cancellation counters, released
-admission slots and a recovered follow-up JSON inference; a private sanitized
-report was saved, but GitHub has **not inspected its bytes**. Separately,
-authentic Safari 390×844 screenshots show readable Operations and Model Manager
-initial views. This is not proof of real Mac 320px, VoiceOver/keyboard walkthrough,
-a public media release, 502 body inspection or production tenant security. At the last GitHub inspection,
-`main` remained **unprotected**; follow
-[owner branch settings instructions](docs/operations/repository-branch-hygiene.md).
-MIT license added for repository-owned software (not weights/datasets); actual narrow-screen/keyboard demo and approved
-public media, controlled P2/P3 evidence and `v1.0.0` release are pending.
+**What was actually observed on the operator's Mac:** pinned `llama3.2:1b` native/Go JSON+SSE, real 11-check model lifecycle and rollback, P5 true Ollama outage/recovery with resumed inference, real client SSE-cancellation/admission-slot release and one recovered JSON completion (operator terminal PASS, private report not independently inspected); authentic Safari Responsive Design Mode **390×844** first-screen screenshots of Operations and Model Manager. These are **not** full mobile/keyboard/media, production-security or benchmark signoffs.
 
-The new [synthetic Chromium P4 browser test](docs/operations/p4-synthetic-responsive-browser-qa.md) renders the actual checked-in Operations UI at 320/390/768/1440px and both FastAPI consoles at 320/390px, asserting layout and keyboard behavior against intercepted fake data. **This does not replace genuine Mac Safari mobile screenshots, VoiceOver, real-model browser acceptance or owner-approved release media.**
+**The latest P2 Mac preflight remains BLOCKED:** the machine was on **Battery Power**, Ollama server reported `0.40.11` while the CLI earlier warned of client `0.30.8`, the actual `OLLAMA_NUM_PARALLEL` configuration was not confirmed, and live `n_slots` remained unverified. **Do not start or fabricate a P2/P3 experiment on these conditions.** No local process or approved model should be restarted by a GitHub action.
 
-**P1 deployment lifecycle acceptance:** [read-only preflight and explicit local Stop/Start/Promote/Rollback command](docs/operations/local-deployment-acceptance.md), with synthetic CI contract coverage. The operator has now reported real Mac Stop/Start/Promote/Rollback and matching private smoke/lifecycle consistency PASS, with genuine Safari snapshots of the final `assistant` routing state; private evidence remains unpublished and release/browser accessibility sign-off is still pending.
+**Fast next action (safe, read-only):**
+```bash
+python3 -m tools.benchmark.mac_runtime_diagnostic
+```
+This prints a sanitized blocker report, **not benchmark approval**.
+[Owner-specific Mac unblock protocol](docs/operations/mac-benchmark-blocker.md) · [Only remaining Mac/owner steps](docs/operations/mac-only-remaining-acceptance.md) · [Six independent P1–P6 acceptance gates](docs/PORTFOLIO_V1_ACCEPTANCE.md) · [Evidence tracker #81](https://github.com/naim-munshi/metriqen-llm-serving-optimization/issues/81)
 
-**Read-only release readiness audit:** `python3 -m tools.demo.portfolio_readiness` reports **all six human-review gates as blocked**, exiting with code `2` to prevent synthetic/source-only CI from automatically approving a release. [Exact source-only audit scope](docs/operations/portfolio-release-readiness.md).
+**Still required before any `v1.0.0` tag:** new AC/slots/thermal-controlled real P2 A1/B1/A2/B2; a Metriqen-owned P3 1 KiB vs 4 KiB SSE before/after with separate quality and honest negative-result reporting; genuine Safari 320px, complete keyboard/VoiceOver and owner-redacted public media; any explicitly advertised tenant/security acceptance; actual GitHub administrator-enforced `main` branch rules, final evidence review and explicit approval. Main remained **unprotected** in the latest inspection. [Branch protection guide](docs/operations/repository-branch-hygiene.md).
 
-**No-AC-power, read-only Mac reviewer preflight:** `python3 -m tools.demo.local_readonly_review` is an offline plan; explicit `--execute` sends eight exact localhost GET checks against already-running Ollama, Go operations and FastAPI Model Manager, including an **anonymous HTTP 401 guard** for the model registry. No inference, credentials, OAuth redirects or process changes. See the [private-report and safety runbook](docs/operations/local-readonly-review-preflight.md). **This cannot approve real Safari P4 or security P5 acceptance.**
+The historical [October 27 release closeout](docs/operations/v1-final-closeout.md) and [October 14 development status](docs/PROJECT_STATUS.md) are dated snapshots, not today's evidence. See the [real Mac handoff](docs/operations/portfolio-final-mac-handoff.md). For safe existing-local-service checks only, use the [readonly reviewer preflight](docs/operations/local-readonly-review-preflight.md); its synthetic CI and real local health checks cannot approve P4/P5.
 
-**Mac/operator final handoff:** start with the [short October 29 **only remaining Mac/owner acceptance** checklist](docs/operations/mac-only-remaining-acceptance.md), which preserves previously observed P1/P5 PASS evidence without redundant runs. The [detailed P1–P6 operator procedures](docs/operations/portfolio-final-mac-handoff.md) remain available. A runbook is not an attestation that these remaining tests have passed.
-
-**Portfolio v1.0 release criteria:** [six objective gates](docs/PORTFOLIO_V1_ACCEPTANCE.md) · [real local Ollama acceptance checker](docs/operations/real-ollama-portfolio-acceptance.md) · [three-console reviewer tour](docs/operations/portfolio-local-reviewer-journey.md). The existing [offline reviewer demo](docs/operations/offline-portfolio-demo.md) uses **synthetic** model replies; it is a CI contract test, not a real Ollama run. **Portfolio v1.0 is not released yet.**
-
-Metriqen is an **engineering research prototype** for understanding how concurrent requests, serving configuration, and workload design affect open-weight language model performance. It combines a Go inference gateway with Python benchmarking, answer-reference evaluation, and evidence-validation tools.
-
-**Current scope:** tested, **loopback-only** local inference with Ollama. Not a hosted API, a production service, a GPU batching engine, or a verified general-purpose inference optimizer.
+**Scope boundary:** optional v2 public HTTPS, Google OAuth login and actual GPU autoscaling remain separate roadmap work. The reviewed v1 does not advertise those as production-ready. Third-party Ollama models, datasets and dependencies retain their own license terms; the repository's MIT does not relicense weights.
 
 ## At a glance
 

@@ -128,14 +128,24 @@ redo the prior Ollama outage merely for another screenshot.
 
 ## 3. P2 — the missing prospective A1/B1/A2/B2 experiment
 
-**Next non-destructive Mac action:** before modifying an existing
-Ollama/Gateway process, collect a *read-only* version/power/loaded-model
-and prospective preflight plan. On October 31 the operator's Ollama server
-reported **0.40.11** while CLI reported **0.30.8**; do not assume both
-binaries or a selected parallel-slot policy match until verified.
-Keep original `reports/local` history and never force-reset to
-re-run the experiment. Source CI cannot attest this Mac's actual model
-runtime or thermal conditions.
+**Latest real Mac preflight: BLOCKED (October 31).** The operator's
+actual output reported **Battery Power, 50%, discharging**; Ollama server
+**0.40.11** (earlier CLI warning: client **0.30.8**), no explicitly
+verified `OLLAMA_NUM_PARALLEL=1`, no resident model at that instant and
+no independently attested worker `n_slots`. **Do not begin P2 or P3
+under these conditions.** None of this invalidates prior P1/P5 PASS.
+The next action is **diagnostic-only** (no model inference or restart):
+
+```sh
+python3 -m tools.benchmark.mac_runtime_diagnostic
+```
+
+Read the [exact power/version/Ollama listener and slot unblock protocol](mac-benchmark-blocker.md).
+The diagnostic always reports `benchmark_ready: false`, because
+runtime slot/thermal evidence remains a human operator obligation.
+Before any change to an existing process, identify its actual owner and
+preserve all `reports/local` evidence. A missing model in `ollama ps`
+does **not** mean a model download or retraining is required.
 
 
 
