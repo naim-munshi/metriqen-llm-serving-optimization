@@ -92,6 +92,22 @@ class Diagnostics(unittest.TestCase):
             with self.subTest(url=url), self.assertRaises(ValueError):
                 diag.local_json(url)
 
+    def test_version_warning_on_stderr_is_parsed_without_leaking_other_stderr(self):
+        from types import SimpleNamespace
+        def fake_run(argv, **kwargs):
+            if argv == ["ollama", "--version"]:
+                return SimpleNamespace(returncode=0,
+                    stdout="ollama version is 0.40.11\\n",
+                    stderr="Warning: client version is 0.30.8\\n")
+            return SimpleNamespace(returncode=0, stdout="USER_SECRET=DO_NOT_PRINT",
+                                   stderr="TOKEN=DO_NOT_PRINT")
+        with patch.object(diag.subprocess, "run", side_effect=fake_run):
+            result = diag.command(["ollama", "--version"])
+            self.assertIn("Warning: client version is 0.30.8", result)
+            self.assertEqual(diag.command(["ps", "eww", "-p", "4168"]),
+                             "USER_SECRET=DO_NOT_PRINT")
+            self.assertNotIn("TOKEN", diag.command(["ps", "eww", "-p", "4168"]))
+
     def test_cli_prints_only_diagnostic_data_and_remains_no_approval(self):
         with patch.object(diag, "collect", return_value=self.probe()):
             from io import StringIO
