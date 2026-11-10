@@ -263,7 +263,8 @@ jobs:
           node --test tests/ui/*.test.cjs
 
   p4-synthetic-chromium-responsive:
-    runs-on: ubuntu-latest
+    # Playwright 1.56.1 does not support ubuntu-26.04 runner images.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
