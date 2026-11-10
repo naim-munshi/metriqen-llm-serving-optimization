@@ -1,5 +1,17 @@
 # Metriqen
 
+**In 30 seconds:** A **local** LLM serving and experiment platform built in Go, FastAPI and Ollama. It implements JSON/SSE inference gateway, bounded admission control, cancellation, model lifecycle operations and reproducible serving/quality measurements on Mac M2.
+
+**Measured engineering result:** The published concurrency studies show throughput, latency and quality *trade-offs* and **do not establish a causal speedup from Metriqen**. This is a systems-engineering and benchmark portfolio, **not a faster inference kernel**.
+
+**Start here:** [Engineering case study](docs/PORTFOLIO_CASE_STUDY.md) · [Benchmark evidence and limitations](docs/benchmarks/experiments/2026-10-20-ollama-parallelism-abab.md) · [Run/setup instructions](docs/PORTFOLIO_CURRENT_STATUS.md).
+
+**Scope:** Local experimental system (not production SaaS). Optional OIDC, simulated GPU and internet-facing security features are **non-core/future** and must not obscure the serving benchmark. Mac runtime verification and acceptance gates remain outstanding.
+
+---
+
+## Detailed engineering record and acceptance gates
+
 **Local LLM inference gateway, admission control and reproducible serving experiments.** Go + FastAPI + Ollama, designed as a transparent **local AI infrastructure engineering portfolio**, not an internet-facing SaaS or new inference kernel.
 
 [![CI](https://github.com/naim-munshi/metriqen-llm-serving-optimization/actions/workflows/ci.yml/badge.svg)](https://github.com/naim-munshi/metriqen-llm-serving-optimization/actions/workflows/ci.yml)
